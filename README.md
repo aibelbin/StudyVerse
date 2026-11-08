@@ -4,7 +4,7 @@ A cozy top-down 3D town where you and your friends study together. Walk around w
 
 ## Run it locally
 
-Use two terminals:
+Requires Node 24 or newer (the server uses the built-in `node:sqlite`). Use two terminals:
 
 ```bash
 npm install
@@ -17,6 +17,8 @@ Open http://localhost:5173 and enter the invite code `cozy`.
 To see two players at once, use a normal window and a private window. Tabs in the same window share a device token, so the newer tab takes over from the older one.
 
 ## Production
+
+Run `npm install` (including dev dependencies) before building. When exposing the server, use a long random `INVITE_CODE`.
 
 ```bash
 npm run build                          # builds the client into dist/client
@@ -32,7 +34,7 @@ One process serves the page and the WebSocket (`/ws`). Profiles are stored in `d
 | WASD / arrows | walk |
 | E | sit / stand / say hi to someone nearby |
 | Space | start a study session (while seated) |
-| Esc | close dialogs |
+| Esc | close dialogs and the player card |
 
 ## Tests
 
