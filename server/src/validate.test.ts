@@ -4,6 +4,20 @@ import { cleanName, isLook, parseClientMsg } from './validate';
 const look = { body: '#aabbcc', skin: '#112233', hat: 'cap' };
 
 describe('parseClientMsg', () => {
+  it('parses use with an optional small integer arg', () => {
+    expect(parseClientMsg(JSON.stringify({ t: 'use', toyId: 'bell', action: 'ring', x: 1 }))).toEqual({ t: 'use', toyId: 'bell', action: 'ring' });
+    expect(parseClientMsg(JSON.stringify({ t: 'use', toyId: 'piano', action: 'note', arg: 7 }))).toEqual({ t: 'use', toyId: 'piano', action: 'note', arg: 7 });
+  });
+  it('rejects bad use messages', () => {
+    expect(parseClientMsg(JSON.stringify({ t: 'use', toyId: 'bell', action: 'explode' }))).toBeNull();
+    expect(parseClientMsg(JSON.stringify({ t: 'use', toyId: 'x'.repeat(41), action: 'ring' }))).toBeNull();
+    expect(parseClientMsg(JSON.stringify({ t: 'use', toyId: 'piano', action: 'note', arg: 8 }))).toBeNull();
+    expect(parseClientMsg(JSON.stringify({ t: 'use', toyId: 'piano', action: 'note', arg: 1.5 }))).toBeNull();
+  });
+  it('parses sit by slotId', () => {
+    expect(parseClientMsg(JSON.stringify({ t: 'sit', slotId: 'a' }))).toEqual({ t: 'sit', slotId: 'a' });
+    expect(parseClientMsg(JSON.stringify({ t: 'sit', seatId: 'a' }))).toBeNull();
+  });
   it('parses a valid move and drops extra fields', () => {
     expect(parseClientMsg(JSON.stringify({ t: 'move', x: 1, z: 2, facing: 0.5, anim: 'walk', evil: true }))).toEqual({
       t: 'move', x: 1, z: 2, facing: 0.5, anim: 'walk',

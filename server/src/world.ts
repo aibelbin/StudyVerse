@@ -1,13 +1,18 @@
 import {
   CHEER_FEED_COOLDOWN_MS, DOOR_PAD, FEED_ON_WELCOME, GRACE_MS, MAX_SPEED, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS,
 } from '../../shared/constants';
-import { clampToBounds, dist, inBox } from '../../shared/geometry';
+import { clampToBounds, dist, inBox, pointInPolygon } from '../../shared/geometry';
 import type { ClientMsg, ErrorCode, ServerMsg } from '../../shared/protocol';
-import { getScene, START_SCENE, START_SPAWN } from '../../shared/scenes';
+import { SCENES, START_SCENE, START_SPAWN } from '../../shared/scenes';
+import type { SceneDef, Slot, Toy } from '../../shared/scenes/types';
+import {
+  BOAT_SPEED, boatPoseAt, slotWorld, spinAt, type BoatPose, type ToyAction, type ToyState,
+} from '../../shared/toys';
 import type { Anim, EmoteKind, FeedKind, Look, OnlineEntry, PlayerView, Session } from '../../shared/types';
 import type { Profile } from './db';
 import { Feed, feedText } from './feed';
 import { elapsedMin, newSession, stepSession, validLengths } from './sessions';
+import { COOLDOWN_MS, HANDLERS } from './toys';
 
 /** What the World needs from a network connection. */
 export interface Conn {
@@ -31,6 +36,8 @@ interface Player {
   disconnectedAt: number | null;
   lastMoveAt: number;
   lastCheerFeedAt: number;
+  /** `toyId|action` -> last accepted use, for cooldowns. */
+  lastUse: Map<string, number>;
 }
 
 const EMOJI: Record<EmoteKind, string> = { wave: '👋', clap: '👏', flex: '💪', coffee: '☕' };
@@ -39,8 +46,20 @@ export class World {
   private players = new Map<string, Player>();
   private slots = new Map<string, string>(); // slotId -> playerId
   private feed = new Feed();
+  private toyStates = new Map<string, ToyState>(); // toyId -> state (toy ids are unique across scenes)
+  private toySceneOf = new Map<string, string>(); // toyId -> scene id
 
-  constructor(private now: () => number = Date.now) {}
+  constructor(
+    private now: () => number = Date.now,
+    private rand: () => number = Math.random,
+    private scenes: Record<string, SceneDef> = SCENES,
+  ) {
+    for (const def of Object.values(scenes)) for (const toy of def.toys) this.toySceneOf.set(toy.id, def.id);
+  }
+
+  private scene(id: string): SceneDef {
+    return this.scenes[id];
+  }
 
   view(id: string): PlayerView | undefined {
     const p = this.players.get(id);
@@ -60,12 +79,12 @@ export class World {
       this.toScene(existing.scene, { t: 'playerUpdated', player: this.toView(existing) }, existing.id);
       return;
     }
-    const spawn = getScene(START_SCENE)!.spawns.find((s) => s.id === START_SPAWN)!;
+    const spawn = this.scene(START_SCENE).spawns.find((s) => s.id === START_SPAWN)!;
     const p: Player = {
       id: profile.id, name: profile.name, look: profile.look, scene: START_SCENE,
       x: spawn.x, z: spawn.z, facing: spawn.facing, anim: 'idle',
       slotId: null, session: null, rainUntil: 0,
-      conn, disconnectedAt: null, lastMoveAt: this.now(), lastCheerFeedAt: 0,
+      conn, disconnectedAt: null, lastMoveAt: this.now(), lastCheerFeedAt: 0, lastUse: new Map(),
     };
     this.players.set(p.id, p);
     this.sendWelcome(p, newToken);
@@ -94,6 +113,7 @@ export class World {
       case 'startSession': return this.startSession(p, msg.focusMin, msg.breakMin);
       case 'cancelSession': return this.cancelSession(p);
       case 'emote': return this.emote(p, msg.kind, msg.targetId);
+      case 'use': return this.use(p, msg.toyId, msg.action, msg.arg);
       case 'updateLook':
         p.look = msg.look;
         return this.updated(p);
@@ -119,9 +139,13 @@ export class World {
   // ---------- rules ----------
 
   private move(p: Player, x: number, z: number, facing: number, anim: Anim): void {
-    if (p.slotId) return;
+    if (p.slotId) {
+      const slot = this.findSlot(p.scene, p.slotId);
+      if (slot?.pose === 'row' && slot.toyId) this.rowBoat(p, slot.toyId, x, z, facing);
+      return;
+    }
     const t = this.now();
-    const c = clampToBounds(x, z, PLAYER_RADIUS, getScene(p.scene)!.size);
+    const c = clampToBounds(x, z, PLAYER_RADIUS, this.scene(p.scene).size);
     const allowed = (MAX_SPEED * Math.max(t - p.lastMoveAt, 50)) / 1000 + 0.5;
     if (dist(p.x, p.z, c.x, c.z) > allowed) return;
     p.x = c.x;
@@ -133,11 +157,11 @@ export class World {
   }
 
   private enterScene(p: Player, doorId: string): void {
-    const door = getScene(p.scene)!.doors.find((d) => d.id === doorId);
+    const door = this.scene(p.scene).doors.find((d) => d.id === doorId);
     if (!door || p.slotId || !inBox(door.box, p.x, p.z, DOOR_PAD)) {
       return this.error(p, 'bad_door', 'You are not at that door.');
     }
-    const target = getScene(door.toScene)!;
+    const target = this.scene(door.toScene);
     const spawn = target.spawns.find((s) => s.id === door.toSpawn)!;
     this.toScene(p.scene, { t: 'playerLeft', id: p.id }, p.id);
     p.scene = target.id;
@@ -146,43 +170,63 @@ export class World {
     p.facing = spawn.facing;
     p.anim = 'idle';
     p.lastMoveAt = this.now();
-    p.conn!.send({ t: 'sceneSnapshot', scene: target.id, you: this.toView(p), players: this.scenePlayers(target.id, p.id) });
+    p.conn!.send({ t: 'sceneSnapshot', scene: target.id, you: this.toView(p), players: this.scenePlayers(target.id, p.id), toys: this.sceneToys(target.id) });
     this.toScene(target.id, { t: 'playerJoined', player: this.toView(p) }, p.id);
     this.broadcastOnline();
   }
 
   private sit(p: Player, slotId: string): void {
     if (p.slotId) return;
-    const slot = getScene(p.scene)!.slots.find((s) => s.id === slotId);
-    if (!slot || dist(p.x, p.z, slot.x, slot.z) > SEAT_RADIUS + 0.3) {
+    const slot = this.findSlot(p.scene, slotId);
+    const t = this.now();
+    const pos = slot && this.slotPos(slot, t);
+    if (!slot || !pos || dist(p.x, p.z, pos.x, pos.z) > SEAT_RADIUS + 0.3) {
       return this.error(p, 'bad_slot', 'Get a little closer to that seat.');
     }
     if (this.slots.has(slotId)) return this.error(p, 'slot_taken', 'That seat is taken!');
     this.slots.set(slotId, p.id);
     p.slotId = slotId;
-    p.x = slot.x;
-    p.z = slot.z;
-    p.facing = slot.facing;
+    p.x = pos.x;
+    p.z = pos.z;
+    p.facing = pos.facing;
     p.anim = 'sit';
+    p.lastMoveAt = t;
+    if (slot.pose === 'row' && slot.toyId) this.freezeBoat(slot.toyId, t);
     this.updated(p);
   }
 
   private stand(p: Player): void {
     if (!p.slotId) return;
     if (p.session?.phase === 'focus') this.earlyQuit(p);
-    this.slots.delete(p.slotId);
-    p.slotId = null;
+    const slot = this.findSlot(p.scene, p.slotId);
+    const off = slot && this.leavePos(slot);
+    this.freeSlot(p);
+    if (off) {
+      p.x = off.x;
+      p.z = off.z;
+    }
     p.anim = 'idle';
+    p.lastMoveAt = this.now();
     this.updated(p);
   }
 
+  /** Frees the player's slot; an abandoned rowing seat sends its boat home. */
+  private freeSlot(p: Player): void {
+    if (!p.slotId) return;
+    const slot = this.findSlot(p.scene, p.slotId);
+    this.slots.delete(p.slotId);
+    p.slotId = null;
+    if (slot?.pose === 'row' && slot.toyId) this.sendBoatHome(slot.toyId);
+  }
+
   private startSession(p: Player, focusMin: number, breakMin: number): void {
-    if (!p.slotId) return this.error(p, 'not_seated', 'Sit at a desk first.');
+    const slot = p.slotId ? this.findSlot(p.scene, p.slotId) : undefined;
+    if (!slot?.deskId) return this.error(p, 'not_seated', 'Sit at a desk first.');
     if (!validLengths(focusMin, breakMin) || p.session?.phase === 'focus') {
       return this.error(p, 'bad_session', 'Focus 1–120 min, break 1–30 min.');
     }
     p.session = newSession(focusMin, breakMin, this.now());
-    this.pushFeed('start', feedText.start(p.name, focusMin, getScene(p.scene)!.where));
+    this.pushFeed('start', feedText.start(p.name, focusMin, this.scene(p.scene).where));
     this.updated(p);
   }
 
@@ -218,10 +262,149 @@ export class World {
     } else {
       this.pushFeed('leave', feedText.leave(p.name));
     }
-    if (p.slotId) this.slots.delete(p.slotId);
+    this.freeSlot(p);
     this.players.delete(p.id);
     this.toScene(p.scene, { t: 'playerLeft', id: p.id });
     this.broadcastOnline();
+  }
+
+  // ---------- toys ----------
+
+  private use(p: Player, toyId: string, action: ToyAction, arg?: number): void {
+    const def = this.scene(p.scene);
+    const toy = def.toys.find((x) => x.id === toyId);
+    const handler = toy && HANDLERS[toy.kind];
+    if (!toy || !handler || !handler.actions.includes(action)) return this.error(p, 'bad_toy', "That isn't here.");
+    if (action === 'note') {
+      if (!p.slotId || !toy.slotIds?.includes(p.slotId)) return this.error(p, 'not_seated', 'Sit at the piano first.');
+      if (arg === undefined) return;
+    } else if (p.slotId || dist(p.x, p.z, toy.x, toy.z) > toy.radius + 0.3) {
+      return this.error(p, 'bad_toy', 'Get a little closer.');
+    }
+    const t = this.now();
+    const key = `${toyId}|${action}`;
+    const last = p.lastUse.get(key);
+    if (last !== undefined && t - last < COOLDOWN_MS[action]) return;
+    p.lastUse.set(key, t);
+    const r = handler.apply(this.stateOf(toy), action, arg, t, this.rand);
+    if (r.state) this.setToyState(toy.id, r.state);
+    this.toScene(p.scene, { t: 'toyEvent', toyId, by: p.id, action, ...(r.arg !== undefined ? { arg: r.arg } : {}), at: t });
+  }
+
+  private findSlot(sceneId: string, slotId: string): Slot | undefined {
+    return this.scene(sceneId).slots.find((s) => s.id === slotId);
+  }
+
+  private findToy(toyId: string): Toy | undefined {
+    const sceneId = this.toySceneOf.get(toyId);
+    return sceneId ? this.scene(sceneId).toys.find((x) => x.id === toyId) : undefined;
+  }
+
+  /** Current state of a stateful toy, created on first use. */
+  private stateOf(toy: Toy): ToyState | undefined {
+    let s = this.toyStates.get(toy.id);
+    const init = HANDLERS[toy.kind].init;
+    if (!s && init) {
+      s = init(toy, this.now());
+      this.toyStates.set(toy.id, s);
+    }
+    return s;
+  }
+
+  private setToyState(toyId: string, state: ToyState, exceptId?: string): void {
+    this.toyStates.set(toyId, state);
+    const sceneId = this.toySceneOf.get(toyId);
+    if (sceneId) this.toScene(sceneId, { t: 'toyState', toyId, state }, exceptId);
+  }
+
+  private sceneToys(sceneId: string): Record<string, ToyState> {
+    const out: Record<string, ToyState> = {};
+    for (const toy of this.scene(sceneId).toys) {
+      const s = this.stateOf(toy);
+      if (s) out[toy.id] = s;
+    }
+    return out;
+  }
+
+  private mooring(toy: Toy): BoatPose {
+    return { x: toy.x, z: toy.z, heading: toy.rot ?? 0 };
+  }
+
+  /** Where a toy is right now (boats drift home, the merry-go-round turns). */
+  private toyPose(toy: Toy, t: number): BoatPose {
+    const s = this.stateOf(toy);
+    if (s?.kind === 'rowboat') return boatPoseAt(s, this.mooring(toy), t);
+    if (s?.kind === 'merryGoRound') return { x: toy.x, z: toy.z, heading: (toy.rot ?? 0) + spinAt(s, t).angle };
+    return this.mooring(toy);
+  }
+
+  private slotPos(slot: Slot, t: number): { x: number; z: number; facing: number } {
+    const toy = slot.toyId ? this.findToy(slot.toyId) : undefined;
+    return toy ? slotWorld(slot, toy, this.toyPose(toy, t)) : { x: slot.x, z: slot.z, facing: slot.facing };
+  }
+
+  /** Where you end up when you get up: boats drop you at the nearest landing, the merry-go-round flings you clear. */
+  private leavePos(slot: Slot): { x: number; z: number } {
+    const t = this.now();
+    const pos = this.slotPos(slot, t);
+    const toy = slot.toyId ? this.findToy(slot.toyId) : undefined;
+    if (toy?.kind === 'rowboat') {
+      const landings = this.scene(this.toySceneOf.get(toy.id)!).water?.landings ?? [];
+      let best = pos as { x: number; z: number };
+      let bestD = Infinity;
+      for (const l of landings) {
+        const d = dist(l.x, l.z, pos.x, pos.z);
+        if (d < bestD) [best, bestD] = [l, d];
+      }
+      return { x: best.x, z: best.z };
+    }
+    if (toy?.kind === 'merryGoRound') {
+      const a = Math.atan2(pos.x - toy.x, pos.z - toy.z);
+      return { x: toy.x + Math.sin(a) * 2.2, z: toy.z + Math.cos(a) * 2.2 };
+    }
+    return pos;
+  }
+
+  private boatState(toyId: string): { toy: Toy; s: Extract<ToyState, { kind: 'rowboat' }> } | null {
+    const toy = this.findToy(toyId);
+    const s = toy && this.stateOf(toy);
+    return toy && s?.kind === 'rowboat' ? { toy, s } : null;
+  }
+
+  private freezeBoat(toyId: string, t: number): void {
+    const b = this.boatState(toyId);
+    if (!b || !b.s.returnFrom) return;
+    const pose = boatPoseAt(b.s, this.mooring(b.toy), t);
+    this.setToyState(toyId, { kind: 'rowboat', ...pose, returnFrom: null });
+  }
+
+  private sendBoatHome(toyId: string): void {
+    const b = this.boatState(toyId);
+    if (!b) return;
+    const pose = boatPoseAt(b.s, this.mooring(b.toy), this.now());
+    this.setToyState(toyId, { kind: 'rowboat', ...pose, returnFrom: { ...pose, at: this.now() } });
+  }
+
+  private onWater(sceneId: string, x: number, z: number): boolean {
+    const outline = this.scene(sceneId).water?.outline;
+    if (!outline) return false;
+    const r = 0.7;
+    return [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]].every(([dx, dz]) => pointInPolygon(outline, x + dx, z + dz));
+  }
+
+  private rowBoat(p: Player, toyId: string, x: number, z: number, heading: number): void {
+    const b = this.boatState(toyId);
+    if (!b) return;
+    const t = this.now();
+    const allowed = (BOAT_SPEED * Math.max(t - p.lastMoveAt, 50)) / 1000 + 0.5;
+    if (dist(b.s.x, b.s.z, x, z) > allowed || !this.onWater(p.scene, x, z)) {
+      p.conn?.send({ t: 'toyState', toyId, state: b.s });
+      return;
+    }
+    p.lastMoveAt = t;
+    p.x = x;
+    p.z = z;
+    this.setToyState(toyId, { kind: 'rowboat', x, z, heading, returnFrom: null }, p.id);
   }
 
   // ---------- messaging ----------
@@ -235,6 +418,7 @@ export class World {
       players: this.scenePlayers(p.scene, p.id),
       online: this.online(),
       feed: this.feed.recent(FEED_ON_WELCOME),
+      toys: this.sceneToys(p.scene),
     });
   }
 

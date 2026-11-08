@@ -1,6 +1,7 @@
 import { NAME_MAX } from '../../shared/constants';
 import { HATS } from '../../shared/looks';
 import type { ClientMsg } from '../../shared/protocol';
+import { TOY_ACTIONS, type ToyAction } from '../../shared/toys';
 import type { Anim, EmoteKind, Hat, Look } from '../../shared/types';
 
 const ANIMS: Anim[] = ['idle', 'walk', 'sit'];
@@ -76,6 +77,15 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (m.targetId !== undefined && !isStr(m.targetId, 64)) return null;
       const out: Extract<ClientMsg, { t: 'emote' }> = { t: 'emote', kind: m.kind as EmoteKind };
       if (m.targetId !== undefined) out.targetId = m.targetId as string;
+      return out;
+    }
+    case 'use': {
+      if (!isStr(m.toyId, 40) || !TOY_ACTIONS.includes(m.action as ToyAction)) return null;
+      const out: Extract<ClientMsg, { t: 'use' }> = { t: 'use', toyId: m.toyId, action: m.action as ToyAction };
+      if (m.arg !== undefined) {
+        if (!Number.isInteger(m.arg) || (m.arg as number) < 0 || (m.arg as number) > 7) return null;
+        out.arg = m.arg as number;
+      }
       return out;
     }
     case 'updateLook':
