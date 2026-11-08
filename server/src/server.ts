@@ -15,7 +15,17 @@ export interface ServerOptions {
   staticDir?: string | null;
   now?: () => number;
   tickMs?: number;
+  heartbeatMs?: number;
+  helloTimeoutMs?: number;
 }
+
+export const HEARTBEAT_MS = 20_000;
+export const HELLO_TIMEOUT_MS = 10_000;
+export const RATE_REFILL_PER_S = 40;
+export const RATE_BURST = 80;
+export const RATE_MAX_DROPS = 200;
+const MAX_FAILED_HELLOS = 3;
+const LOOK_UPDATE_MIN_MS = 1000;
 
 export interface RunningServer {
   port: number;
@@ -85,6 +95,24 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     let playerId: string | null = null;
     let garbage = 0;
     let replaced = false;
+    let failedHellos = 0;
+    let warnedGarbage = false;
+    let tokens = RATE_BURST;
+    let lastRefill = Date.now();
+    let drops = 0;
+    let lastLookUpdate = 0;
+    const live = ws as WebSocket & { isAlive?: boolean };
+    live.isAlive = true;
+    ws.on('pong', () => {
+      live.isAlive = true;
+    });
+    const helloTimer = setTimeout(() => {
+      if (!playerId) ws.close(4003, 'hello timeout');
+    }, opts.helloTimeoutMs ?? HELLO_TIMEOUT_MS);
+    const failHello = (code: 'bad_invite' | 'bad_profile' | 'unknown_token', message: string) => {
+      conn.send({ t: 'error', code, message });
+      if (++failedHellos >= MAX_FAILED_HELLOS) ws.close(4003, 'too many failed hellos');
+    };
     const conn: Conn = {
       send: (msg: ServerMsg) => {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
@@ -113,11 +141,29 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       if (replaced) return;
       const msg = parseClientMsg(String(data));
       if (!msg) {
+        if (!warnedGarbage) {
+          warnedGarbage = true;
+          console.warn('malformed message from a client (further ones not logged)');
+        }
         if (++garbage >= 20) ws.close(4002, 'too many bad messages');
         return;
       }
       if (playerId) {
-        if (msg.t === 'updateLook') store.updateLook(playerId, msg.look);
+        const nowMs = Date.now();
+        tokens = Math.min(RATE_BURST, tokens + ((nowMs - lastRefill) / 1000) * RATE_REFILL_PER_S);
+        lastRefill = nowMs;
+        if (tokens < 1) {
+          if (++drops >= RATE_MAX_DROPS) ws.close(4004, 'rate limit');
+          return;
+        }
+        tokens -= 1;
+        if (msg.t === 'updateLook') {
+          const cur = world.view(playerId)?.look;
+          if (nowMs - lastLookUpdate >= LOOK_UPDATE_MIN_MS && JSON.stringify(cur) !== JSON.stringify(msg.look)) {
+            lastLookUpdate = nowMs;
+            store.updateLook(playerId, msg.look);
+          }
+        }
         world.handle(playerId, msg);
         return;
       }
@@ -125,7 +171,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       if (msg.token) {
         const profile = store.findByToken(msg.token);
         if (!profile) {
-          conn.send({ t: 'error', code: 'unknown_token', message: "We don't recognise this device. Please join again." });
+          failHello('unknown_token', "We don't recognise this device. Please join again.");
           return;
         }
         playerId = profile.id;
@@ -133,12 +179,12 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
         return;
       }
       if (msg.inviteCode !== opts.inviteCode) {
-        conn.send({ t: 'error', code: 'bad_invite', message: "That invite code isn't right." });
+        failHello('bad_invite', "That invite code isn't right.");
         return;
       }
       const name = cleanName(msg.name);
       if (!name || !isLook(msg.look)) {
-        conn.send({ t: 'error', code: 'bad_profile', message: 'Pick a name (1–16 characters) and a look.' });
+        failHello('bad_profile', 'Pick a name (1–16 characters) and a look.');
         return;
       }
       const { profile, token } = store.create(name, msg.look);
@@ -147,6 +193,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     };
 
     ws.on('close', () => {
+      clearTimeout(helloTimer);
       try {
         if (playerId) world.disconnect(playerId, conn);
       } catch (err) {
@@ -162,6 +209,17 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       console.error('tick error', err);
     }
   }, opts.tickMs ?? 1000);
+  const heartbeat = setInterval(() => {
+    for (const c of wss.clients) {
+      const l = c as WebSocket & { isAlive?: boolean };
+      if (l.isAlive === false) {
+        c.terminate();
+        continue;
+      }
+      l.isAlive = false;
+      c.ping();
+    }
+  }, opts.heartbeatMs ?? HEARTBEAT_MS);
   await new Promise<void>((resolve) => http.listen(opts.port, resolve));
   const port = (http.address() as AddressInfo).port;
 
@@ -170,6 +228,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     world,
     close: async () => {
       clearInterval(timer);
+      clearInterval(heartbeat);
       for (const c of wss.clients) c.terminate();
       await new Promise<void>((r) => wss.close(() => r()));
       await new Promise<void>((r) => http.close(() => r()));

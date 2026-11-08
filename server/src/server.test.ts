@@ -115,11 +115,60 @@ describe('server', () => {
     expect(upd.player.rainUntil).toBeGreaterThan(t);
   });
 
-  it('ignores garbage without crashing', async () => {
+  it('ignores garbage without crashing and warns once', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { c } = await join('Sam');
     c.ws.send('{{{nope');
+    c.ws.send('{{{nope2');
     c.send({ t: 'emote', kind: 'wave' });
     expect((await c.next('emote')).kind).toBe('wave');
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it('closes a socket after 3 failed hellos', async () => {
+    const c = await open();
+    const closed = new Promise<number>((r) => c.ws.once('close', (code) => r(code)));
+    for (let i = 0; i < 3; i++) c.send({ t: 'hello', inviteCode: 'nope', name: 'Sam', look: DEFAULT_LOOK });
+    expect(await closed).toBe(4003);
+  });
+
+  it('closes an unauthenticated socket after the hello timeout', async () => {
+    const s2 = await startServer({ port: 0, dbPath: ':memory:', inviteCode: 'cozy', helloTimeoutMs: 60 });
+    try {
+      const c = await TestClient.open(s2.port);
+      const code = await new Promise<number>((r) => c.ws.once('close', (cd) => r(cd)));
+      expect(code).toBe(4003);
+    } finally {
+      await s2.close();
+    }
+  });
+
+  it('terminates half-open sockets via heartbeat', async () => {
+    const s2 = await startServer({ port: 0, dbPath: ':memory:', inviteCode: 'cozy', heartbeatMs: 50, tickMs: 20 });
+    try {
+      const ws = new WebSocket(`ws://127.0.0.1:${s2.port}/ws`, { autoPong: false });
+      await new Promise((res, rej) => { ws.once('open', res); ws.once('error', rej); });
+      const welcome = new Promise<ServerMsg>((r) => ws.on('message', (d) => { const m = JSON.parse(String(d)) as ServerMsg; if (m.t === 'welcome') r(m); }));
+      ws.send(JSON.stringify({ t: 'hello', inviteCode: 'cozy', name: 'Sam', look: DEFAULT_LOOK }));
+      const w = (await welcome) as Msg<'welcome'>;
+      expect(s2.world.view(w.you.id)?.connected).toBe(true);
+      await new Promise((r) => ws.once('close', r));
+      await vi.waitFor(() => expect(s2.world.view(w.you.id)?.connected).toBe(false));
+    } finally {
+      await s2.close();
+    }
+  });
+
+  it('rate-limits floods and stays up', async () => {
+    const { c } = await join('Sam');
+    const { c: d } = await join('Alex');
+    let emotes = 0;
+    d.ws.on('message', (m) => { if ((JSON.parse(String(m)) as ServerMsg).t === 'emote') emotes++; });
+    for (let i = 0; i < 500; i++) c.send({ t: 'emote', kind: 'wave' });
+    await new Promise((r) => setTimeout(r, 300));
+    expect(emotes).toBeLessThan(100);
+    expect(await (await fetch(`http://127.0.0.1:${srv.port}/health`)).text()).toBe('ok');
   });
 
   it('survives an oversize frame', async () => {
