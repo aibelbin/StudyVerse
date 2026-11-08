@@ -376,12 +376,12 @@ const builders: Record<DecorKind, Builder> = {
 
   bandstand(d) {
     const r = d.w ?? 3.2;
-    const g = group(
-      mesh(cyl(r, r + 0.15, 0.08, 8), mat('#fff6ea'), 0, 0.04, 0, false),
-      mesh(new THREE.ConeGeometry(r + 0.5, 1.3, 8), mat('#e98a8a'), 0, 3.35, 0),
-      mesh(sph(0.15, 1), mat('#ffd36e'), 0, 4.05, 0),
-    );
-    g.children[1].rotation.y = Math.PI / 8;
+    // The roof fades out while you stand under it, so the overhead camera can still see you.
+    const roofMat = new THREE.MeshStandardMaterial({ color: '#e98a8a', roughness: 0.85, flatShading: true, transparent: true });
+    const roof = group(mesh(new THREE.ConeGeometry(r + 0.5, 1.3, 8), roofMat, 0, 3.35, 0), mesh(sph(0.15, 1), roofMat, 0, 4.05, 0));
+    roof.children[0].rotation.y = Math.PI / 8;
+    roof.userData.fadeRadius = r + 0.6;
+    const g = group(mesh(cyl(r, r + 0.15, 0.08, 8), mat('#fff6ea'), 0, 0.04, 0, false), roof);
     for (let k = 0; k < 8; k++) {
       const a = (k / 8) * Math.PI * 2 + Math.PI / 8;
       g.add(mesh(cyl(0.08, 0.1, 2.7, 8), mat('#fff6ea'), Math.sin(a) * 3, 1.35, Math.cos(a) * 3));

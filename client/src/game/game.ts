@@ -18,7 +18,7 @@ import { slidePath, SLIDE_MS } from '../toys/playground';
 import { makeToyView, TOY_DEFAULT_ACTION, toyPrompt, type ToyCtx, type ToyFx, type ToyView } from '../toys/registry';
 import type { RowboatView } from '../toys/water';
 import { Character } from '../world/character';
-import { buildScene, followSun, type BuiltScene } from '../world/sceneBuilder';
+import { buildScene, followSun, updateFades, type BuiltScene } from '../world/sceneBuilder';
 import { CameraRig } from './cameraRig';
 import { serverNow, syncClock } from './clock';
 import { Input } from './input';
@@ -668,6 +668,7 @@ export class Game {
     const built = this.rt.built;
     built.sway.value = nowP / 1000;
     followSun(built, this.x, this.z);
+    updateFades(built, this.x, this.z, dt);
     this.hooks.frame({ def: this.def, built, now: sNow, dt, me: { x: this.x, z: this.z }, toyStates: this.toyStates });
     this.renderer.render(this.scene, this.rig.camera);
     if (this.fps) {

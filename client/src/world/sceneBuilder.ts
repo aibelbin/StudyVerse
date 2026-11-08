@@ -106,6 +106,8 @@ export interface BuiltScene {
   sunOffset: THREE.Vector3;
   sway: Sway;
   outdoor: boolean;
+  /** Roofs that turn see-through while the player is under them. */
+  fades: { obj: THREE.Object3D; x: number; z: number; r: number }[];
 }
 
 const SHADOW_EXTENT = 22;
@@ -149,7 +151,27 @@ export function buildScene(def: SceneDef): BuiltScene {
       scene.add(light);
     }
   }
-  return { scene, sun, hemi, sunOffset, sway, outdoor: !th.indoor };
+  const fades: BuiltScene['fades'] = [];
+  scene.updateMatrixWorld(true);
+  scene.traverse((o) => {
+    if (typeof o.userData.fadeRadius !== 'number') return;
+    const p = new THREE.Vector3().setFromMatrixPosition(o.matrixWorld);
+    fades.push({ obj: o, x: p.x, z: p.z, r: o.userData.fadeRadius });
+  });
+  return { scene, sun, hemi, sunOffset, sway, outdoor: !th.indoor, fades };
+}
+
+/** Fades roofs the player is standing under. */
+export function updateFades(b: BuiltScene, x: number, z: number, dt: number): void {
+  for (const f of b.fades) {
+    const target = Math.hypot(x - f.x, z - f.z) < f.r ? 0.12 : 1;
+    f.obj.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const m = o.material as THREE.MeshStandardMaterial;
+      m.opacity += (target - m.opacity) * (1 - Math.exp(-dt * 8));
+      m.depthWrite = m.opacity > 0.95;
+    });
+  }
 }
 
 /** Keeps the outdoor shadow area centred on the player. */
