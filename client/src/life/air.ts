@@ -59,14 +59,38 @@ export function flyers(zone: LifeZone, def: SceneDef, kind: 'butterflies' | 'bee
   };
 }
 
-/** Birds hop around and flutter off when you get close, coming back later. Local only. */
+/** Three plumages: body, head, wings, breast/belly. */
+const PLUMAGE = [
+  { body: '#a07a5a', head: '#7a5a44', wing: '#8a6a50', breast: '#e8d8c0' }, // sparrow
+  { body: '#6fa8dc', head: '#4f88c8', wing: '#3f70b0', breast: '#f0e6d2' }, // bluebird
+  { body: '#7a6a60', head: '#5a4c44', wing: '#6a5a50', breast: '#ff8a5a' }, // robin
+];
+
+/** Birds hop around and flutter off when you get close, flapping their wings, and come back later. Local only. */
 export function birds(zone: LifeZone, def: SceneDef): LifeSystem {
   const root = new THREE.Group();
   const n = zone.count;
-  const geo = new THREE.SphereGeometry(0.12, 8, 6).scale(0.9, 0.85, 1.2);
-  const bodies = new Instances(geo, lambert('#8a6a5a'), n, true);
-  const heads = new Instances(new THREE.SphereGeometry(0.07, 6, 5), lambert('#b98a70'), n);
-  root.add(bodies.mesh, heads.mesh);
+  const white = new THREE.MeshLambertMaterial({ color: '#ffffff', flatShading: true });
+  const bodies = new Instances(new THREE.SphereGeometry(0.11, 10, 8).scale(0.9, 0.85, 1.25), white, n, true);
+  const breasts = new Instances(new THREE.SphereGeometry(0.075, 8, 6).scale(0.95, 0.9, 0.8), white, n);
+  const heads = new Instances(new THREE.SphereGeometry(0.075, 8, 6), white, n);
+  const beaks = new Instances(new THREE.ConeGeometry(0.022, 0.07, 5).rotateX(Math.PI / 2), lambert('#ffb347'), n);
+  const tails = new Instances(new THREE.BoxGeometry(0.08, 0.015, 0.1).translate(0, 0, -0.05), white, n);
+  const eyes = new Instances(new THREE.SphereGeometry(0.014, 5, 4), lambert('#2a2430'), n * 2);
+  // Wings pivot at the shoulder: the left one reaches out along +x, the right along -x.
+  const wingGeo = (side: 1 | -1) => new THREE.SphereGeometry(0.1, 8, 4).scale(1, 0.12, 0.55).translate(side * 0.1, 0, -0.01);
+  const wingL = new Instances(wingGeo(1), white, n, true);
+  const wingR = new Instances(wingGeo(-1), white, n, true);
+  for (let i = 0; i < n; i++) {
+    const p = PLUMAGE[Math.floor(hash(zone.seed, i, 7) * PLUMAGE.length)];
+    bodies.color(i, p.body);
+    breasts.color(i, p.breast);
+    heads.color(i, p.head);
+    tails.color(i, p.wing);
+    wingL.color(i, p.wing);
+    wingR.color(i, p.wing);
+  }
+  for (const x of [bodies, breasts, heads, beaks, tails, eyes, wingL, wingR]) root.add(x.mesh);
   const blocked = (x: number, z: number) =>
     def.colliders.some((c) => Math.abs(x - c.x) < c.w / 2 + 0.3 && Math.abs(z - c.z) < c.d / 2 + 0.3)
     || (def.water && pointInPolygon(def.water.outline, x, z));
@@ -79,6 +103,12 @@ export function birds(zone: LifeZone, def: SceneDef): LifeSystem {
     return { x: zone.x, z: zone.z };
   });
   const state = homes.map(() => ({ fledAt: -1e9, dir: 0, back: 0 }));
+  /** Local offset (right, up, forward) on a bird at (x, y, z) facing yaw, to world space. */
+  const at = (x: number, y: number, z: number, yaw: number, r: number, u: number, f: number) => {
+    const s = Math.sin(yaw);
+    const c = Math.cos(yaw);
+    return [x + s * f + c * r, y + u, z + c * f - s * r] as const;
+  };
   return {
     root,
     update(ctx) {
@@ -89,17 +119,20 @@ export function birds(zone: LifeZone, def: SceneDef): LifeSystem {
         const hopT = ctx.t / 900 + hash(i, 5) * 10;
         const hx = h.x + noise1(zone.seed + i, hopT * 0.3) * 0.8;
         const hz = h.z + noise1(zone.seed + i + 50, hopT * 0.3) * 0.8;
-        const since = ctx.t - st.fledAt;
-        if (since > st.back && Math.hypot(ctx.me.x - hx, ctx.me.z - hz) < 3) {
+        if (ctx.t - st.fledAt > st.back && Math.hypot(ctx.me.x - hx, ctx.me.z - hz) < 3) {
           st.fledAt = ctx.t;
           st.dir = Math.atan2(hx - ctx.me.x, hz - ctx.me.z);
           st.back = 20000 + hash(i, ctx.t) * 20000;
         }
         const away = ctx.t - st.fledAt;
+        const hopK = hopT % 1;
         let x = hx;
-        let y = Math.max(0, Math.sin((hopT % 1) * Math.PI)) * 0.08;
+        let y = Math.max(0, Math.sin(hopK * Math.PI)) * 0.08;
         let z = hz;
         let yaw = noise1(i, hopT * 0.2) * 3;
+        let pitch = 0;
+        let flap = -1.25; // folded against the body
+        if (y > 0.02) flap = -0.6 + Math.sin(ctx.t / 40 + i) * 0.5; // a flutter on each hop
         if (away < st.back) {
           const fly = Math.min(away, 3000) / 3000;
           const ret = away > st.back - 3000 ? (st.back - away) / 3000 : 1; // glide back in at the end
@@ -107,13 +140,22 @@ export function birds(zone: LifeZone, def: SceneDef): LifeSystem {
           x += Math.sin(st.dir) * 14 * k;
           z += Math.cos(st.dir) * 14 * k;
           y = 7 * k;
-          yaw = st.dir;
+          yaw = away > st.back - 3000 ? st.dir + Math.PI : st.dir;
+          pitch = k > 0 && k < 1 ? -0.25 : 0;
+          if (k > 0.02) flap = Math.sin(ctx.t / 55 + i * 1.7) * 0.9;
         }
-        bodies.set(i, x, 0.12 + y, z, yaw);
-        heads.set(i, x + Math.sin(yaw) * 0.12, 0.24 + y, z + Math.cos(yaw) * 0.12, yaw);
+        const by = 0.13 + y;
+        bodies.set(i, x, by, z, yaw, 1, pitch);
+        breasts.set(i, ...at(x, by, z, yaw, 0, -0.01, 0.05), yaw);
+        heads.set(i, ...at(x, by, z, yaw, 0, 0.09, 0.1), yaw);
+        beaks.set(i, ...at(x, by, z, yaw, 0, 0.085, 0.18), yaw);
+        tails.set(i, ...at(x, by, z, yaw, 0, 0.02, -0.12), yaw, 1, 0.35);
+        eyes.set(i * 2, ...at(x, by, z, yaw, 0.045, 0.11, 0.15), yaw);
+        eyes.set(i * 2 + 1, ...at(x, by, z, yaw, -0.045, 0.11, 0.15), yaw);
+        wingL.set(i, ...at(x, by, z, yaw, 0.08, 0.03, 0), yaw, 1, pitch, flap);
+        wingR.set(i, ...at(x, by, z, yaw, -0.08, 0.03, 0), yaw, 1, pitch, -flap);
       }
-      bodies.commit();
-      heads.commit();
+      for (const x of [bodies, breasts, heads, beaks, tails, eyes, wingL, wingR]) x.commit();
     },
   };
 }

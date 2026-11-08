@@ -12,6 +12,7 @@ import type { EmoteKind, PlayerView } from '../../../shared/types';
 import type { SoundKind } from '../audio/kinds';
 import { chime } from '../hud/chime';
 import { statusText } from '../hud/format';
+import { Minimap, type MapVehicle } from '../hud/minimap';
 import type { Hud } from '../hud/hud';
 import { Interp } from '../net/interp';
 import { slidePath, SLIDE_MS } from '../toys/playground';
@@ -93,6 +94,7 @@ export class Game {
   private ctxNow = 0;
   private ctxDt = 0;
   private occupied = new Set<string>();
+  private minimap = new Minimap(document.body);
 
   constructor(canvas: HTMLCanvasElement, fadeEl: HTMLElement, private hud: Hud, private send: (m: ClientMsg) => void) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -105,6 +107,9 @@ export class Game {
     this.resize();
     this.input.on('e', () => this.interact());
     this.input.on(' ', () => this.openSessionPicker());
+    this.input.on('m', () => {
+      if (!this.hud.modalOpen()) this.minimap.toggle();
+    });
     this.input.on('escape', () => {
       this.hud.closeModals();
       this.hud.closeCard();
@@ -222,6 +227,7 @@ export class Game {
     this.rig.snap(this.x, this.z);
     this.hud.closeCard();
     this.hooks.enterScene(this.def, rt.built);
+    this.minimap.setScene(this.def);
   }
 
   private addRemote(v: PlayerView): void {
@@ -670,6 +676,14 @@ export class Game {
     built.sway.value = nowP / 1000;
     followSun(built, this.x, this.z);
     updateFades(built, this.x, this.z, dt);
+    const vehicles: MapVehicle[] = [];
+    for (const toy of this.def.toys) {
+      if (toy.kind !== 'rowboat') continue;
+      const p = this.rt.toys.get(toy.id)?.pose?.(this.toyCtx(toy.id));
+      if (p) vehicles.push({ x: p.x, z: p.z, heading: p.heading, icon: '🚣' });
+    }
+    this.minimap.draw(nowP, { x: this.x, z: this.z, facing: this.facing, color: this.me.look.body },
+      [...this.remotes.values()].map((r) => ({ x: r.char.root.position.x, z: r.char.root.position.z, color: r.view.look.body })), vehicles);
     this.hooks.frame({ def: this.def, built, now: sNow, dt, me: { x: this.x, z: this.z }, toyStates: this.toyStates });
     this.renderer.render(this.scene, this.rig.camera);
     if (this.fps) {

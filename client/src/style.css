@@ -89,3 +89,21 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 13px; 
   z-index: 50;
 }
 .row .buttons { display: flex; gap: 4px; }
+
+#minimap {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  border-radius: 14px;
+  padding: 0;
+  cursor: pointer;
+  z-index: 5;
+  pointer-events: auto;
+}
+#minimap.big {
+  right: 50%;
+  bottom: 50%;
+  transform: translate(50%, 50%);
+  z-index: 40;
+}
+.fps { bottom: auto !important; top: 12px; right: 50% !important; transform: translateX(50%); }
