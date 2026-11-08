@@ -24,7 +24,7 @@ interface Player {
   z: number;
   facing: number;
   anim: Anim;
-  seatId: string | null;
+  slotId: string | null;
   session: Session | null;
   rainUntil: number;
   conn: Conn | null;
@@ -37,7 +37,7 @@ const EMOJI: Record<EmoteKind, string> = { wave: '👋', clap: '👏', flex: '�
 
 export class World {
   private players = new Map<string, Player>();
-  private seats = new Map<string, string>(); // seatId -> playerId
+  private slots = new Map<string, string>(); // slotId -> playerId
   private feed = new Feed();
 
   constructor(private now: () => number = Date.now) {}
@@ -64,7 +64,7 @@ export class World {
     const p: Player = {
       id: profile.id, name: profile.name, look: profile.look, scene: START_SCENE,
       x: spawn.x, z: spawn.z, facing: spawn.facing, anim: 'idle',
-      seatId: null, session: null, rainUntil: 0,
+      slotId: null, session: null, rainUntil: 0,
       conn, disconnectedAt: null, lastMoveAt: this.now(), lastCheerFeedAt: 0,
     };
     this.players.set(p.id, p);
@@ -89,7 +89,7 @@ export class World {
     switch (msg.t) {
       case 'move': return this.move(p, msg.x, msg.z, msg.facing, msg.anim);
       case 'enterScene': return this.enterScene(p, msg.doorId);
-      case 'sit': return this.sit(p, msg.seatId);
+      case 'sit': return this.sit(p, msg.slotId);
       case 'stand': return this.stand(p);
       case 'startSession': return this.startSession(p, msg.focusMin, msg.breakMin);
       case 'cancelSession': return this.cancelSession(p);
@@ -119,7 +119,7 @@ export class World {
   // ---------- rules ----------
 
   private move(p: Player, x: number, z: number, facing: number, anim: Anim): void {
-    if (p.seatId) return;
+    if (p.slotId) return;
     const t = this.now();
     const c = clampToBounds(x, z, PLAYER_RADIUS, getScene(p.scene)!.size);
     const allowed = (MAX_SPEED * Math.max(t - p.lastMoveAt, 50)) / 1000 + 0.5;
@@ -134,7 +134,7 @@ export class World {
 
   private enterScene(p: Player, doorId: string): void {
     const door = getScene(p.scene)!.doors.find((d) => d.id === doorId);
-    if (!door || p.seatId || !inBox(door.box, p.x, p.z, DOOR_PAD)) {
+    if (!door || p.slotId || !inBox(door.box, p.x, p.z, DOOR_PAD)) {
       return this.error(p, 'bad_door', 'You are not at that door.');
     }
     const target = getScene(door.toScene)!;
@@ -151,33 +151,33 @@ export class World {
     this.broadcastOnline();
   }
 
-  private sit(p: Player, seatId: string): void {
-    if (p.seatId) return;
-    const seat = getScene(p.scene)!.seats.find((s) => s.id === seatId);
-    if (!seat || dist(p.x, p.z, seat.x, seat.z) > SEAT_RADIUS + 0.3) {
-      return this.error(p, 'bad_seat', 'Get a little closer to that seat.');
+  private sit(p: Player, slotId: string): void {
+    if (p.slotId) return;
+    const slot = getScene(p.scene)!.slots.find((s) => s.id === slotId);
+    if (!slot || dist(p.x, p.z, slot.x, slot.z) > SEAT_RADIUS + 0.3) {
+      return this.error(p, 'bad_slot', 'Get a little closer to that seat.');
     }
-    if (this.seats.has(seatId)) return this.error(p, 'seat_taken', 'That seat is taken!');
-    this.seats.set(seatId, p.id);
-    p.seatId = seatId;
-    p.x = seat.x;
-    p.z = seat.z;
-    p.facing = seat.facing;
+    if (this.slots.has(slotId)) return this.error(p, 'slot_taken', 'That seat is taken!');
+    this.slots.set(slotId, p.id);
+    p.slotId = slotId;
+    p.x = slot.x;
+    p.z = slot.z;
+    p.facing = slot.facing;
     p.anim = 'sit';
     this.updated(p);
   }
 
   private stand(p: Player): void {
-    if (!p.seatId) return;
+    if (!p.slotId) return;
     if (p.session?.phase === 'focus') this.earlyQuit(p);
-    this.seats.delete(p.seatId);
-    p.seatId = null;
+    this.slots.delete(p.slotId);
+    p.slotId = null;
     p.anim = 'idle';
     this.updated(p);
   }
 
   private startSession(p: Player, focusMin: number, breakMin: number): void {
-    if (!p.seatId) return this.error(p, 'not_seated', 'Sit at a desk first.');
+    if (!p.slotId) return this.error(p, 'not_seated', 'Sit at a desk first.');
     if (!validLengths(focusMin, breakMin) || p.session?.phase === 'focus') {
       return this.error(p, 'bad_session', 'Focus 1–120 min, break 1–30 min.');
     }
@@ -218,7 +218,7 @@ export class World {
     } else {
       this.pushFeed('leave', feedText.leave(p.name));
     }
-    if (p.seatId) this.seats.delete(p.seatId);
+    if (p.slotId) this.slots.delete(p.slotId);
     this.players.delete(p.id);
     this.toScene(p.scene, { t: 'playerLeft', id: p.id });
     this.broadcastOnline();
@@ -275,7 +275,7 @@ export class World {
     return {
       id: p.id, name: p.name, look: p.look, scene: p.scene,
       x: p.x, z: p.z, facing: p.facing, anim: p.anim,
-      seatId: p.seatId, session: p.session, connected: p.conn !== null, rainUntil: p.rainUntil,
+      slotId: p.slotId, session: p.session, connected: p.conn !== null, rainUntil: p.rainUntil,
     };
   }
 }

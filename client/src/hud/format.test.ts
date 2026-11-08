@@ -4,7 +4,7 @@ import { formatClock, sessionLeftMs, statusText } from './format';
 
 const base: PlayerView = {
   id: 'a', name: 'Sam', look: { body: '#ffffff', skin: '#ffffff', hat: 'none' }, scene: 'town',
-  x: 0, z: 0, facing: 0, anim: 'idle', seatId: null, session: null, connected: true, rainUntil: 0,
+  x: 0, z: 0, facing: 0, anim: 'idle', slotId: null, session: null, connected: true, rainUntil: 0,
 };
 
 describe('format', () => {
@@ -19,9 +19,9 @@ describe('format', () => {
   });
   it('describes what a player is doing', () => {
     expect(statusText(base, 0)).toBe('🚶 Wandering');
-    expect(statusText({ ...base, seatId: 's' }, 0)).toBe('🪑 Sitting');
+    expect(statusText({ ...base, slotId: 's' }, 0)).toBe('🪑 Sitting');
     expect(statusText({ ...base, connected: false }, 0)).toBe('💤 Connection lost…');
-    expect(statusText({ ...base, seatId: 's', session: { phase: 'focus', focusMin: 25, breakMin: 5, phaseStartedAt: 0 } }, 60_000))
+    expect(statusText({ ...base, slotId: 's', session: { phase: 'focus', focusMin: 25, breakMin: 5, phaseStartedAt: 0 } }, 60_000))
       .toBe('📖 Studying · 24:00 left');
   });
 });

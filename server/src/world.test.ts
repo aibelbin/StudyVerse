@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { GRACE_MS, RAIN_MS } from '../../shared/constants';
 import { DEFAULT_LOOK } from '../../shared/looks';
 import type { ClientMsg, ErrorCode, ServerMsg } from '../../shared/protocol';
-import { findSeat } from '../../shared/scenes';
+import { findSlot } from '../../shared/scenes';
 import { World, type Conn } from './world';
 
 const MIN = 60_000;
@@ -24,9 +24,9 @@ const prof = (id: string, name: string) => ({ id, name, look: DEFAULT_LOOK });
 const send = (id: string, m: ClientMsg) => w.handle(id, m);
 /** Walk somewhere far away: advance the clock so the speed check allows it. */
 const goTo = (id: string, x: number, z: number) => { t += 10_000; send(id, { t: 'move', x, z, facing: 0, anim: 'idle' }); };
-const seat = findSeat('town', 'park-b1-a')!;
-const seatB = findSeat('town', 'park-b1-b')!;
-function sitDown(id: string, s = seat) { goTo(id, s.x, s.z + 0.5); send(id, { t: 'sit', seatId: s.id }); }
+const slot = findSlot('town', 'park-b1-a')!;
+const slotB = findSlot('town', 'park-b1-b')!;
+function sitDown(id: string, s = slot) { goTo(id, s.x, s.z + 0.5); send(id, { t: 'sit', slotId: s.id }); }
 
 beforeEach(() => { t = 1_000_000; w = new World(() => t); });
 
@@ -55,23 +55,23 @@ describe('joining', () => {
   });
 });
 
-describe('seats', () => {
-  it('sits at a free seat and rejects a taken one', () => {
+describe('slots', () => {
+  it('sits at a free slot and rejects a taken one', () => {
     const a = new FakeConn(), b = new FakeConn();
     w.join(prof('a', 'Sam'), a);
     w.join(prof('b', 'Alex'), b);
     sitDown('a');
-    expect(w.view('a')).toMatchObject({ seatId: seat.id, x: seat.x, z: seat.z, anim: 'sit' });
-    expect(b.of('playerUpdated').at(-1)!.player.seatId).toBe(seat.id);
+    expect(w.view('a')).toMatchObject({ slotId: slot.id, x: slot.x, z: slot.z, anim: 'sit' });
+    expect(b.of('playerUpdated').at(-1)!.player.slotId).toBe(slot.id);
     sitDown('b');
-    expect(b.of('error').at(-1)!.code).toBe('seat_taken');
+    expect(b.of('error').at(-1)!.code).toBe('slot_taken');
   });
 
   it('rejects sitting from far away', () => {
     const a = new FakeConn();
     w.join(prof('a', 'Sam'), a);
-    send('a', { t: 'sit', seatId: seat.id });
-    expect(a.of('error').at(-1)!.code).toBe('bad_seat');
+    send('a', { t: 'sit', slotId: slot.id });
+    expect(a.of('error').at(-1)!.code).toBe('bad_slot');
   });
 
   it('ignores movement while seated', () => {
@@ -79,12 +79,12 @@ describe('seats', () => {
     w.join(prof('a', 'Sam'), a);
     sitDown('a');
     goTo('a', 0, 0);
-    expect(w.view('a')!.x).toBe(seat.x);
+    expect(w.view('a')!.x).toBe(slot.x);
   });
 });
 
 describe('sessions', () => {
-  it('requires a seat', () => {
+  it('requires a slot', () => {
     const a = new FakeConn();
     w.join(prof('a', 'Sam'), a);
     send('a', { t: 'startSession', focusMin: 25, breakMin: 5 });
@@ -112,7 +112,7 @@ describe('sessions', () => {
     expect(w.view('a')!.session).toBeNull();
   });
 
-  it('standing during focus is an early quit with a rain cloud and frees the seat', () => {
+  it('standing during focus is an early quit with a rain cloud and frees the slot', () => {
     const a = new FakeConn(), b = new FakeConn();
     w.join(prof('a', 'Sam'), a);
     w.join(prof('b', 'Alex'), b);
@@ -121,9 +121,9 @@ describe('sessions', () => {
     t += 12 * MIN;
     send('a', { t: 'stand' });
     expect(b.feed()).toContain('🥀 Sam left 12 min into a 25 min session');
-    expect(w.view('a')).toMatchObject({ session: null, seatId: null, rainUntil: t + RAIN_MS });
+    expect(w.view('a')).toMatchObject({ session: null, slotId: null, rainUntil: t + RAIN_MS });
     sitDown('b');
-    expect(w.view('b')!.seatId).toBe(seat.id);
+    expect(w.view('b')!.slotId).toBe(slot.id);
   });
 
   it('cancelling during focus is also an early quit', () => {
@@ -134,7 +134,7 @@ describe('sessions', () => {
     t += 3 * MIN;
     send('a', { t: 'cancelSession' });
     expect(a.feed()).toContain('🥀 Sam left 3 min into a 25 min session');
-    expect(w.view('a')!.seatId).toBe(seat.id);
+    expect(w.view('a')!.slotId).toBe(slot.id);
   });
 
   it('standing during a break is free and the break keeps running', () => {
@@ -159,7 +159,7 @@ describe('disconnects', () => {
     expect(w.view('a')!.connected).toBe(false);
     t += GRACE_MS - 1_000; w.tick();
     w.join(prof('a', 'Sam'), a2);
-    expect(a2.of('welcome')[0].you).toMatchObject({ connected: true, seatId: seat.id });
+    expect(a2.of('welcome')[0].you).toMatchObject({ connected: true, slotId: slot.id });
     expect(a2.of('welcome')[0].you.session!.phase).toBe('focus');
   });
 
@@ -176,7 +176,7 @@ describe('disconnects', () => {
     expect(b.of('playerLeft').at(-1)!.id).toBe('a');
     expect(w.view('a')).toBeUndefined();
     sitDown('b');
-    expect(w.view('b')!.seatId).toBe(seat.id);
+    expect(w.view('b')!.slotId).toBe(slot.id);
   });
 
   it('leaving outside a session says headed home', () => {
@@ -222,12 +222,12 @@ describe('scenes and emotes', () => {
     expect(b.feed().filter((x) => x.includes('cheered'))).toEqual(['Sam cheered Alex 💪']);
   });
 
-  it('second seat on the same bench is independent', () => {
+  it('second slot on the same bench is independent', () => {
     const a = new FakeConn(), b = new FakeConn();
     w.join(prof('a', 'Sam'), a);
     w.join(prof('b', 'Alex'), b);
     sitDown('a');
-    sitDown('b', seatB);
-    expect(w.view('b')!.seatId).toBe(seatB.id);
+    sitDown('b', slotB);
+    expect(w.view('b')!.slotId).toBe(slotB.id);
   });
 });

@@ -176,7 +176,7 @@ export class Game {
   private updateMe(p: PlayerView): void {
     const prev = this.me!;
     this.me = p;
-    if (p.seatId) {
+    if (p.slotId) {
       this.x = p.x;
       this.z = p.z;
       this.facing = p.facing;
@@ -190,7 +190,7 @@ export class Game {
     }
     if (prev.session?.phase === 'break' && !p.session) {
       chime();
-      this.hud.toast(p.seatId ? "Break's over! Press Space to start another round 📖" : "Break's over! Find a seat to start another round 📖", 6000);
+      this.hud.toast(p.slotId ? "Break's over! Press Space to start another round 📖" : "Break's over! Find a seat to start another round 📖", 6000);
     }
   }
 
@@ -201,7 +201,7 @@ export class Game {
       this.endTransition();
       return;
     }
-    this.hud.toast(code === 'seat_taken' ? '💺 That seat is taken!' : message);
+    this.hud.toast(code === 'slot_taken' ? '💺 That seat is taken!' : message);
   }
 
   // ---------- local player ----------
@@ -216,7 +216,7 @@ export class Game {
       this.stopMoving(nowP);
       return;
     }
-    if (me.seatId) {
+    if (me.slotId) {
       if (pressing && !this.standPending) this.requestStand();
       return;
     }
@@ -262,15 +262,15 @@ export class Game {
 
   private interact(): void {
     if (!this.me || this.transitioning || this.hud.modalOpen()) return;
-    if (this.me.seatId) {
+    if (this.me.slotId) {
       if (!this.standPending) this.requestStand();
       return;
     }
     const t = this.target;
     if (!t) return;
-    if (t.kind === 'seat') {
+    if (t.kind === 'slot') {
       this.sendMove(performance.now()); // make sure the server has our exact spot
-      this.send({ t: 'sit', seatId: t.seat.id });
+      this.send({ t: 'sit', slotId: t.slot.id });
       this.waitForRelease = true; // don't let a still-held movement key stand us straight back up
       return;
     }
@@ -280,7 +280,7 @@ export class Game {
 
   private openSessionPicker(): void {
     if (!this.me || this.transitioning || this.hud.modalOpen()) return;
-    if (!this.me.seatId) {
+    if (!this.me.slotId) {
       this.hud.toast('🪑 Find a seat first: walk up to a desk and press E');
       return;
     }
@@ -308,12 +308,12 @@ export class Game {
   private promptText(): string | null {
     const me = this.me!;
     if (this.transitioning) return null;
-    if (me.seatId) {
+    if (me.slotId) {
       if (me.session?.phase === 'focus') return 'Focusing… [E] leave early';
       if (me.session?.phase === 'break') return '[Space] start another round · [E] stand up';
       return '[Space] start a study session · [E] stand up';
     }
-    if (this.target?.kind === 'seat') return '[E] sit down';
+    if (this.target?.kind === 'slot') return '[E] sit down';
     if (this.target?.kind === 'player') return `[E] say hi to ${this.remotes.get(this.target.id)?.view.name ?? 'them'}`;
     return null;
   }
@@ -334,30 +334,30 @@ export class Game {
     this.updateLocal(dt, nowP);
 
     const taken = new Set<string>();
-    if (this.me.seatId) taken.add(this.me.seatId);
+    if (this.me.slotId) taken.add(this.me.slotId);
     const others: { id: string; x: number; z: number }[] = [];
     for (const [id, r] of this.remotes) {
       const pose = r.interp.sample(nowP);
       r.char.root.position.set(pose.x, 0, pose.z);
       r.char.facing = pose.facing;
-      r.char.anim = r.view.seatId ? 'sit' : r.view.anim;
+      r.char.anim = r.view.slotId ? 'sit' : r.view.anim;
       r.char.setDim(!r.view.connected);
       r.char.overhead.setSession(r.view.session, sNow);
       r.char.overhead.setRain(r.view.rainUntil > sNow);
       r.char.update(dt, nowP);
-      if (r.view.seatId) taken.add(r.view.seatId);
+      if (r.view.slotId) taken.add(r.view.slotId);
       others.push({ id, x: pose.x, z: pose.z });
     }
 
     const c = this.myChar;
     c.root.position.set(this.x, 0, this.z);
     c.facing = this.facing;
-    c.anim = this.me.seatId ? 'sit' : this.moving ? 'walk' : 'idle';
+    c.anim = this.me.slotId ? 'sit' : this.moving ? 'walk' : 'idle';
     c.overhead.setSession(this.me.session, sNow);
     c.overhead.setRain(this.me.rainUntil > sNow);
     c.update(dt, nowP);
 
-    this.target = this.transitioning || this.me.seatId ? null : pickTarget(this.x, this.z, this.def.seats, taken, others);
+    this.target = this.transitioning || this.me.slotId ? null : pickTarget(this.x, this.z, this.def.slots, taken, others);
     this.hud.setPrompt(this.promptText());
     this.hud.setStatus(this.me, this.def, sNow);
 

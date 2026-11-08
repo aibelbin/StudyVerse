@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PLAYER_RADIUS } from '../constants';
 import { inBox } from '../geometry';
-import { findSeat, SCENES, START_SCENE, START_SPAWN } from './index';
+import { findSlot, SCENES, START_SCENE, START_SPAWN } from './index';
 
 const scenes = Object.values(SCENES);
 const inside = (w: number, d: number, x: number, z: number, pad: number) =>
@@ -16,10 +16,10 @@ describe('scene data', () => {
     for (const [key, s] of Object.entries(SCENES)) expect(s.id).toBe(key);
   });
 
-  it.each(scenes.map((s) => [s.id, s] as const))('%s: seats are inside bounds and outside colliders', (_id, s) => {
-    for (const seat of s.seats) {
-      expect(inside(s.size.w, s.size.d, seat.x, seat.z, PLAYER_RADIUS), seat.id).toBe(true);
-      expect(s.colliders.some((c) => inBox(c, seat.x, seat.z, 0.05)), seat.id).toBe(false);
+  it.each(scenes.map((s) => [s.id, s] as const))('%s: slots are inside bounds and outside colliders', (_id, s) => {
+    for (const slot of s.slots) {
+      expect(inside(s.size.w, s.size.d, slot.x, slot.z, PLAYER_RADIUS), slot.id).toBe(true);
+      expect(s.colliders.some((c) => inBox(c, slot.x, slot.z, 0.05)), slot.id).toBe(false);
     }
   });
 
@@ -40,16 +40,16 @@ describe('scene data', () => {
     }
   });
 
-  it('seat ids are unique across all scenes', () => {
-    const ids = scenes.flatMap((s) => s.seats.map((x) => x.id));
+  it('slot ids are unique across all scenes', () => {
+    const ids = scenes.flatMap((s) => s.slots.map((x) => x.id));
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('has the seats later tests rely on', () => {
-    const seat = findSeat('town', 'park-b1-a')!;
-    expect(seat.x).toBeCloseTo(5.55);
-    expect(seat.z).toBe(5);
-    expect(SCENES.library.seats.length).toBe(16);
-    expect(SCENES.cafe.seats.length).toBe(12);
+  it('has the slots later tests rely on', () => {
+    const slot = findSlot('town', 'park-b1-a')!;
+    expect(slot.x).toBeCloseTo(5.55);
+    expect(slot.z).toBe(5);
+    expect(SCENES.library.slots.length).toBe(16);
+    expect(SCENES.cafe.slots.length).toBe(12);
   });
 });

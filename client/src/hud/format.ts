@@ -15,5 +15,5 @@ export function statusText(v: PlayerView, now: number): string {
     return `${label} · ${formatClock(sessionLeftMs(v.session, now))} left`;
   }
   if (!v.connected) return '💤 Connection lost…';
-  return v.seatId ? '🪑 Sitting' : '🚶 Wandering';
+  return v.slotId ? '🪑 Sitting' : '🚶 Wandering';
 }

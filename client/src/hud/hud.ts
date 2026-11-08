@@ -37,7 +37,7 @@ export class Hud {
     const s = me.session;
     const line = s
       ? `${s.phase === 'focus' ? '📖 Focus' : '☕ Break'} · ${formatClock(sessionLeftMs(s, now))}`
-      : me.seatId ? '🪑 Sitting' : `🚶 Wandering ${def.where}`;
+      : me.slotId ? '🪑 Sitting' : `🚶 Wandering ${def.where}`;
     const key = `${me.name}|${line}|${def.id}`;
     if (key === this.statusKey) return;
     this.statusKey = key;

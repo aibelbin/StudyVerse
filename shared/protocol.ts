@@ -4,7 +4,7 @@ export type ClientMsg =
   | { t: 'hello'; token?: string; inviteCode?: string; name?: string; look?: Look }
   | { t: 'move'; x: number; z: number; facing: number; anim: Anim }
   | { t: 'enterScene'; doorId: string }
-  | { t: 'sit'; seatId: string }
+  | { t: 'sit'; slotId: string }
   | { t: 'stand' }
   | { t: 'startSession'; focusMin: number; breakMin: number }
   | { t: 'cancelSession' }
@@ -15,8 +15,8 @@ export type ErrorCode =
   | 'bad_invite'
   | 'unknown_token'
   | 'bad_profile'
-  | 'seat_taken'
-  | 'bad_seat'
+  | 'slot_taken'
+  | 'bad_slot'
   | 'not_seated'
   | 'bad_session'
   | 'bad_door'

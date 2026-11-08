@@ -1,23 +1,23 @@
 import { INTERACT_RADIUS, SEAT_RADIUS } from '../../../shared/constants';
-import type { Seat } from '../../../shared/scenes/types';
+import type { Slot } from '../../../shared/scenes/types';
 
 export type Target =
-  | { kind: 'seat'; seat: Seat; dist: number }
+  | { kind: 'slot'; slot: Slot; dist: number }
   | { kind: 'player'; id: string; dist: number };
 
-/** What [E] would act on right now: the closest free seat or nearby player. */
+/** What [E] would act on right now: the closest free slot or nearby player. */
 export function pickTarget(
   x: number,
   z: number,
-  seats: Seat[],
+  slots: Slot[],
   taken: Set<string>,
   others: { id: string; x: number; z: number }[],
 ): Target | null {
   let best: Target | null = null;
-  for (const s of seats) {
+  for (const s of slots) {
     if (taken.has(s.id)) continue;
     const d = Math.hypot(s.x - x, s.z - z);
-    if (d <= SEAT_RADIUS && (!best || d < best.dist)) best = { kind: 'seat', seat: s, dist: d };
+    if (d <= SEAT_RADIUS && (!best || d < best.dist)) best = { kind: 'slot', slot: s, dist: d };
   }
   for (const o of others) {
     const d = Math.hypot(o.x - x, o.z - z);

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
 import { DEFAULT_LOOK } from '../../shared/looks';
 import type { ClientMsg, ServerMsg } from '../../shared/protocol';
-import { findSeat } from '../../shared/scenes';
+import { findSlot } from '../../shared/scenes';
 import { startServer, type RunningServer } from './server';
 
 type Msg<T extends ServerMsg['t']> = Extract<ServerMsg, { t: T }>;
@@ -99,11 +99,11 @@ describe('server', () => {
     const { c: b } = await join('Alex');
     expect((await a.next('playerJoined')).player.name).toBe('Alex');
 
-    const seat = findSeat('town', 'park-b1-a')!;
+    const slot = findSlot('town', 'park-b1-a')!;
     t += 10_000;
-    a.send({ t: 'move', x: seat.x, z: seat.z + 0.5, facing: 0, anim: 'walk' });
-    a.send({ t: 'sit', seatId: seat.id });
-    await b.next('playerUpdated', (m) => m.player.id === wa.you.id && m.player.seatId === seat.id);
+    a.send({ t: 'move', x: slot.x, z: slot.z + 0.5, facing: 0, anim: 'walk' });
+    a.send({ t: 'sit', slotId: slot.id });
+    await b.next('playerUpdated', (m) => m.player.id === wa.you.id && m.player.slotId === slot.id);
 
     a.send({ t: 'startSession', focusMin: 25, breakMin: 5 });
     await b.next('feed', (m) => m.event.text === '📚 Sam started a 25 min session in the park');
@@ -111,7 +111,7 @@ describe('server', () => {
     t += 12 * 60_000;
     a.send({ t: 'stand' });
     await b.next('feed', (m) => m.event.text === '🥀 Sam left 12 min into a 25 min session');
-    const upd = await b.next('playerUpdated', (m) => m.player.id === wa.you.id && m.player.seatId === null);
+    const upd = await b.next('playerUpdated', (m) => m.player.id === wa.you.id && m.player.slotId === null);
     expect(upd.player.rainUntil).toBeGreaterThan(t);
   });
 

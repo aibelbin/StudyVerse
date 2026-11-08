@@ -63,7 +63,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'enterScene':
       return isStr(m.doorId, 64) ? { t: 'enterScene', doorId: m.doorId } : null;
     case 'sit':
-      return isStr(m.seatId, 64) ? { t: 'sit', seatId: m.seatId } : null;
+      return isStr(m.slotId, 64) ? { t: 'sit', slotId: m.slotId } : null;
     case 'stand':
       return { t: 'stand' };
     case 'cancelSession':

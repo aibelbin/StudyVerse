@@ -1,24 +1,24 @@
 import type { Box } from '../geometry';
-import type { Decor, Seat } from './types';
+import type { Decor, Slot } from './types';
 
 /** A reusable chunk of a scene: what it looks like, what blocks movement, where you can sit. */
 export interface Parts {
   decor: Decor[];
   colliders: Box[];
-  seats: Seat[];
+  slots: Slot[];
 }
 
 export function merge(...ps: Partial<Parts>[]): Parts {
-  const out: Parts = { decor: [], colliders: [], seats: [] };
+  const out: Parts = { decor: [], colliders: [], slots: [] };
   for (const p of ps) {
     out.decor.push(...(p.decor ?? []));
     out.colliders.push(...(p.colliders ?? []));
-    out.seats.push(...(p.seats ?? []));
+    out.slots.push(...(p.slots ?? []));
   }
   return out;
 }
 
-/** 1.4 x 0.8 desk with a lamp. 'north' seats sit behind the desk facing the camera (+z); 'south' seats face away. */
+/** 1.4 x 0.8 desk with a lamp. 'north' slots sit behind the desk facing the camera (+z); 'south' slots face away. */
 export function studyDesk(id: string, x: number, z: number, sides: ('north' | 'south')[] = ['north', 'south']): Parts {
   const p: Parts = {
     decor: [
@@ -26,13 +26,13 @@ export function studyDesk(id: string, x: number, z: number, sides: ('north' | 's
       { kind: 'deskLamp', x: x + 0.5, z: z - 0.15, seed: x * 3 - z },
     ],
     colliders: [{ x, z, w: 1.4, d: 0.8 }],
-    seats: [],
+    slots: [],
   };
   for (const side of sides) {
     const sz = side === 'north' ? z - 0.75 : z + 0.75;
     const facing = side === 'north' ? 0 : Math.PI;
     p.decor.push({ kind: 'chair', x, z: sz, rot: facing, seed: x * 11 + sz });
-    p.seats.push({ id: `${id}-${side[0]}`, x, z: sz, facing, deskId: id });
+    p.slots.push({ id: `${id}-${side[0]}`, x, z: sz, facing, pose: 'sit', deskId: id });
   }
   return p;
 }
@@ -47,21 +47,21 @@ export function cafeTable(id: string, x: number, z: number): Parts {
       { kind: 'cup', x: x - 0.12, z: z + 0.08, y: 0.77 },
     ],
     colliders: [{ x, z, w: 0.8, d: 0.8 }],
-    seats: [
-      { id: `${id}-w`, x: x - 0.75, z, facing: Math.PI / 2, deskId: id },
-      { id: `${id}-e`, x: x + 0.75, z, facing: -Math.PI / 2, deskId: id },
+    slots: [
+      { id: `${id}-w`, x: x - 0.75, z, facing: Math.PI / 2, pose: 'sit', deskId: id },
+      { id: `${id}-e`, x: x + 0.75, z, facing: -Math.PI / 2, pose: 'sit', deskId: id },
     ],
   };
 }
 
-/** Park bench running along x, two seats. facing 0 = sitters face +z (towards the camera). */
+/** Park bench running along x, two slots. facing 0 = sitters face +z (towards the camera). */
 export function bench(id: string, x: number, z: number, facing: number): Parts {
   return {
     decor: [{ kind: 'bench', x, z, rot: facing }],
     colliders: [],
-    seats: [
-      { id: `${id}-a`, x: x - 0.45, z, facing, deskId: id },
-      { id: `${id}-b`, x: x + 0.45, z, facing, deskId: id },
+    slots: [
+      { id: `${id}-a`, x: x - 0.45, z, facing, pose: 'sit', deskId: id },
+      { id: `${id}-b`, x: x + 0.45, z, facing, pose: 'sit', deskId: id },
     ],
   };
 }
@@ -70,16 +70,16 @@ export function tree(x: number, z: number, scale = 1, kind: 'tree' | 'pine' = 't
   return {
     decor: [{ kind, x, z, h: scale, seed: x * 13 + z * 7 }],
     colliders: [{ x, z, w: 0.6 * scale, d: 0.6 * scale }],
-    seats: [],
+    slots: [],
   };
 }
 
 export function lampPost(x: number, z: number): Parts {
-  return { decor: [{ kind: 'lampPost', x, z }], colliders: [{ x, z, w: 0.3, d: 0.3 }], seats: [] };
+  return { decor: [{ kind: 'lampPost', x, z }], colliders: [{ x, z, w: 0.3, d: 0.3 }], slots: [] };
 }
 
 export function plant(x: number, z: number): Parts {
-  return { decor: [{ kind: 'plant', x, z, seed: x * 17 + z }], colliders: [{ x, z, w: 0.5, d: 0.5 }], seats: [] };
+  return { decor: [{ kind: 'plant', x, z, seed: x * 17 + z }], colliders: [{ x, z, w: 0.5, d: 0.5 }], slots: [] };
 }
 
 /** Bookshelf of width w. rot 0 faces +z (against a north wall); ±PI/2 for side walls. */
@@ -88,7 +88,7 @@ export function bookshelf(x: number, z: number, w = 2.2, rot = 0): Parts {
   return {
     decor: [{ kind: 'bookshelf', x, z, w, rot, seed: x * 19 + z * 3 }],
     colliders: [sideways ? { x, z, w: 0.45, d: w } : { x, z, w, d: 0.45 }],
-    seats: [],
+    slots: [],
   };
 }
 
@@ -97,6 +97,6 @@ export function building(x: number, z: number, w: number, d: number, h: number, 
   return {
     decor: [{ kind: 'building', x, z, w, d, h, color, accent, label }],
     colliders: [{ x, z, w, d }],
-    seats: [],
+    slots: [],
   };
 }

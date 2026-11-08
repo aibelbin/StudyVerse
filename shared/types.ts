@@ -28,7 +28,7 @@ export interface PlayerView {
   z: number;
   facing: number;
   anim: Anim;
-  seatId: string | null;
+  slotId: string | null;
   session: Session | null;
   connected: boolean;
   /** Server epoch ms until which the rain cloud shows; 0 = none. */

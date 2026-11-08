@@ -1,12 +1,18 @@
 import type { Bounds, Box } from '../geometry';
 
-export interface Seat {
+export type Pose = 'sit' | 'swing' | 'ride' | 'row';
+
+export interface Slot {
   id: string;
   x: number;
   z: number;
   /** Direction the sitter faces (radians, 0 = +z). */
   facing: number;
-  deskId: string;
+  pose: Pose;
+  /** Desks, café tables and benches: allows Pomodoro. */
+  deskId?: string;
+  /** Toy seats: swings, seesaw, merry-go-round, piano bench, logs, boats. */
+  toyId?: string;
 }
 
 export interface Door {
@@ -65,7 +71,7 @@ export interface SceneDef {
   size: Bounds;
   theme: Theme;
   colliders: Box[];
-  seats: Seat[];
+  slots: Slot[];
   doors: Door[];
   spawns: Spawn[];
   decor: Decor[];
