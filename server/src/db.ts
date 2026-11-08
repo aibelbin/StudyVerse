@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import type { Look } from '../../shared/types';
+import { DEFAULT_LOOK, normalizeLook } from '../../shared/wardrobe';
 
 export interface Profile {
   id: string;
@@ -46,7 +47,7 @@ export class ProfileStore {
       .get(hash(token)) as unknown as Row | undefined;
     if (!row) return null;
     this.db.prepare('UPDATE profiles SET last_seen_at = ? WHERE id = ?').run(now, row.id);
-    return { id: row.id, name: row.name, look: JSON.parse(row.look_json) as Look };
+    return { id: row.id, name: row.name, look: normalizeLook(JSON.parse(row.look_json)) ?? DEFAULT_LOOK };
   }
 
   updateLook(id: string, look: Look): void {

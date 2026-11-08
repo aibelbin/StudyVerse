@@ -1,73 +1,39 @@
 import * as THREE from 'three';
 import type { Pose } from '../../../shared/scenes/types';
-import type { Anim, Hat, Look } from '../../../shared/types';
+import type { Anim, Eyes, Look, OutfitSlot } from '../../../shared/types';
+import { SLOTS } from '../../../shared/wardrobe';
+import { BODY, buildItem } from './outfits';
 import { Overhead } from './overhead';
 import { textSprite } from './text';
 
-const HAT_COLORS: Record<Exclude<Hat, 'none'>, string> = {
-  beanie: '#ef7d7d',
-  cap: '#6d9cf0',
-  bucket: '#efd27a',
-  flower: '#7cc47a',
-};
+const INK = '#2a2430';
 
-function makeHat(h: Exclude<Hat, 'none'>): THREE.Group {
-  const g = new THREE.Group();
-  const c = new THREE.MeshStandardMaterial({ color: HAT_COLORS[h], roughness: 0.85 });
-  const white = new THREE.MeshStandardMaterial({ color: '#fffaf2', roughness: 0.9 });
-  const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number) => {
-    const o = new THREE.Mesh(geo, m);
-    o.position.set(x, y, z);
-    o.castShadow = true;
-    g.add(o);
-    return o;
-  };
-  if (h === 'beanie') {
-    add(new THREE.SphereGeometry(0.375, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.45), c, 0, 1.36, 0);
-    add(new THREE.TorusGeometry(0.37, 0.05, 8, 28), white, 0, 1.42, 0).rotation.x = Math.PI / 2;
-    add(new THREE.SphereGeometry(0.08, 10, 8), white, 0, 1.76, 0);
-  } else if (h === 'cap') {
-    add(new THREE.SphereGeometry(0.372, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.42), c, 0, 1.35, 0);
-    add(new THREE.BoxGeometry(0.3, 0.02, 0.16), c, 0, 1.56, 0.33).rotation.x = 0.15;
-  } else if (h === 'bucket') {
-    add(new THREE.CylinderGeometry(0.27, 0.33, 0.24, 18), c, 0, 1.67, 0);
-    add(new THREE.CylinderGeometry(0.5, 0.5, 0.03, 24), c, 0, 1.56, 0);
-  } else {
-    const colors = ['#f7a1c4', '#ffd36e', '#ffffff'];
-    add(new THREE.TorusGeometry(0.29, 0.025, 6, 32), c, 0, 1.55, 0).rotation.x = Math.PI / 2;
-    for (let i = 0; i < 9; i++) {
-      const a = (i / 9) * Math.PI * 2;
-      const m = new THREE.MeshStandardMaterial({ color: colors[i % 3], roughness: 0.8 });
-      add(new THREE.SphereGeometry(0.07, 10, 8), m, Math.cos(a) * 0.29, 1.57, Math.sin(a) * 0.29);
-    }
-  }
-  return g;
-}
-
-/** A chunky, big-headed, waddling little person. Faces +z when facing = 0. */
+/** A round, waddling blob with a face, stubby hands and bean feet. Faces +z when facing = 0. */
 export class Character {
   readonly root = new THREE.Group();
   readonly overhead = new Overhead();
   anim: Anim = 'idle';
-  /** How to sit when anim is 'sit': on a chair, holding on (swing, rides), or rowing. */
+  /** How to sit when anim is 'sit'. */
   pose: Pose = 'sit';
-  /** Rowing strokes while true. */
+  /** Rowing / steering motion while true. */
   active = false;
   facing = 0;
 
   private rig = new THREE.Group();
-  private bodyMat = new THREE.MeshStandardMaterial({ roughness: 0.8 });
-  private legMat = new THREE.MeshStandardMaterial({ roughness: 0.8 });
-  private skinMat = new THREE.MeshStandardMaterial({ roughness: 0.9 });
-  private darkMat = new THREE.MeshStandardMaterial({ color: '#3b3346', roughness: 0.6 });
+  private bodyMat = new THREE.MeshStandardMaterial({ roughness: 0.75 });
+  private limbMat = new THREE.MeshStandardMaterial({ roughness: 0.8 });
+  private inkMat = new THREE.MeshStandardMaterial({ color: INK, roughness: 0.5 });
   private blushMat = new THREE.MeshStandardMaterial({ color: '#ff9fb0', roughness: 1 });
-  private hatGroup = new THREE.Group();
-  private hatKey = '';
+  private body: THREE.Mesh;
+  private eyes = new THREE.Group();
+  private eyeKey = '';
   private legs: THREE.Group[] = [];
   private arms: THREE.Group[] = [];
-  private body: THREE.Mesh;
+  private anchors = {} as Record<OutfitSlot, THREE.Group>;
+  private worn = {} as Record<OutfitSlot, string>;
   private phase = 0;
   private dimmed = false;
+  private blinkAt = Math.random() * 4000;
 
   constructor(look: Look, name: string, isMe = false) {
     const part = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number, parent: THREE.Object3D = this.rig) => {
@@ -77,51 +43,81 @@ export class Character {
       parent.add(o);
       return o;
     };
-    this.body = part(new THREE.CapsuleGeometry(0.26, 0.28, 6, 14), this.bodyMat, 0, 0.62, 0);
-    part(new THREE.SphereGeometry(0.36, 24, 18), this.skinMat, 0, 1.32, 0);
-    part(new THREE.BoxGeometry(0.07, 0.018, 0.02), this.darkMat, 0, 1.235, 0.352);
+    this.body = part(new THREE.SphereGeometry(1, 32, 24).scale(BODY.rx, BODY.ry, BODY.rz), this.bodyMat, 0, BODY.cy, 0);
+    this.eyes.position.set(0, 0.68, 0.355);
+    this.rig.add(this.eyes);
     for (const s of [-1, 1]) {
-      part(new THREE.SphereGeometry(0.045, 10, 8), this.darkMat, s * 0.12, 1.36, 0.325);
-      const blush = part(new THREE.SphereGeometry(0.06, 10, 8), this.blushMat, s * 0.21, 1.25, 0.29);
-      blush.scale.set(1, 0.6, 0.4);
+      const blush = part(new THREE.SphereGeometry(0.06, 10, 8), this.blushMat, s * 0.21, 0.6, 0.31);
+      blush.scale.set(1, 0.55, 0.4);
       blush.castShadow = false;
 
       const leg = new THREE.Group();
-      leg.position.set(s * 0.11, 0.32, 0);
-      part(new THREE.CapsuleGeometry(0.08, 0.16, 4, 10), this.legMat, 0, -0.16, 0, leg);
+      leg.position.set(s * 0.15, 0.12, 0);
+      part(new THREE.SphereGeometry(0.1, 12, 8).scale(1, 0.6, 1.4), this.limbMat, 0, -0.06, 0.04, leg);
       this.rig.add(leg);
       this.legs.push(leg);
 
       const arm = new THREE.Group();
-      arm.position.set(s * 0.3, 0.9, 0);
-      arm.rotation.z = s * 0.25;
-      part(new THREE.CapsuleGeometry(0.07, 0.2, 4, 10), this.bodyMat, 0, -0.16, 0, arm);
+      arm.position.set(s * 0.38, 0.5, 0);
+      part(new THREE.SphereGeometry(0.085, 12, 8), this.limbMat, 0, -0.07, 0, arm);
       this.rig.add(arm);
       this.arms.push(arm);
     }
-    this.rig.add(this.hatGroup);
+    const mouth = part(new THREE.TorusGeometry(0.035, 0.012, 6, 12, Math.PI), this.inkMat, 0, 0.6, 0.385);
+    mouth.rotation.z = Math.PI;
+    mouth.castShadow = false;
+
+    const anchorAt: Record<OutfitSlot, [number, number, number]> = {
+      hat: [0, 0.97, 0], top: [0, BODY.cy, 0], face: [0, 0.68, 0.36], back: [0, 0.5, -0.38], neck: [0, 0.42, 0],
+    };
+    for (const slot of SLOTS) {
+      const g = new THREE.Group();
+      g.position.set(...anchorAt[slot]);
+      this.rig.add(g);
+      this.anchors[slot] = g;
+      this.worn[slot] = '';
+    }
     this.root.add(this.rig);
 
     const tag = textSprite(name, 0.28, { bg: isMe ? '#fff4d6ee' : '#ffffffd9', font: 40, pad: 14 });
-    tag.position.y = 2.0;
+    tag.position.y = 1.5;
     this.root.add(tag);
-    this.overhead.group.position.y = 2.5;
+    this.overhead.group.position.y = 1.95;
     this.root.add(this.overhead.group);
     this.setLook(look);
   }
 
   setLook(look: Look): void {
     this.bodyMat.color.set(look.body);
-    this.legMat.color.set(look.body).offsetHSL(0, -0.05, -0.18);
-    this.skinMat.color.set(look.skin);
-    if (look.hat !== this.hatKey) {
-      this.hatKey = look.hat;
-      for (const c of [...this.hatGroup.children]) {
+    this.limbMat.color.set(look.body).offsetHSL(0, -0.05, -0.12);
+    if (look.eyes !== this.eyeKey) this.buildEyes(look.eyes);
+    for (const slot of SLOTS) {
+      if (this.worn[slot] === look[slot]) continue;
+      this.worn[slot] = look[slot];
+      const a = this.anchors[slot];
+      for (const c of [...a.children]) {
         c.removeFromParent();
         disposeTree(c);
       }
-      if (look.hat !== 'none') this.hatGroup.add(makeHat(look.hat));
-      if (this.dimmed) this.applyDim(true);
+      if (look[slot] !== 'none') a.add(buildItem(look[slot]));
+    }
+    if (this.dimmed) this.applyDim(true);
+  }
+
+  private buildEyes(style: Eyes): void {
+    this.eyeKey = style;
+    for (const c of [...this.eyes.children]) {
+      c.removeFromParent();
+      if (c instanceof THREE.Mesh) c.geometry.dispose();
+    }
+    for (const s of [-1, 1]) {
+      let geo: THREE.BufferGeometry;
+      if (style === 'happy') geo = new THREE.TorusGeometry(0.04, 0.013, 6, 12, Math.PI);
+      else if (style === 'sleepy') geo = new THREE.BoxGeometry(0.075, 0.016, 0.02);
+      else geo = new THREE.SphereGeometry(0.045, 12, 10);
+      const e = new THREE.Mesh(geo, this.inkMat);
+      e.position.set(s * 0.12, 0, 0);
+      this.eyes.add(e);
     }
   }
 
@@ -145,32 +141,43 @@ export class Character {
 
   update(dt: number, now: number): void {
     this.rig.rotation.y = this.facing;
+    const [l0, l1] = this.legs;
+    const [a0, a1] = this.arms;
     if (this.anim === 'walk') {
       this.phase += dt * 11;
       const s = Math.sin(this.phase);
-      this.legs[0].rotation.x = s * 0.7;
-      this.legs[1].rotation.x = -s * 0.7;
-      this.arms[0].rotation.x = -s * 0.6;
-      this.arms[1].rotation.x = s * 0.6;
-      this.rig.position.y = Math.abs(s) * 0.06;
-      this.rig.rotation.z = s * 0.09;
+      l0.rotation.x = s * 0.6;
+      l1.rotation.x = -s * 0.6;
+      a0.rotation.x = -s * 0.5;
+      a1.rotation.x = s * 0.5;
+      a0.rotation.z = a1.rotation.z = 0;
+      this.rig.position.y = Math.abs(s) * 0.05;
+      this.rig.rotation.z = s * 0.12;
     } else if (this.anim === 'sit') {
-      for (const l of this.legs) l.rotation.x = -Math.PI / 2;
-      const arm = this.pose === 'sit' ? -0.9
-        : this.pose === 'row' ? (this.active ? -1.25 + Math.sin(now * 0.011) * 0.45 : -1.1)
-        : -2.5;
-      for (const a of this.arms) a.rotation.x = arm;
-      this.rig.position.y = 0.16;
+      l0.rotation.x = l1.rotation.x = -1.3;
+      this.rig.position.y = 0.38;
       this.rig.rotation.z = 0;
+      let ax = -0.5;
+      let az = 0;
+      if (this.pose === 'swing' || this.pose === 'ride') [ax, az] = [-2.6, 0.2];
+      else if (this.pose === 'row') ax = this.active ? -1.3 + Math.sin(now * 0.011) * 0.5 : -1.1;
+      else if (this.pose === 'drive') [ax, az] = [-1.4 + Math.sin(now * 0.004) * (this.active ? 0.15 : 0), 0.35];
+      a0.rotation.x = a1.rotation.x = ax;
+      a0.rotation.z = az;
+      a1.rotation.z = -az;
     } else {
-      for (const l of this.legs) l.rotation.x = 0;
-      const b = Math.sin(now * 0.003) * 0.05;
-      this.arms[0].rotation.x = b;
-      this.arms[1].rotation.x = -b;
+      l0.rotation.x = l1.rotation.x = 0;
+      const b = Math.sin(now * 0.003) * 0.06;
+      a0.rotation.x = b;
+      a1.rotation.x = -b;
+      a0.rotation.z = a1.rotation.z = 0;
       this.rig.position.y = 0;
       this.rig.rotation.z = 0;
     }
-    this.body.scale.y = 1 + Math.sin(now * 0.0025) * 0.02;
+    const breathe = 1 + Math.sin(now * 0.0025) * 0.015;
+    this.body.scale.set(1, breathe, 1);
+    const blinking = this.eyeKey === 'dot' && (now + this.blinkAt) % 4200 < 120;
+    this.eyes.scale.y = blinking ? 0.15 : 1;
     this.overhead.update(dt, now);
   }
 
@@ -183,7 +190,7 @@ export class Character {
 function disposeTree(o: THREE.Object3D): void {
   o.traverse((x) => {
     if (x instanceof THREE.Mesh || x instanceof THREE.Sprite) {
-      if (!(x instanceof THREE.Sprite)) x.geometry.dispose(); // sprites share one geometry
+      if (!(x instanceof THREE.Sprite)) x.geometry.dispose();
       const mats = Array.isArray(x.material) ? x.material : [x.material];
       for (const m of mats) {
         (m as THREE.MeshBasicMaterial).map?.dispose();

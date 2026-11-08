@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cleanName, isLook, parseClientMsg } from './validate';
 
-const look = { body: '#aabbcc', skin: '#112233', hat: 'cap' };
+const look = { body: '#aabbcc', eyes: 'dot', hat: 'cap', top: 'none', face: 'none', back: 'none', neck: 'none' };
 
 describe('parseClientMsg', () => {
   it('parses use with an optional small integer arg', () => {
@@ -38,7 +38,7 @@ describe('parseClientMsg', () => {
     });
   });
   it('rejects hello with a bad look', () => {
-    expect(parseClientMsg(JSON.stringify({ t: 'hello', inviteCode: 'x', name: 'Sam', look: { ...look, hat: 'crown' } }))).toBeNull();
+    expect(parseClientMsg(JSON.stringify({ t: 'hello', inviteCode: 'x', name: 'Sam', look: { ...look, hat: 'tiara' } }))).toBeNull();
   });
   it('requires integer session lengths', () => {
     expect(parseClientMsg(JSON.stringify({ t: 'startSession', focusMin: 25, breakMin: 5 }))).toEqual({ t: 'startSession', focusMin: 25, breakMin: 5 });

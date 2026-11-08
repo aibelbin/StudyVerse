@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { DEFAULT_LOOK } from '../../shared/looks';
+import { DEFAULT_LOOK } from '../../shared/wardrobe';
 import { ProfileStore } from './db';
 
 const dirs: string[] = [];
@@ -32,10 +32,10 @@ describe('ProfileStore', () => {
     const path = tempDb();
     const a = new ProfileStore(path);
     const { profile, token } = a.create('Alex', DEFAULT_LOOK);
-    a.updateLook(profile.id, { body: '#111111', skin: '#222222', hat: 'cap' });
+    a.updateLook(profile.id, { ...DEFAULT_LOOK, body: '#111111', hat: 'cap' });
     a.close();
     const b = new ProfileStore(path);
-    expect(b.findByToken(token)).toEqual({ ...profile, look: { body: '#111111', skin: '#222222', hat: 'cap' } });
+    expect(b.findByToken(token)).toEqual({ ...profile, look: { ...DEFAULT_LOOK, body: '#111111', hat: 'cap' } });
     b.close();
   });
 

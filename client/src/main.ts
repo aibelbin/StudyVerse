@@ -1,5 +1,5 @@
 import './style.css';
-import { DEFAULT_LOOK } from '../../shared/looks';
+import { DEFAULT_LOOK } from '../../shared/wardrobe';
 import type { ClientMsg } from '../../shared/protocol';
 import { Extras } from './game/extras';
 import { Game } from './game/game';

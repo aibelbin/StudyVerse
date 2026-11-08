@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { extname, join, normalize } from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { ServerMsg } from '../../shared/protocol';
+import { freeOnly } from '../../shared/wardrobe';
 import { ProfileStore } from './db';
 import { cleanName, isLook, parseClientMsg } from './validate';
 import { World, type Conn } from './world';
@@ -190,7 +191,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
         failHello('bad_profile', 'Pick a name (1–16 characters) and a look.');
         return;
       }
-      const { profile, token } = store.create(name, msg.look);
+      const { profile, token } = store.create(name, freeOnly(msg.look!));
       playerId = profile.id;
       clearTimeout(helloTimer);
       world.join(profile, conn, token);

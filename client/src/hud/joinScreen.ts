@@ -1,5 +1,5 @@
 import { NAME_MAX } from '../../../shared/constants';
-import { BODY_COLORS, HAT_LABELS, HATS, SKIN_TONES } from '../../../shared/looks';
+import { BODY_COLORS, EYE_LABELS, EYES, FREE_HATS, itemById } from '../../../shared/wardrobe';
 import type { Look } from '../../../shared/types';
 import { byId, h } from './dom';
 
@@ -35,20 +35,23 @@ export function showJoin(opts: JoinOpts): Promise<JoinResult> {
     });
     const err = h('div', { className: 'err', textContent: opts.error ?? '' });
 
-    const swatches = (colors: readonly string[], key: 'body' | 'skin') => {
-      const row = h('div', { className: 'swatches' });
-      const render = () => row.replaceChildren(...colors.map((c) => {
-        const b = h('button', { type: 'button', className: `swatch${look[key] === c ? ' on' : ''}`, title: c, onclick: () => { look[key] = c; render(); } });
-        b.style.background = c;
-        return b;
-      }));
+    const swatches = h('div', { className: 'swatches' });
+    const renderSwatches = () => swatches.replaceChildren(...BODY_COLORS.map((c) => {
+      const b = h('button', { type: 'button', className: `swatch${look.body === c ? ' on' : ''}`, title: c, onclick: () => { look.body = c; renderSwatches(); } });
+      b.style.background = c;
+      return b;
+    }));
+    renderSwatches();
+    const choice = (values: readonly string[], label: (v: string) => string, get: () => string, set: (v: string) => void) => {
+      const row = h('div', { className: 'hats' });
+      const render = () => row.replaceChildren(...values.map((v) =>
+        h('button', { type: 'button', className: get() === v ? 'on' : '', textContent: label(v), onclick: () => { set(v); render(); } })));
       render();
       return row;
     };
-    const hats = h('div', { className: 'hats' });
-    const renderHats = () => hats.replaceChildren(...HATS.map((hat) =>
-      h('button', { type: 'button', className: look.hat === hat ? 'on' : '', textContent: HAT_LABELS[hat], onclick: () => { look.hat = hat; renderHats(); } })));
-    renderHats();
+    const eyes = choice(EYES, (v) => EYE_LABELS[v as keyof typeof EYE_LABELS], () => look.eyes, (v) => { look.eyes = v as Look['eyes']; });
+    const hatChoices = opts.mode === 'join' ? FREE_HATS : [...new Set([...FREE_HATS, look.hat])];
+    const hats = choice(hatChoices, (v) => (v === 'none' ? 'No hat' : itemById(v)?.name ?? v), () => look.hat, (v) => { look.hat = v; });
 
     const form = h('form', {
       className: 'glass join-card',
@@ -71,9 +74,10 @@ export function showJoin(opts: JoinOpts): Promise<JoinResult> {
       opts.mode === 'join' ? h('div', { className: 'sub', textContent: 'A cozy little town for studying together.' }) : '',
       opts.mode === 'join' ? h('label', { className: 'field' }, 'Invite code', code) : '',
       h('label', { className: 'field' }, 'Name', name),
-      h('label', { className: 'field' }, 'Outfit colour', swatches(BODY_COLORS, 'body')),
-      h('label', { className: 'field' }, 'Skin tone', swatches(SKIN_TONES, 'skin')),
+      h('label', { className: 'field' }, 'Colour', swatches),
+      h('label', { className: 'field' }, 'Eyes', eyes),
       h('label', { className: 'field' }, 'Hat', hats),
+      opts.mode === 'join' ? h('div', { className: 'sub', textContent: '👕 More outfits in the Boutique: earn ✨ Knowledge Points by studying.' }) : '',
       err,
       h('div', { className: 'actions' },
         h('button', { className: 'primary', type: 'submit', textContent: opts.mode === 'join' ? 'Move in 🏡' : 'Save look' }),

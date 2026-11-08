@@ -1,10 +1,15 @@
-export type Hat = 'none' | 'beanie' | 'cap' | 'bucket' | 'flower';
+export type Eyes = 'dot' | 'happy' | 'sleepy';
+export type OutfitSlot = 'hat' | 'top' | 'face' | 'back' | 'neck';
 
-/** Colors are '#rrggbb'. */
+/** A round blob's look: body colour ('#rrggbb'), eye style, and one wardrobe item id (or 'none') per slot. */
 export interface Look {
   body: string;
-  skin: string;
-  hat: Hat;
+  eyes: Eyes;
+  hat: string;
+  top: string;
+  face: string;
+  back: string;
+  neck: string;
 }
 
 export type Anim = 'idle' | 'walk' | 'sit';

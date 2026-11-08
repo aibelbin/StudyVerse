@@ -1,24 +1,17 @@
 import { NAME_MAX } from '../../shared/constants';
-import { HATS } from '../../shared/looks';
+import { normalizeLook } from '../../shared/wardrobe';
 import type { ClientMsg } from '../../shared/protocol';
 import { TOY_ACTIONS, type ToyAction } from '../../shared/toys';
-import type { Anim, EmoteKind, Hat, Look } from '../../shared/types';
+import type { Anim, EmoteKind, Look } from '../../shared/types';
 
 const ANIMS: Anim[] = ['idle', 'walk', 'sit'];
 const EMOTES: EmoteKind[] = ['wave', 'clap', 'flex', 'coffee'];
-const COLOR = /^#[0-9a-fA-F]{6}$/;
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isStr = (v: unknown, max: number): v is string => typeof v === 'string' && v.length > 0 && v.length <= max;
 
 export function isLook(v: unknown): v is Look {
-  if (!v || typeof v !== 'object') return false;
-  const l = v as Record<string, unknown>;
-  return (
-    typeof l.body === 'string' && COLOR.test(l.body) &&
-    typeof l.skin === 'string' && COLOR.test(l.skin) &&
-    HATS.includes(l.hat as Hat)
-  );
+  return normalizeLook(v) !== null;
 }
 
 export function cleanName(v: unknown): string | null {
@@ -53,8 +46,9 @@ export function parseClientMsg(raw: string): ClientMsg | null {
         out.name = m.name;
       }
       if (m.look !== undefined) {
-        if (!isLook(m.look)) return null;
-        out.look = { body: m.look.body, skin: m.look.skin, hat: m.look.hat };
+        const look = normalizeLook(m.look);
+        if (!look) return null;
+        out.look = look;
       }
       return out;
     }
@@ -89,7 +83,10 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return out;
     }
     case 'updateLook':
-      return isLook(m.look) ? { t: 'updateLook', look: { body: m.look.body, skin: m.look.skin, hat: m.look.hat } } : null;
+    {
+      const look = normalizeLook(m.look);
+      return look ? { t: 'updateLook', look } : null;
+    }
     default:
       return null;
   }

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join as pathJoin } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
-import { DEFAULT_LOOK } from '../../shared/looks';
+import { DEFAULT_LOOK } from '../../shared/wardrobe';
 import type { ClientMsg, ServerMsg } from '../../shared/protocol';
 import { findSlot } from '../../shared/scenes';
 import { startServer, type RunningServer } from './server';

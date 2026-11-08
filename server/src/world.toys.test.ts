@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GRACE_MS } from '../../shared/constants';
-import { DEFAULT_LOOK } from '../../shared/looks';
+import { DEFAULT_LOOK } from '../../shared/wardrobe';
 import type { ClientMsg, ErrorCode, ServerMsg } from '../../shared/protocol';
 import { SCENES } from '../../shared/scenes';
 import type { SceneDef } from '../../shared/scenes/types';

@@ -1,7 +1,7 @@
 import type { Bounds, Box } from '../geometry';
 import type { ToyKind } from '../toys';
 
-export type Pose = 'sit' | 'swing' | 'ride' | 'row';
+export type Pose = 'sit' | 'swing' | 'ride' | 'row' | 'drive';
 
 export interface Slot {
   id: string;

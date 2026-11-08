@@ -3,7 +3,7 @@ import type { PlayerView } from '../../../shared/types';
 import { formatClock, sessionLeftMs, statusText } from './format';
 
 const base: PlayerView = {
-  id: 'a', name: 'Sam', look: { body: '#ffffff', skin: '#ffffff', hat: 'none' }, scene: 'town',
+  id: 'a', name: 'Sam', look: { body: '#ffffff', eyes: 'dot', hat: 'none', top: 'none', face: 'none', back: 'none', neck: 'none' }, scene: 'town',
   x: 0, z: 0, facing: 0, anim: 'idle', slotId: null, session: null, connected: true, rainUntil: 0,
 };
 
