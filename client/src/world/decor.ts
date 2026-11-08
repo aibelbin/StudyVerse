@@ -1,0 +1,288 @@
+import * as THREE from 'three';
+import type { Decor, DecorKind } from '../../../shared/scenes/types';
+import { glow, mat, mesh } from './materials';
+import { PALETTE as P } from './palette';
+import { rng } from './rng';
+import { labelTexture } from './text';
+
+type Builder = (d: Decor, r: () => number) => THREE.Object3D;
+
+const box = (w: number, h: number, d: number) => new THREE.BoxGeometry(w, h, d);
+const cyl = (rt: number, rb: number, h: number, seg = 14) => new THREE.CylinderGeometry(rt, rb, h, seg);
+const sph = (r: number, detail = 1) => new THREE.IcosahedronGeometry(r, detail);
+const pick = <T,>(arr: readonly T[], r: () => number): T => arr[Math.floor(r() * arr.length)];
+
+function group(...kids: THREE.Object3D[]): THREE.Group {
+  const g = new THREE.Group();
+  if (kids.length) g.add(...kids);
+  return g;
+}
+
+function labelPlane(text: string, height: number): THREE.Mesh {
+  const { tex, aspect } = labelTexture(text, { fg: P.ink, font: 56, pad: 10 });
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(height * aspect, height),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true }),
+  );
+}
+
+const builders: Record<DecorKind, Builder> = {
+  tree(d, r) {
+    const s = d.h ?? 1;
+    const g = group(mesh(cyl(0.12 * s, 0.18 * s, 1.3 * s, 8), mat(P.trunk), 0, 0.65 * s, 0));
+    const greens = [P.leaf1, P.leaf2, P.leaf3];
+    for (let i = 0; i < 4; i++) {
+      g.add(mesh(sph((0.55 + r() * 0.3) * s), mat(greens[i % 3]), (r() - 0.5) * 0.8 * s, (1.5 + r() * 0.6) * s, (r() - 0.5) * 0.8 * s));
+    }
+    return g;
+  },
+
+  pine(d) {
+    const s = d.h ?? 1;
+    const g = group(mesh(cyl(0.1 * s, 0.14 * s, 0.8 * s, 8), mat(P.trunk), 0, 0.4 * s, 0));
+    for (let i = 0; i < 3; i++) {
+      g.add(mesh(new THREE.ConeGeometry((1 - i * 0.25) * s, 1.1 * s, 8), mat(i % 2 ? P.pine1 : P.pine2), 0, (1 + i * 0.6) * s, 0));
+    }
+    return g;
+  },
+
+  bush(_d, r) {
+    const g = group();
+    for (let i = 0; i < 3; i++) g.add(mesh(sph(0.35 + r() * 0.15), mat(i % 2 ? P.leaf1 : P.leaf2), (i - 1) * 0.35, 0.3, (r() - 0.5) * 0.3));
+    return g;
+  },
+
+  flowers(_d, r) {
+    const g = group();
+    for (let i = 0; i < 9; i++) {
+      const x = (r() - 0.5) * 0.9;
+      const z = (r() - 0.5) * 0.5;
+      g.add(mesh(cyl(0.012, 0.012, 0.26, 4), mat(P.leaf2), x, 0.13, z, false));
+      g.add(mesh(sph(0.065, 0), mat(pick(P.flowers, r)), x, 0.28, z, false));
+    }
+    return g;
+  },
+
+  lampPost() {
+    return group(
+      mesh(cyl(0.05, 0.07, 2.4, 8), mat(P.dark), 0, 1.2, 0),
+      mesh(sph(0.16, 2), glow(P.lampGlow), 0, 2.5, 0, false),
+      mesh(new THREE.ConeGeometry(0.22, 0.16, 8), mat(P.dark), 0, 2.68, 0),
+    );
+  },
+
+  bench() {
+    const g = group(
+      mesh(box(1.5, 0.08, 0.45), mat(P.wood), 0, 0.45, 0),
+      mesh(box(1.5, 0.36, 0.06), mat(P.wood), 0, 0.75, -0.2),
+    );
+    for (const x of [-0.65, 0.65]) for (const z of [-0.17, 0.17]) g.add(mesh(box(0.06, 0.45, 0.06), mat(P.dark), x, 0.225, z));
+    return g;
+  },
+
+  path(d) {
+    return mesh(box(d.w ?? 1, 0.02, d.d ?? 1), mat(P.path, 1), 0, 0.01, 0, false);
+  },
+
+  pond(d, r) {
+    const sx = (d.w ?? 4) / 2;
+    const sz = (d.d ?? 3) / 2;
+    const rim = mesh(cyl(1.08, 1.08, 0.05, 32), mat(P.waterRim), 0, 0.025, 0, false);
+    rim.scale.set(sx, 1, sz);
+    const water = mesh(cyl(1, 1, 0.06, 32), new THREE.MeshStandardMaterial({ color: P.water, roughness: 0.15, metalness: 0.1 }), 0, 0.04, 0, false);
+    water.scale.set(sx, 1, sz);
+    const g = group(rim, water);
+    for (let i = 0; i < 4; i++) {
+      const a = r() * Math.PI * 2;
+      const k = 0.3 + r() * 0.5;
+      g.add(mesh(cyl(0.2, 0.2, 0.01, 10), mat(P.leaf1), Math.cos(a) * sx * k, 0.075, Math.sin(a) * sz * k, false));
+    }
+    return g;
+  },
+
+  building(d) {
+    const w = d.w ?? 6;
+    const dd = d.d ?? 5;
+    const h = d.h ?? 4;
+    const accent = d.accent ?? P.woodDark;
+    const front = dd / 2;
+    const g = group(mesh(box(w, h, dd), mat(d.color ?? '#f2dcc0'), 0, h / 2, 0));
+    const shape = new THREE.Shape([new THREE.Vector2(-w / 2 - 0.3, 0), new THREE.Vector2(w / 2 + 0.3, 0), new THREE.Vector2(0, 1.7)]);
+    const roofGeo = new THREE.ExtrudeGeometry(shape, { depth: dd + 0.6, bevelEnabled: false });
+    roofGeo.translate(0, 0, -(dd + 0.6) / 2);
+    g.add(mesh(roofGeo, mat(accent), 0, h, 0));
+    g.add(mesh(box(1.0, 1.7, 0.1), mat(P.woodDark), 0, 0.85, front + 0.03));
+    g.add(mesh(sph(0.05, 1), mat(P.metal), 0.33, 0.85, front + 0.1, false));
+    for (const x of [-w / 2 + 1.3, w / 2 - 1.3]) {
+      g.add(mesh(box(1.2, 1.0, 0.08), mat(P.woodLight), x, 1.7, front + 0.02));
+      g.add(mesh(box(1.0, 0.8, 0.1), glow(P.windowGlow, 0.5), x, 1.7, front + 0.03, false));
+    }
+    const awning = mesh(box(w * 0.55, 0.08, 0.9), mat(accent), 0, 2.15, front + 0.4);
+    awning.rotation.x = 0.28;
+    g.add(awning);
+    if (d.label) {
+      const text = labelPlane(d.label, 0.42);
+      const tw = (text.geometry as THREE.PlaneGeometry).parameters.width;
+      g.add(mesh(box(tw + 0.4, 0.6, 0.08), mat(P.woodLight), 0, h - 0.55, front + 0.04));
+      text.position.set(0, h - 0.55, front + 0.09);
+      g.add(text);
+    }
+    return g;
+  },
+
+  desk(d, r) {
+    const w = d.w ?? 1.4;
+    const dd = d.d ?? 0.8;
+    const g = group(mesh(box(w, 0.06, dd), mat(P.wood), 0, 0.74, 0));
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(mesh(box(0.06, 0.71, 0.06), mat(P.woodDark), sx * (w / 2 - 0.08), 0.355, sz * (dd / 2 - 0.08)));
+    const stack = 2 + Math.floor(r() * 2);
+    for (let i = 0; i < stack; i++) g.add(mesh(box(0.3, 0.05, 0.22), mat(pick(P.books, r)), -w / 2 + 0.3, 0.795 + i * 0.05, (r() - 0.5) * 0.05));
+    g.add(mesh(box(0.36, 0.01, 0.26), mat(P.paper), 0.05, 0.775, 0, false));
+    return g;
+  },
+
+  chair(_d, r) {
+    const c = pick(P.chairs, r);
+    const g = group(mesh(box(0.46, 0.06, 0.46), mat(c), 0, 0.45, 0), mesh(box(0.46, 0.46, 0.06), mat(c), 0, 0.72, -0.2));
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(mesh(box(0.05, 0.45, 0.05), mat(P.woodDark), sx * 0.19, 0.225, sz * 0.19));
+    return g;
+  },
+
+  deskLamp(_d, r) {
+    return group(
+      mesh(cyl(0.09, 0.1, 0.03), mat(P.dark), 0, 0.785, 0),
+      mesh(cyl(0.015, 0.015, 0.36, 6), mat(P.dark), 0, 0.95, 0),
+      mesh(new THREE.ConeGeometry(0.14, 0.16, 14), mat(pick(P.lampShades, r)), 0, 1.15, 0),
+      mesh(sph(0.045, 1), glow(P.lampGlow), 0, 1.04, 0, false),
+    );
+  },
+
+  bookshelf(d, r) {
+    const w = d.w ?? 2.2;
+    const H = 2.1;
+    const D = 0.45;
+    const g = group(
+      mesh(box(w, H, 0.05), mat(P.woodDark), 0, H / 2, -D / 2 + 0.025),
+      mesh(box(0.06, H, D), mat(P.woodDark), -w / 2 + 0.03, H / 2, 0),
+      mesh(box(0.06, H, D), mat(P.woodDark), w / 2 - 0.03, H / 2, 0),
+    );
+    for (let i = 0; i < 5; i++) g.add(mesh(box(w, 0.05, D), mat(P.wood), 0, 0.03 + i * 0.5, 0));
+    const max = 4 * Math.ceil(w / 0.05);
+    const books = new THREE.InstancedMesh(box(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: 0.8, flatShading: true }), max);
+    const m4 = new THREE.Matrix4();
+    const col = new THREE.Color();
+    let n = 0;
+    for (let shelf = 0; shelf < 4; shelf++) {
+      let x = -w / 2 + 0.08;
+      while (x < w / 2 - 0.14 && n < max) {
+        if (r() < 0.08) {
+          x += 0.15;
+          continue;
+        }
+        const bw = 0.05 + r() * 0.06;
+        const bh = 0.28 + r() * 0.14;
+        m4.makeScale(bw, bh, 0.3).setPosition(x + bw / 2, 0.055 + shelf * 0.5 + bh / 2, 0.02);
+        books.setMatrixAt(n, m4);
+        books.setColorAt(n, col.set(pick(P.books, r)));
+        n++;
+        x += bw + 0.005;
+      }
+    }
+    books.count = n;
+    books.castShadow = true;
+    books.receiveShadow = true;
+    books.instanceMatrix.needsUpdate = true;
+    if (books.instanceColor) books.instanceColor.needsUpdate = true;
+    g.add(books);
+    return g;
+  },
+
+  rug(d) {
+    const w = d.w ?? 2;
+    const dd = d.d ?? 3;
+    return group(
+      mesh(box(w, 0.02, dd), mat(d.color ?? '#d98c8c', 1), 0, 0.011, 0, false),
+      mesh(box(w - 0.3, 0.022, dd - 0.3), mat(d.accent ?? '#f2c4b0', 1), 0, 0.012, 0, false),
+    );
+  },
+
+  plant(_d, r) {
+    const g = group(mesh(cyl(0.2, 0.15, 0.36, 12), mat(P.pot), 0, 0.18, 0), mesh(cyl(0.18, 0.18, 0.02, 12), mat(P.soil), 0, 0.36, 0, false));
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + r();
+      const leaf = mesh(sph(0.16, 1), mat(i % 2 ? P.leaf1 : P.leaf2), Math.cos(a) * 0.12, 0.62, Math.sin(a) * 0.12);
+      leaf.scale.set(0.6, 1.6, 0.6);
+      leaf.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5);
+      g.add(leaf);
+    }
+    return g;
+  },
+
+  window(d) {
+    const w = d.w ?? 2;
+    return group(
+      mesh(box(w + 0.16, 1.36, 0.08), mat(P.woodLight), 0, 1.7, 0),
+      mesh(box(w, 1.2, 0.09), glow(P.sky, 0.35), 0, 1.7, 0.005, false),
+      mesh(box(0.05, 1.2, 0.1), mat(P.woodLight), 0, 1.7, 0.01),
+      mesh(box(w, 0.05, 0.1), mat(P.woodLight), 0, 1.7, 0.01),
+    );
+  },
+
+  sign(d) {
+    const text = labelPlane(d.label ?? '', 0.36);
+    const tw = (text.geometry as THREE.PlaneGeometry).parameters.width;
+    text.position.z = 0.035;
+    return group(mesh(box(tw + 0.3, 0.55, 0.06), mat(P.woodLight), 0, 0, 0), text);
+  },
+
+  cafeTable() {
+    return group(
+      mesh(cyl(0.42, 0.42, 0.05, 20), mat(P.woodLight), 0, 0.74, 0),
+      mesh(cyl(0.05, 0.05, 0.7, 8), mat(P.dark), 0, 0.37, 0),
+      mesh(cyl(0.25, 0.25, 0.04, 16), mat(P.dark), 0, 0.02, 0),
+    );
+  },
+
+  stool(_d, r) {
+    return group(
+      mesh(cyl(0.22, 0.22, 0.07, 16), mat(pick(P.chairs, r)), 0, 0.445, 0),
+      mesh(cyl(0.035, 0.035, 0.42, 6), mat(P.metal), 0, 0.21, 0),
+      mesh(cyl(0.17, 0.17, 0.03, 14), mat(P.metal), 0, 0.015, 0),
+    );
+  },
+
+  counter(d) {
+    const w = d.w ?? 4;
+    const dd = d.d ?? 0.9;
+    return group(
+      mesh(box(w, 1, dd), mat(P.wood), 0, 0.5, 0),
+      mesh(box(w + 0.1, 0.06, dd + 0.1), mat(P.woodLight), 0, 1.03, 0),
+      mesh(box(w, 0.08, 0.04), mat(P.woodDark), 0, 0.15, dd / 2 + 0.01),
+    );
+  },
+
+  coffeeMachine() {
+    return group(
+      mesh(box(0.6, 0.55, 0.45), mat(P.machine), 0, 0.275, 0),
+      mesh(box(0.62, 0.06, 0.47), mat(P.dark), 0, 0.58, 0),
+      mesh(box(0.26, 0.08, 0.16), mat(P.dark), 0, 0.36, 0.25),
+      mesh(box(0.36, 0.03, 0.22), mat(P.metal), 0, 0.02, 0.24),
+      mesh(sph(0.03, 1), glow(P.red), 0.22, 0.45, 0.23, false),
+      mesh(cyl(0.05, 0.04, 0.09, 10), mat(P.cup), 0, 0.08, 0.24),
+    );
+  },
+
+  cup() {
+    return group(
+      mesh(cyl(0.05, 0.04, 0.09, 12), mat(P.cup), 0, 0.045, 0),
+      mesh(cyl(0.045, 0.045, 0.005, 12), mat(P.coffee), 0, 0.092, 0, false),
+    );
+  },
+};
+
+export function makeDecor(d: Decor): THREE.Object3D {
+  const o = builders[d.kind](d, rng(d.seed ?? d.x * 131 + d.z * 71));
+  o.position.set(d.x, d.y ?? 0, d.z);
+  o.rotation.y = d.rot ?? 0;
+  return o;
+}

@@ -1,0 +1,120 @@
+import * as THREE from 'three';
+import type { EmoteKind, Session } from '../../../shared/types';
+import { textSprite } from './text';
+
+const EMOJI: Record<EmoteKind, string> = { wave: '👋', clap: '👏', flex: '💪', coffee: '☕' };
+const EMOTE_MS = 1600;
+
+/** Everything floating above a character: session ring, rain cloud, emotes. */
+export class Overhead {
+  readonly group = new THREE.Group();
+  private canvas = document.createElement('canvas');
+  private ctx: CanvasRenderingContext2D;
+  private tex: THREE.CanvasTexture;
+  private ring: THREE.Sprite;
+  private ringKey = '';
+  private cloud = new THREE.Group();
+  private drops: THREE.Mesh[] = [];
+  private emotes: { s: THREE.Sprite; born: number }[] = [];
+
+  constructor() {
+    this.canvas.width = this.canvas.height = 128;
+    this.ctx = this.canvas.getContext('2d')!;
+    this.tex = new THREE.CanvasTexture(this.canvas);
+    this.tex.colorSpace = THREE.SRGBColorSpace;
+    this.ring = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.tex, depthTest: false, transparent: true }));
+    this.ring.scale.set(0.62, 0.62, 1);
+    this.ring.renderOrder = 11;
+    this.ring.visible = false;
+    this.group.add(this.ring);
+
+    const cm = new THREE.MeshStandardMaterial({ color: '#9aa3b5', roughness: 1 });
+    for (const [x, y, r] of [[0, 0, 0.22], [0.22, -0.03, 0.17], [-0.22, -0.03, 0.17], [0.08, 0.1, 0.16]]) {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), cm);
+      m.position.set(x, y, 0);
+      this.cloud.add(m);
+    }
+    const dm = new THREE.MeshBasicMaterial({ color: '#7fb8ff' });
+    for (let i = 0; i < 5; i++) {
+      const d = new THREE.Mesh(new THREE.CapsuleGeometry(0.018, 0.06, 2, 6), dm);
+      d.position.set(-0.2 + i * 0.1, -0.25, 0);
+      d.userData.off = i * 0.37;
+      this.drops.push(d);
+      this.cloud.add(d);
+    }
+    this.cloud.visible = false;
+    this.group.add(this.cloud);
+  }
+
+  setSession(s: Session | null, now: number): void {
+    if (!s) {
+      this.ring.visible = false;
+      this.ringKey = '';
+      return;
+    }
+    const len = (s.phase === 'focus' ? s.focusMin : s.breakMin) * 60_000;
+    const p = Math.min(1, Math.max(0, (now - s.phaseStartedAt) / len));
+    this.ring.visible = true;
+    const key = `${s.phase}:${Math.round(p * 200)}`;
+    if (key === this.ringKey) return;
+    this.ringKey = key;
+    this.draw(s.phase, p);
+  }
+
+  private draw(phase: Session['phase'], p: number): void {
+    const g = this.ctx;
+    g.clearRect(0, 0, 128, 128);
+    g.beginPath();
+    g.arc(64, 64, 58, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(255,255,255,.92)';
+    g.fill();
+    g.lineWidth = 10;
+    g.lineCap = 'round';
+    g.strokeStyle = '#ece4ef';
+    g.beginPath();
+    g.arc(64, 64, 47, 0, Math.PI * 2);
+    g.stroke();
+    g.strokeStyle = phase === 'focus' ? '#f29e4c' : '#6cc785';
+    g.beginPath();
+    g.arc(64, 64, 47, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(p, 0.001));
+    g.stroke();
+    g.font = '46px "Apple Color Emoji", "Segoe UI Emoji", system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(phase === 'focus' ? '📖' : '☕', 64, 68);
+    this.tex.needsUpdate = true;
+  }
+
+  setRain(on: boolean): void {
+    this.cloud.visible = on;
+  }
+
+  emote(kind: EmoteKind, now: number): void {
+    const s = textSprite(EMOJI[kind], 0.5, { bg: null, font: 64, pad: 6 });
+    s.position.y = -0.2;
+    this.group.add(s);
+    this.emotes.push({ s, born: now });
+  }
+
+  update(_dt: number, now: number): void {
+    if (this.cloud.visible) {
+      this.cloud.position.set(Math.sin(now * 0.002) * 0.05, this.ring.visible ? 0.55 : 0.1, 0);
+      for (const d of this.drops) {
+        const k = (now / 700 + (d.userData.off as number)) % 1;
+        d.position.y = -0.2 - k * 0.45;
+      }
+    }
+    this.emotes = this.emotes.filter(({ s, born }) => {
+      const age = (now - born) / EMOTE_MS;
+      if (age >= 1) {
+        s.removeFromParent();
+        s.material.map?.dispose();
+        s.material.dispose();
+        return false;
+      }
+      s.position.y = -0.2 + age * 0.9;
+      s.material.opacity = 1 - age * age;
+      return true;
+    });
+  }
+}
