@@ -1,0 +1,14 @@
+export const GRACE_MS = 60_000;            // disconnect grace before counting as gone
+export const RAIN_MS = 3 * 60_000;         // rain cloud after an early quit
+export const FOCUS_RANGE = [1, 120] as const;
+export const BREAK_RANGE = [1, 30] as const;
+export const NAME_MAX = 16;
+export const FEED_KEEP = 50;
+export const FEED_ON_WELCOME = 10;
+export const MOVE_SPEED = 3.2;             // m/s, local player walking speed
+export const MAX_SPEED = 12;               // m/s, server ignores moves faster than this
+export const PLAYER_RADIUS = 0.3;
+export const SEAT_RADIUS = 1.2;            // how close you must be to sit
+export const INTERACT_RADIUS = 1.5;        // how close you must be to open a player card
+export const DOOR_PAD = 1.0;               // server-side slack when checking door proximity
+export const CHEER_FEED_COOLDOWN_MS = 5_000;
