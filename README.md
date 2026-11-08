@@ -31,10 +31,21 @@ One process serves the page and the WebSocket (`/ws`). Profiles are stored in `d
 
 | Key | Action |
 |---|---|
-| WASD / arrows | walk |
-| E | sit / stand / say hi to someone nearby |
-| Space | start a study session (while seated) |
-| Esc | close dialogs and the player card |
+| WASD / arrows | walk (or row, while in a rowboat) |
+| E | sit / stand / use a toy / say hi to someone nearby |
+| Space | start a study session (at a desk, café table or bench) |
+| 1–8 | play notes while sitting at the piano |
+| Esc | close dialogs and the player card, stop stargazing |
+
+## The town
+
+A 120×90 town with a square (Library, Café, bandstand piano, fountain, bell, jukebox), a lake with a dock and
+two rowboats, woods with a campfire, a park with wind chimes and a telescope, and a playground (swings, seesaw,
+merry-go-round, slide). Toys are shared: friends see and hear them. Ducks, fish, frogs, birds, insects, sailboats
+and clouds wander around on their own, and the sky follows your local clock (stars and fireflies at night).
+All art is procedural and all sound is synthesized in the browser; 🔊 in the status panel mutes it.
+
+URL helpers: `?time=21:30` pretends it is that time of day, `?fps` shows a frame counter, `?debug` exposes `window.game`.
 
 ## Tests
 

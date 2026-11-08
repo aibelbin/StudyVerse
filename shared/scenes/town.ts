@@ -24,7 +24,7 @@ const paths: Decor[] = PATHS.map((b) => ({ kind: 'path', x: b.x, z: b.z, w: b.w,
 export const town: SceneDef = {
   id: 'town',
   name: 'Town',
-  where: 'in the park',
+  where: 'in town',
   size: { w: 120, d: 90 },
   theme: {
     indoor: false,

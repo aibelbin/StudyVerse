@@ -6,7 +6,7 @@ import { getScene } from '../../../shared/scenes';
 import { SLIDE_RUN } from '../../../shared/scenes/kitToys';
 import type { SceneDef, Slot, Toy } from '../../../shared/scenes/types';
 import {
-  angleDelta, BOAT_SPEED, boatOnWater, slotWorld, type BoatPose, type ToyAction, type ToyState,
+  angleDelta, BOAT_SPEED, boatOnWater, boatPoseAt, slotWorld, type BoatPose, type ToyAction, type ToyState,
 } from '../../../shared/toys';
 import type { EmoteKind, PlayerView } from '../../../shared/types';
 import type { SoundKind } from '../audio/kinds';
@@ -294,8 +294,9 @@ export class Game {
       return;
     }
     if (this.rowing?.toyId === slot.toyId) return;
-    const view = this.rt?.toys.get(slot.toyId);
-    const pose = view?.pose?.(this.toyCtx(slot.toyId)) ?? this.restPose(this.toyById(slot.toyId)!);
+    const toy = this.toyById(slot.toyId)!;
+    const st = this.toyStates[slot.toyId];
+    const pose = st?.kind === 'rowboat' ? boatPoseAt(st, this.restPose(toy), serverNow()) : this.restPose(toy);
     this.rowing = { toyId: slot.toyId, pose: { ...pose } };
   }
 

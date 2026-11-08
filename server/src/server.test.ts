@@ -106,7 +106,7 @@ describe('server', () => {
     await b.next('playerUpdated', (m) => m.player.id === wa.you.id && m.player.slotId === slot.id);
 
     a.send({ t: 'startSession', focusMin: 25, breakMin: 5 });
-    await b.next('feed', (m) => m.event.text === '📚 Sam started a 25 min session in the park');
+    await b.next('feed', (m) => m.event.text === '📚 Sam started a 25 min session in town');
 
     t += 12 * 60_000;
     a.send({ t: 'stand' });

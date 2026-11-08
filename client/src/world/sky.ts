@@ -124,8 +124,7 @@ export class SkyRig {
     this.spots = def.decor.filter((d) => d.kind === 'lampPost').map((d) => ({ x: d.x, z: d.z, y: 2.4 }));
     for (const t of def.toys) if (t.kind === 'campfire') this.spots.push({ x: t.x, z: t.z, y: 0.8, fire: t.id });
     for (let i = 0; i < LIGHTS; i++) {
-      const l = new THREE.PointLight(P.lampGlow, 0, 9, 2);
-      l.visible = false;
+      const l = new THREE.PointLight(P.lampGlow, 0, 9, 2); // always 'visible': toggling would recompile every shader
       this.lights.push(l);
       built.scene.add(l);
     }
@@ -171,13 +170,16 @@ export class SkyRig {
       this.lights.forEach((l, i) => {
         const p = lit[i];
         l.userData.fire = !!p?.fire;
-        l.visible = !!p && (p.fire !== undefined || s.night > 0.05);
+        l.userData.on = !!p && (p.fire !== undefined || s.night > 0.05);
         if (p) l.position.set(p.x, p.y, p.z);
         l.color.set(p?.fire ? '#ff9a4a' : P.lampGlow);
       });
     }
     for (const l of this.lights) {
-      if (!l.visible) continue;
+      if (!l.userData.on) {
+        l.intensity = 0;
+        continue;
+      }
       l.intensity = l.userData.fire ? 7 + Math.sin(now / 70) * 1.2 + Math.sin(now / 33) * 0.6 : 6 * s.night;
     }
   }

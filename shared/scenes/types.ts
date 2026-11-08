@@ -113,7 +113,7 @@ export interface Theme {
 export interface SceneDef {
   id: string;
   name: string;
-  /** Used in the feed: "started a 25 min session in the park". */
+  /** Used in the feed: "started a 25 min session in town". */
   where: string;
   size: Bounds;
   theme: Theme;

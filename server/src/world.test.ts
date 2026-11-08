@@ -104,7 +104,7 @@ describe('sessions', () => {
     w.join(prof('a', 'Sam'), a);
     sitDown('a');
     send('a', { t: 'startSession', focusMin: 25, breakMin: 5 });
-    expect(a.feed()).toContain('📚 Sam started a 25 min session in the park');
+    expect(a.feed()).toContain('📚 Sam started a 25 min session in town');
     t += 25 * MIN; w.tick();
     expect(w.view('a')!.session!.phase).toBe('break');
     expect(a.feed()).toContain('✨ Sam finished a 25 min session!');
