@@ -1,0 +1,281 @@
+import {
+  CHEER_FEED_COOLDOWN_MS, DOOR_PAD, FEED_ON_WELCOME, GRACE_MS, MAX_SPEED, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS,
+} from '../../shared/constants';
+import { clampToBounds, dist, inBox } from '../../shared/geometry';
+import type { ClientMsg, ErrorCode, ServerMsg } from '../../shared/protocol';
+import { getScene, START_SCENE, START_SPAWN } from '../../shared/scenes';
+import type { Anim, EmoteKind, FeedKind, Look, OnlineEntry, PlayerView, Session } from '../../shared/types';
+import type { Profile } from './db';
+import { Feed, feedText } from './feed';
+import { elapsedMin, newSession, stepSession, validLengths } from './sessions';
+
+/** What the World needs from a network connection. */
+export interface Conn {
+  send(msg: ServerMsg): void;
+  close(code: ErrorCode): void;
+}
+
+interface Player {
+  id: string;
+  name: string;
+  look: Look;
+  scene: string;
+  x: number;
+  z: number;
+  facing: number;
+  anim: Anim;
+  seatId: string | null;
+  session: Session | null;
+  rainUntil: number;
+  conn: Conn | null;
+  disconnectedAt: number | null;
+  lastMoveAt: number;
+  lastCheerFeedAt: number;
+}
+
+const EMOJI: Record<EmoteKind, string> = { wave: '👋', clap: '👏', flex: '💪', coffee: '☕' };
+
+export class World {
+  private players = new Map<string, Player>();
+  private seats = new Map<string, string>(); // seatId -> playerId
+  private feed = new Feed();
+
+  constructor(private now: () => number = Date.now) {}
+
+  view(id: string): PlayerView | undefined {
+    const p = this.players.get(id);
+    return p && this.toView(p);
+  }
+
+  join(profile: Profile, conn: Conn, newToken?: string): void {
+    const existing = this.players.get(profile.id);
+    if (existing) {
+      const old = existing.conn;
+      existing.conn = conn;
+      existing.disconnectedAt = null;
+      existing.name = profile.name;
+      existing.look = profile.look;
+      if (old) old.close('connected_elsewhere');
+      this.sendWelcome(existing, newToken);
+      this.toScene(existing.scene, { t: 'playerUpdated', player: this.toView(existing) }, existing.id);
+      return;
+    }
+    const spawn = getScene(START_SCENE)!.spawns.find((s) => s.id === START_SPAWN)!;
+    const p: Player = {
+      id: profile.id, name: profile.name, look: profile.look, scene: START_SCENE,
+      x: spawn.x, z: spawn.z, facing: spawn.facing, anim: 'idle',
+      seatId: null, session: null, rainUntil: 0,
+      conn, disconnectedAt: null, lastMoveAt: this.now(), lastCheerFeedAt: 0,
+    };
+    this.players.set(p.id, p);
+    this.sendWelcome(p, newToken);
+    this.toScene(p.scene, { t: 'playerJoined', player: this.toView(p) }, p.id);
+    this.pushFeed('arrive', feedText.arrive(p.name));
+    this.broadcastOnline();
+  }
+
+  /** Only the player's current connection counts; a replaced socket closing is ignored. */
+  disconnect(id: string, conn: Conn): void {
+    const p = this.players.get(id);
+    if (!p || p.conn !== conn) return;
+    p.conn = null;
+    p.disconnectedAt = this.now();
+    this.toScene(p.scene, { t: 'playerUpdated', player: this.toView(p) }, p.id);
+  }
+
+  handle(id: string, msg: ClientMsg): void {
+    const p = this.players.get(id);
+    if (!p || !p.conn) return;
+    switch (msg.t) {
+      case 'move': return this.move(p, msg.x, msg.z, msg.facing, msg.anim);
+      case 'enterScene': return this.enterScene(p, msg.doorId);
+      case 'sit': return this.sit(p, msg.seatId);
+      case 'stand': return this.stand(p);
+      case 'startSession': return this.startSession(p, msg.focusMin, msg.breakMin);
+      case 'cancelSession': return this.cancelSession(p);
+      case 'emote': return this.emote(p, msg.kind, msg.targetId);
+      case 'updateLook':
+        p.look = msg.look;
+        return this.updated(p);
+      case 'hello':
+        return;
+    }
+  }
+
+  /** Call about once a second: advances timers and expires disconnected players. */
+  tick(): void {
+    const t = this.now();
+    for (const p of [...this.players.values()]) {
+      if (p.session) {
+        const { session, event } = stepSession(p.session, t);
+        p.session = session;
+        if (event === 'focusDone') this.pushFeed('finish', feedText.finish(p.name, session!.focusMin));
+        if (event) this.updated(p);
+      }
+      if (!p.conn && p.disconnectedAt !== null && t - p.disconnectedAt >= GRACE_MS) this.remove(p);
+    }
+  }
+
+  // ---------- rules ----------
+
+  private move(p: Player, x: number, z: number, facing: number, anim: Anim): void {
+    if (p.seatId) return;
+    const t = this.now();
+    const c = clampToBounds(x, z, PLAYER_RADIUS, getScene(p.scene)!.size);
+    const allowed = (MAX_SPEED * Math.max(t - p.lastMoveAt, 50)) / 1000 + 0.5;
+    if (dist(p.x, p.z, c.x, c.z) > allowed) return;
+    p.x = c.x;
+    p.z = c.z;
+    p.facing = facing;
+    p.anim = anim === 'sit' ? 'idle' : anim;
+    p.lastMoveAt = t;
+    this.toScene(p.scene, { t: 'playerMoved', id: p.id, x: p.x, z: p.z, facing, anim: p.anim }, p.id);
+  }
+
+  private enterScene(p: Player, doorId: string): void {
+    const door = getScene(p.scene)!.doors.find((d) => d.id === doorId);
+    if (!door || p.seatId || !inBox(door.box, p.x, p.z, DOOR_PAD)) {
+      return this.error(p, 'bad_door', 'You are not at that door.');
+    }
+    const target = getScene(door.toScene)!;
+    const spawn = target.spawns.find((s) => s.id === door.toSpawn)!;
+    this.toScene(p.scene, { t: 'playerLeft', id: p.id }, p.id);
+    p.scene = target.id;
+    p.x = spawn.x;
+    p.z = spawn.z;
+    p.facing = spawn.facing;
+    p.anim = 'idle';
+    p.lastMoveAt = this.now();
+    p.conn!.send({ t: 'sceneSnapshot', scene: target.id, you: this.toView(p), players: this.scenePlayers(target.id, p.id) });
+    this.toScene(target.id, { t: 'playerJoined', player: this.toView(p) }, p.id);
+    this.broadcastOnline();
+  }
+
+  private sit(p: Player, seatId: string): void {
+    if (p.seatId) return;
+    const seat = getScene(p.scene)!.seats.find((s) => s.id === seatId);
+    if (!seat || dist(p.x, p.z, seat.x, seat.z) > SEAT_RADIUS + 0.3) {
+      return this.error(p, 'bad_seat', 'Get a little closer to that seat.');
+    }
+    if (this.seats.has(seatId)) return this.error(p, 'seat_taken', 'That seat is taken!');
+    this.seats.set(seatId, p.id);
+    p.seatId = seatId;
+    p.x = seat.x;
+    p.z = seat.z;
+    p.facing = seat.facing;
+    p.anim = 'sit';
+    this.updated(p);
+  }
+
+  private stand(p: Player): void {
+    if (!p.seatId) return;
+    if (p.session?.phase === 'focus') this.earlyQuit(p);
+    this.seats.delete(p.seatId);
+    p.seatId = null;
+    p.anim = 'idle';
+    this.updated(p);
+  }
+
+  private startSession(p: Player, focusMin: number, breakMin: number): void {
+    if (!p.seatId) return this.error(p, 'not_seated', 'Sit at a desk first.');
+    if (!validLengths(focusMin, breakMin) || p.session?.phase === 'focus') {
+      return this.error(p, 'bad_session', 'Focus 1–120 min, break 1–30 min.');
+    }
+    p.session = newSession(focusMin, breakMin, this.now());
+    this.pushFeed('start', feedText.start(p.name, focusMin, getScene(p.scene)!.where));
+    this.updated(p);
+  }
+
+  private cancelSession(p: Player): void {
+    if (!p.session) return;
+    if (p.session.phase === 'focus') this.earlyQuit(p);
+    else p.session = null;
+    this.updated(p);
+  }
+
+  private earlyQuit(p: Player): void {
+    const s = p.session!;
+    const t = this.now();
+    this.pushFeed('quit', feedText.quit(p.name, elapsedMin(s, t), s.focusMin));
+    p.session = null;
+    p.rainUntil = t + RAIN_MS;
+  }
+
+  private emote(p: Player, kind: EmoteKind, targetId?: string): void {
+    const target = targetId ? this.players.get(targetId) : undefined;
+    if (targetId && (!target || target.scene !== p.scene)) return;
+    this.toScene(p.scene, { t: 'emote', fromId: p.id, kind, ...(targetId ? { targetId } : {}) });
+    const t = this.now();
+    if (target && kind !== 'wave' && t - p.lastCheerFeedAt >= CHEER_FEED_COOLDOWN_MS) {
+      p.lastCheerFeedAt = t;
+      this.pushFeed('cheer', feedText.cheer(p.name, target.name, EMOJI[kind]));
+    }
+  }
+
+  private remove(p: Player): void {
+    if (p.session?.phase === 'focus') {
+      this.pushFeed('quit', feedText.quitDisconnect(p.name, elapsedMin(p.session, this.now()), p.session.focusMin));
+    } else {
+      this.pushFeed('leave', feedText.leave(p.name));
+    }
+    if (p.seatId) this.seats.delete(p.seatId);
+    this.players.delete(p.id);
+    this.toScene(p.scene, { t: 'playerLeft', id: p.id });
+    this.broadcastOnline();
+  }
+
+  // ---------- messaging ----------
+
+  private sendWelcome(p: Player, token?: string): void {
+    p.conn!.send({
+      t: 'welcome',
+      you: this.toView(p),
+      ...(token ? { token } : {}),
+      serverTime: this.now(),
+      players: this.scenePlayers(p.scene, p.id),
+      online: this.online(),
+      feed: this.feed.recent(FEED_ON_WELCOME),
+    });
+  }
+
+  private updated(p: Player): void {
+    this.toScene(p.scene, { t: 'playerUpdated', player: this.toView(p) });
+  }
+
+  private error(p: Player, code: ErrorCode, message: string): void {
+    p.conn?.send({ t: 'error', code, message });
+  }
+
+  private pushFeed(kind: FeedKind, text: string): void {
+    const event = this.feed.push(kind, text, this.now());
+    this.toAll({ t: 'feed', event });
+  }
+
+  private scenePlayers(scene: string, exceptId: string): PlayerView[] {
+    return [...this.players.values()].filter((q) => q.scene === scene && q.id !== exceptId).map((q) => this.toView(q));
+  }
+
+  private online(): OnlineEntry[] {
+    return [...this.players.values()].map((q) => ({ id: q.id, name: q.name, scene: q.scene }));
+  }
+
+  private broadcastOnline(): void {
+    this.toAll({ t: 'online', list: this.online() });
+  }
+
+  private toScene(scene: string, msg: ServerMsg, exceptId?: string): void {
+    for (const q of this.players.values()) if (q.scene === scene && q.id !== exceptId) q.conn?.send(msg);
+  }
+
+  private toAll(msg: ServerMsg): void {
+    for (const q of this.players.values()) q.conn?.send(msg);
+  }
+
+  private toView(p: Player): PlayerView {
+    return {
+      id: p.id, name: p.name, look: p.look, scene: p.scene,
+      x: p.x, z: p.z, facing: p.facing, anim: p.anim,
+      seatId: p.seatId, session: p.session, connected: p.conn !== null, rainUntil: p.rainUntil,
+    };
+  }
+}
