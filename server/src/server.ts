@@ -76,8 +76,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
         if (!res.headersSent) res.writeHead(500).end();
         else res.destroy();
       });
-    }
-    else res.writeHead(404).end('not found');
+    } else res.writeHead(404).end('not found');
   });
 
   const wss = new WebSocketServer({ server: http, path: '/ws', maxPayload: 8 * 1024 });
@@ -110,6 +109,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     });
 
     const onMessage = (data: unknown) => {
+      // Frames already in flight from a replaced tab must not act on the player's new session.
       if (replaced) return;
       const msg = parseClientMsg(String(data));
       if (!msg) {

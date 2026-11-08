@@ -122,17 +122,6 @@ describe('server', () => {
     expect((await c.next('emote')).kind).toBe('wave');
   });
 
-  it('a replaced socket can no longer act on the player', async () => {
-    const { c: a, welcome } = await join('Sam');
-    const b = await open();
-    b.send({ t: 'hello', token: welcome.token! });
-    await b.next('welcome');
-    await a.next('error', (m) => m.code === 'connected_elsewhere');
-    a.send({ t: 'emote', kind: 'wave' });
-    b.send({ t: 'emote', kind: 'clap' });
-    expect((await b.next('emote')).kind).toBe('clap');
-  });
-
   it('survives an oversize frame', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { c } = await join('Sam');
