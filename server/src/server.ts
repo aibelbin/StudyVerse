@@ -35,8 +35,14 @@ const MIME: Record<string, string> = {
 };
 
 async function serveStatic(dir: string, req: IncomingMessage, res: ServerResponse): Promise<void> {
-  const url = new URL(req.url ?? '/', 'http://local');
-  const rel = normalize(decodeURIComponent(url.pathname)).replace(/^[/\\]+/, '');
+  let rel: string;
+  try {
+    const url = new URL(req.url ?? '/', 'http://local');
+    rel = normalize(decodeURIComponent(url.pathname)).replace(/^[/\\]+/, '');
+  } catch {
+    res.writeHead(400).end();
+    return;
+  }
   if (rel.split(/[/\\]/).includes('..')) {
     res.writeHead(400).end();
     return;
@@ -64,7 +70,13 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       res.writeHead(200).end('ok');
       return;
     }
-    if (opts.staticDir) void serveStatic(opts.staticDir, req, res);
+    if (opts.staticDir) {
+      serveStatic(opts.staticDir, req, res).catch((err) => {
+        console.error('static error', err);
+        if (!res.headersSent) res.writeHead(500).end();
+        else res.destroy();
+      });
+    }
     else res.writeHead(404).end('not found');
   });
 
@@ -85,7 +97,19 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       },
     };
 
+    ws.on('error', (err) => {
+      console.warn('ws error:', err.message);
+    });
+
     ws.on('message', (data) => {
+      try {
+        onMessage(data);
+      } catch (err) {
+        console.error('message handler error', err);
+      }
+    });
+
+    const onMessage = (data: unknown) => {
       if (replaced) return;
       const msg = parseClientMsg(String(data));
       if (!msg) {
@@ -120,14 +144,24 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       const { profile, token } = store.create(name, msg.look);
       playerId = profile.id;
       world.join(profile, conn, token);
-    });
+    };
 
     ws.on('close', () => {
-      if (playerId) world.disconnect(playerId, conn);
+      try {
+        if (playerId) world.disconnect(playerId, conn);
+      } catch (err) {
+        console.error('close handler error', err);
+      }
     });
   });
 
-  const timer = setInterval(() => world.tick(), opts.tickMs ?? 1000);
+  const timer = setInterval(() => {
+    try {
+      world.tick();
+    } catch (err) {
+      console.error('tick error', err);
+    }
+  }, opts.tickMs ?? 1000);
   await new Promise<void>((resolve) => http.listen(opts.port, resolve));
   const port = (http.address() as AddressInfo).port;
 

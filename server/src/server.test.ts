@@ -1,4 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join as pathJoin } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
 import { DEFAULT_LOOK } from '../../shared/looks';
 import type { ClientMsg, ServerMsg } from '../../shared/protocol';
@@ -124,9 +127,36 @@ describe('server', () => {
     const b = await open();
     b.send({ t: 'hello', token: welcome.token! });
     await b.next('welcome');
+    await a.next('error', (m) => m.code === 'connected_elsewhere');
     a.send({ t: 'emote', kind: 'wave' });
-    await new Promise((r) => setTimeout(r, 200));
     b.send({ t: 'emote', kind: 'clap' });
     expect((await b.next('emote')).kind).toBe('clap');
+  });
+
+  it('survives an oversize frame', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { c } = await join('Sam');
+    c.ws.send('x'.repeat(9 * 1024));
+    await new Promise((r) => c.ws.once('close', r));
+    expect(await (await fetch(`http://127.0.0.1:${srv.port}/health`)).text()).toBe('ok');
+    await join('Alex');
+    warn.mockRestore();
+  });
+
+  it('answers 400 to a bad percent-escape and keeps serving', async () => {
+    const dir = await mkdtemp(pathJoin(tmpdir(), 'vs-static-'));
+    await writeFile(pathJoin(dir, 'index.html'), '<h1>hi</h1>');
+    const s2 = await startServer({ port: 0, dbPath: ':memory:', inviteCode: 'cozy', staticDir: dir });
+    try {
+      const base = `http://127.0.0.1:${s2.port}`;
+      expect((await fetch(`${base}/%E0%A4%A`)).status).toBe(400);
+      const r = await fetch(`${base}/`);
+      expect(r.status).toBe(200);
+      expect(await r.text()).toBe('<h1>hi</h1>');
+      expect(await (await fetch(`${base}/health`)).text()).toBe('ok');
+    } finally {
+      await s2.close();
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
