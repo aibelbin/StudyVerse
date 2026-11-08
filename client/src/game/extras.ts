@@ -1,4 +1,7 @@
 import type { SceneDef } from '../../../shared/scenes/types';
+import { Ambience } from '../audio/ambience';
+import { AudioEngine } from '../audio/engine';
+import { JukeboxPlayer } from '../audio/jukebox';
 import type { SoundKind } from '../audio/kinds';
 import { buildLife } from '../life/registry';
 import type { BuiltScene } from '../world/sceneBuilder';
@@ -12,6 +15,10 @@ export class Extras implements GameHooks {
   private lives = new Map<string, ReturnType<typeof buildLife>>();
   private life: ReturnType<typeof buildLife> | null = null;
   private lastNow = 0;
+  readonly audio = new AudioEngine();
+  private jukeboxes = new Map<string, JukeboxPlayer>();
+  private ambience = new Map<string, Ambience>();
+  private def: SceneDef | null = null;
   private timeOverride = new URLSearchParams(location.search).get('time');
 
   enterScene(def: SceneDef, built: BuiltScene): void {
@@ -22,6 +29,10 @@ export class Extras implements GameHooks {
       this.lives.set(def.id, life);
     }
     this.life = life;
+    this.def = def;
+    this.audio.setScene(def.id);
+    for (const t of def.toys) if (t.kind === 'jukebox' && !this.jukeboxes.has(t.id)) this.jukeboxes.set(t.id, new JukeboxPlayer(this.audio, t.x, t.z));
+    if (!def.theme.indoor && !this.ambience.has(def.id)) this.ambience.set(def.id, new Ambience(this.audio, def));
     if (built.outdoor) {
       let s = this.skies.get(def.id);
       if (!s) this.skies.set(def.id, (s = new SkyRig(built, def)));
@@ -36,10 +47,22 @@ export class Extras implements GameHooks {
     if (this.sky) this.sky.update(hours, f.me, performance.now(), f.toyStates);
     else tintIndoorWindows(skyAt(hours).night);
     this.lastNow = f.now;
-    this.life?.update({ t: f.now, dt: f.dt, focus: f.me, me: f.me, night: this.sky?.night ?? 0 });
+    const night = this.sky?.night ?? 0;
+    this.life?.update({ t: f.now, dt: f.dt, focus: f.me, me: f.me, night });
+    this.audio.setListener(f.me.x, f.me.z);
+    for (const [id, j] of this.jukeboxes) {
+      j.set(f.toyStates[id]);
+      if (f.def.toys.some((t) => t.id === id)) j.tick(f.now);
+    }
+    const fire = f.def.toys.find((t) => t.kind === 'campfire');
+    const fireState = fire ? f.toyStates[fire.id] : undefined;
+    this.ambience.get(f.def.id)?.update(night, fireState?.kind === 'campfire' && fireState.lit, f.me);
+    this.audio.update();
   }
 
-  sound(_kind: SoundKind, _x: number, _z: number, _arg?: number): void {}
+  sound(kind: SoundKind, x: number, z: number, arg?: number): void {
+    this.audio.playAt(kind, x, z, arg);
+  }
 
   feedDucks(x: number, z: number): void {
     this.life?.feed(x, z, this.lastNow);

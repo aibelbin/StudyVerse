@@ -39,7 +39,13 @@ conn.onMessage = (m) => {
     hud.show();
     if (!game) {
       game = new Game(byId('c') as HTMLCanvasElement, byId('fade'), hud, (msg) => conn.send(msg));
-      game.hooks = new Extras();
+      const extras = new Extras();
+      game.hooks = extras;
+      hud.muted = extras.audio.muted;
+      hud.onToggleMute = () => {
+        extras.audio.setMuted(!extras.audio.muted);
+        hud.muted = extras.audio.muted;
+      };
       if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { game });
     }
   }
