@@ -24,7 +24,7 @@ The project is TypeScript throughout and runs as one Node process that holds eve
 
 ```
 shared/   protocol.ts (message types), scenes/*.ts (scene layout data)
-server/   Node + ws + better-sqlite3; also serves the built client as static files
+server/   Node + ws + built-in node:sqlite (no native modules); also serves the built client as static files
 client/   Vite + TypeScript + Three.js
 ```
 
@@ -105,7 +105,7 @@ The transport is WebSocket carrying JSON messages, each shaped `{t: <type>, ...}
 | `welcome {you, token?, scene, players[], online[]}` | after `hello`; includes a token only when a profile was just created |
 | `error {code, message}` | e.g. `bad_invite`, `unknown_token`, `seat_taken` |
 | `sceneSnapshot {scene, players[]}` | after entering a scene |
-| `playerJoined / playerLeft {player}` | sent to players in the same scene |
+| `playerJoined {player}` / `playerLeft {id}` | sent to players in the same scene |
 | `playerMoved {id, x, z, facing, anim}` | sent to players in the same scene |
 | `playerUpdated {player}` | seat, session, look, connection, or rain-cloud changes |
 | `emote {fromId, kind, targetId?}` | sent to players in the same scene |
@@ -126,7 +126,7 @@ The client buffers recent `playerMoved` updates for each remote player and draws
 
 ### 6.1 Sitting
 
-Press **[E]** near a free seat to sit. The character snaps to the seat's position, faces the desk, and switches to a seated pose. Press **[E]** again, or any movement key, to stand.
+Press **[E]** near a free seat to sit. The character snaps to the seat's position, faces the desk, and switches to a seated pose. Press **[E]** again, or any movement key, to stand. During a focus phase, standing first opens a confirmation ("Leave your session early? Your friends will see 🥀") with **Keep studying** as the default, so a stray keypress never causes an early quit.
 
 ### 6.2 Timer state machine (server-authoritative)
 
@@ -179,7 +179,7 @@ The HUD uses frosted-glass panels in the same style as the drone viewer.
 - **Top-left:** your name and status, and the timer with its phase when you're in a session.
 - **Top-right:** who's online, grouped by scene (the Library: Sam, Alex · the Café: Jo).
 - **Bottom-left:** the feed, showing the last 6 events, which fade after 30 s and reappear when you hover over the panel.
-- **Bottom-center:** context prompts ("[E] Sit", "[E] Enter Library", "[E] Say hi to Sam", "[Space] Start session").
+- **Bottom-center:** context prompts ("[E] Sit", "[E] Say hi to Sam", "[Space] Start a session"). Doors need no prompt, because walking into one goes through it.
 - **Session picker:** a small glass modal for choosing 25/5, 50/10, or custom.
 - **Status chip:** "Reconnecting…" while the socket is down.
 
