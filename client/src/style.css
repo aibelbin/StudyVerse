@@ -82,7 +82,7 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 13px; 
 
 .fps {
   position: fixed;
-  left: 12px;
+  right: 12px;
   bottom: 12px;
   padding: 4px 10px;
   font: 600 12px/1.4 ui-monospace, monospace;

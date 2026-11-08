@@ -26,6 +26,34 @@ function labelPlane(text: string, height: number): THREE.Mesh {
   );
 }
 
+let cobbleTex: THREE.CanvasTexture | null = null;
+
+/** Soft, rounded paving stones on the path colour, tiling every 2.4 m. */
+function cobbles(): THREE.CanvasTexture {
+  if (cobbleTex) return cobbleTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  const r = rng(5);
+  g.fillStyle = '#e6d0a6';
+  g.fillRect(0, 0, 128, 128);
+  for (let row = 0; row < 4; row++) {
+    const off = row % 2 ? 16 : 0;
+    for (let col = -1; col < 4; col++) {
+      const shade = 236 + Math.floor(r() * 14);
+      g.fillStyle = `rgb(${shade}, ${shade - 18}, ${shade - 50})`;
+      g.beginPath();
+      g.roundRect(col * 32 + off + 2, row * 32 + 2, 28, 28, 9);
+      g.fill();
+    }
+  }
+  cobbleTex = new THREE.CanvasTexture(c);
+  cobbleTex.wrapS = cobbleTex.wrapT = THREE.RepeatWrapping;
+  cobbleTex.colorSpace = THREE.SRGBColorSpace;
+  cobbleTex.anisotropy = 4;
+  return cobbleTex;
+}
+
 const builders: Record<DecorKind, Builder> = {
   tree(d, r) {
     const s = d.h ?? 1;
@@ -81,7 +109,12 @@ const builders: Record<DecorKind, Builder> = {
   },
 
   path(d) {
-    return mesh(box(d.w ?? 1, 0.02, d.d ?? 1), mat(P.path, 1), 0, 0.01, 0, false);
+    const w = d.w ?? 1;
+    const dd = d.d ?? 1;
+    const tex = cobbles().clone();
+    tex.repeat.set(w / 2.4, dd / 2.4);
+    tex.needsUpdate = true;
+    return mesh(box(w, 0.02, dd), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }), 0, 0.01, 0, false);
   },
 
   pond(d, r) {

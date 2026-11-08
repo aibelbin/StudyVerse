@@ -27,7 +27,13 @@ function outward([x, z]: [number, number], k: number): { x: number; z: number } 
   return { x: x + (dx / len) * k, z: z + (dz / len) * k };
 }
 
-const colliders = polygonToBoxes(OUTLINE, 1.5, [DOCK]);
+/** Rails along the dock's sides and end, so nobody strolls off it into the water. */
+const dockEdges: Box[] = [
+  { x: DOCK.x - DOCK.w / 2 - 0.15, z: -14.75, w: 0.3, d: 6.5 },
+  { x: DOCK.x + DOCK.w / 2 + 0.15, z: -14.75, w: 0.3, d: 6.5 },
+  { x: DOCK.x, z: DOCK.z - DOCK.d / 2 - 0.15, w: DOCK.w + 0.6, d: 0.3 },
+];
+const colliders = [...polygonToBoxes(OUTLINE, 1.5, [DOCK]), ...dockEdges];
 const inBounds = (p: { x: number; z: number }) => Math.abs(p.x) < 56 && Math.abs(p.z) < 42;
 
 const landings = [
@@ -56,9 +62,9 @@ const lilies: Decor[] = scatter(41, 40, { x: LAKE.x, z: LAKE.z, w: LAKE.rx * 2, 
 }).map(([x, z], i) => ({ kind: 'lilyPad', x, z, seed: i * 31 + 7 }));
 
 export const lake: Parts = merge(
-  rowboat('boat-1', 22.3, -15.6, Math.PI),
-  rowboat('boat-2', 25.7, -15.6, Math.PI),
-  simpleToy('stones', 'stones', 24, -17.2, 1.4),
+  rowboat('boat-1', 22.6, -15.4, Math.PI),
+  rowboat('boat-2', 25.4, -15.4, Math.PI),
+  simpleToy('stones', 'stones', 24, -17.4, 1.2),
   simpleToy('ducks', 'ducks', ducksSpot.x, ducksSpot.z, 1.8),
   {
     decor: [

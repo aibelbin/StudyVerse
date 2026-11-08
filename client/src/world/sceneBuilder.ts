@@ -101,6 +101,7 @@ function doorMat(door: Door): THREE.Group {
 export interface BuiltScene {
   scene: THREE.Scene;
   sun: THREE.DirectionalLight;
+  hemi: THREE.HemisphereLight;
   /** Sun position relative to what it shines on; outdoor shadows follow the player. */
   sunOffset: THREE.Vector3;
   sway: Sway;
@@ -115,7 +116,8 @@ export function buildScene(def: SceneDef): BuiltScene {
   scene.background = Array.isArray(th.background) ? gradient(th.background) : new THREE.Color(th.background);
   if (th.fog) scene.fog = new THREE.Fog(th.fog.color, th.fog.near, th.fog.far);
 
-  scene.add(new THREE.HemisphereLight(th.hemi.sky, th.hemi.ground, th.hemi.intensity));
+  const hemi = new THREE.HemisphereLight(th.hemi.sky, th.hemi.ground, th.hemi.intensity);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight(th.sun.color, th.sun.intensity);
   const sunOffset = new THREE.Vector3(th.sun.x, th.sun.y, th.sun.z);
   sun.position.copy(sunOffset);
@@ -147,7 +149,7 @@ export function buildScene(def: SceneDef): BuiltScene {
       scene.add(light);
     }
   }
-  return { scene, sun, sunOffset, sway, outdoor: !th.indoor };
+  return { scene, sun, hemi, sunOffset, sway, outdoor: !th.indoor };
 }
 
 /** Keeps the outdoor shadow area centred on the player. */

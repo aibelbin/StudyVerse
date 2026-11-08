@@ -27,7 +27,7 @@ export const PATHS: Box[] = [
   { x: 0, z: 24, w: 2.4, d: 40 },        // south path
   { x: -12, z: -0.6, w: 1.8, d: 3 },     // library door spur
   { x: 12, z: -0.8, w: 1.8, d: 3.4 },    // café door spur
-  { x: 24, z: -3.6, w: 2, d: 10.4 },     // to the dock
+  { x: 24, z: -4.2, w: 2, d: 11.6 },     // to the dock
   { x: -30, z: -10.8, w: 2, d: 22.4 },   // to the campfire
   { x: -30, z: 16, w: 2, d: 26.6 },      // into the park
   { x: 30, z: 12.4, w: 2, d: 19.4 },     // to the playground

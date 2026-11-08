@@ -1,6 +1,7 @@
 import './style.css';
 import { DEFAULT_LOOK } from '../../shared/looks';
 import type { ClientMsg } from '../../shared/protocol';
+import { Extras } from './game/extras';
 import { Game } from './game/game';
 import { byId } from './hud/dom';
 import { Hud } from './hud/hud';
@@ -36,7 +37,11 @@ conn.onMessage = (m) => {
     if (m.token) localStorage.setItem(TOKEN_KEY, m.token);
     hello = { t: 'hello', token: localStorage.getItem(TOKEN_KEY)! };
     hud.show();
-    game ??= new Game(byId('c') as HTMLCanvasElement, byId('fade'), hud, (msg) => conn.send(msg));
+    if (!game) {
+      game = new Game(byId('c') as HTMLCanvasElement, byId('fade'), hud, (msg) => conn.send(msg));
+      game.hooks = new Extras();
+      if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { game });
+    }
   }
   if (m.t === 'error' && m.code === 'unknown_token') {
     localStorage.removeItem(TOKEN_KEY);

@@ -17,8 +17,10 @@ function towardWater(toy: Toy, def: SceneDef): { x: number; z: number } {
 
 export function fountainView(toy: Toy, fx: ToyFx): ToyView {
   const root = new THREE.Group();
-  root.add(mesh(new THREE.CylinderGeometry(1.5, 1.6, 0.45, 24), mat('#d8d2e0'), 0, 0.22, 0));
-  root.add(mesh(new THREE.CylinderGeometry(1.32, 1.32, 0.05, 24), new THREE.MeshStandardMaterial({ color: P.water, roughness: 0.1 }), 0, 0.4, 0, false));
+  const rim = mesh(new THREE.TorusGeometry(1.42, 0.14, 8, 32), mat('#d8d2e0'), 0, 0.42, 0);
+  rim.rotation.x = Math.PI / 2;
+  root.add(mesh(new THREE.CylinderGeometry(1.5, 1.6, 0.4, 24), mat('#c9c2d4'), 0, 0.2, 0), rim);
+  root.add(mesh(new THREE.CylinderGeometry(1.36, 1.36, 0.04, 24), new THREE.MeshStandardMaterial({ color: P.water, roughness: 0.1 }), 0, 0.41, 0, false));
   root.add(mesh(new THREE.CylinderGeometry(0.14, 0.2, 1.1, 10), mat('#d8d2e0'), 0, 0.9, 0));
   root.add(mesh(new THREE.CylinderGeometry(0.5, 0.25, 0.18, 14), mat('#d8d2e0'), 0, 1.45, 0));
   const drops: THREE.Mesh[] = [];
@@ -122,12 +124,15 @@ export function rowboatView(toy: Toy): RowboatView {
   const mooring: BoatPose = { x: toy.x, z: toy.z, heading: toy.rot ?? 0 };
   const root = new THREE.Group();
   const hull = new THREE.Group();
-  hull.add(mesh(new THREE.BoxGeometry(0.95, 0.3, 1.7), mat('#f2b5a0'), 0, 0.12, 0));
+  hull.add(mesh(new THREE.BoxGeometry(0.9, 0.12, 1.7), mat('#f2b5a0'), 0, 0.06, 0));
+  hull.add(mesh(new THREE.BoxGeometry(0.82, 0.02, 1.62), mat(P.woodLight), 0, 0.13, 0, false));
+  for (const x of [-0.44, 0.44]) hull.add(mesh(new THREE.BoxGeometry(0.07, 0.3, 1.7), mat('#f2b5a0'), x, 0.17, 0));
+  hull.add(mesh(new THREE.BoxGeometry(0.9, 0.3, 0.07), mat('#f2b5a0'), 0, 0.17, -0.84));
   const bow = mesh(new THREE.CylinderGeometry(0.0, 0.48, 0.6, 4, 1), mat('#f2b5a0'), 0, 0.12, 1.1);
   bow.rotation.set(Math.PI / 2, Math.PI / 4, 0);
   bow.scale.set(1, 1, 0.62);
   hull.add(bow);
-  hull.add(mesh(new THREE.BoxGeometry(0.98, 0.05, 1.72), mat('#fff6ea'), 0, 0.28, 0));
+  for (const x of [-0.44, 0.44]) hull.add(mesh(new THREE.BoxGeometry(0.1, 0.04, 1.72), mat('#fff6ea'), x, 0.33, 0));
   for (const z of [0.3, -0.55]) hull.add(mesh(new THREE.BoxGeometry(0.85, 0.05, 0.25), mat(P.wood), 0, 0.24, z));
   const oars = [-1, 1].map((s) => {
     const g = new THREE.Group();
