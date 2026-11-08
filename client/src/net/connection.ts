@@ -14,6 +14,7 @@ export class Connection {
   onMessage: (m: ServerMsg) => void = () => {};
   onOpen: () => void = () => {};
   onStatus: (s: ConnStatus) => void = () => {};
+  onClose: (code: number) => void = () => {};
 
   private ws: WebSocket | null = null;
   private attempt = 0;
@@ -51,9 +52,10 @@ export class Connection {
       }
       this.onMessage(msg);
     };
-    ws.onclose = () => {
+    ws.onclose = (e) => {
       if (this.ws !== ws) return;
       this.ws = null;
+      this.onClose(e.code);
       if (this.stopped) return;
       if (openedAt && Date.now() - openedAt >= STABLE_MS) this.attempt = 0;
       this.retry();

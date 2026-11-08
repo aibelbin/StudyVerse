@@ -11,6 +11,7 @@ const EMOTE_BUTTONS: [EmoteKind, string][] = [['wave', '👋 Wave'], ['clap', '�
 
 export class Hud {
   onEditLook: () => void = () => {};
+  onEndBreak: () => void = () => {};
   private statusKey = '';
   private modal: HTMLElement | null = null;
   private modalClose: (() => void) | null = null;
@@ -45,6 +46,7 @@ export class Hud {
         h('b', { textContent: me.name }),
         h('button', { className: 'mini', title: 'Change your look', textContent: '✏️', onclick: () => this.onEditLook() })),
       h('div', { className: s ? `timer ${s.phase}` : 'sub', textContent: line }),
+      ...(s?.phase === 'break' ? [h('button', { className: 'mini', textContent: 'End break', onclick: () => this.onEndBreak() })] : []),
       h('div', { className: 'sub', textContent: `📍 ${def.name}` }),
     );
   }

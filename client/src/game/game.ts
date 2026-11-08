@@ -65,6 +65,10 @@ export class Game {
     this.renderer.setAnimationLoop(() => this.frame());
   }
 
+  stop(): void {
+    this.renderer.setAnimationLoop(null);
+  }
+
   myView(): PlayerView | null {
     return this.me;
   }
@@ -267,6 +271,7 @@ export class Game {
     if (t.kind === 'seat') {
       this.sendMove(performance.now()); // make sure the server has our exact spot
       this.send({ t: 'sit', seatId: t.seat.id });
+      this.waitForRelease = true; // don't let a still-held movement key stand us straight back up
       return;
     }
     const r = this.remotes.get(t.id);

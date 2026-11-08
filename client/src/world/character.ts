@@ -27,7 +27,7 @@ function makeHat(h: Exclude<Hat, 'none'>): THREE.Group {
     add(new THREE.SphereGeometry(0.08, 10, 8), white, 0, 1.76, 0);
   } else if (h === 'cap') {
     add(new THREE.SphereGeometry(0.372, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.42), c, 0, 1.35, 0);
-    add(new THREE.BoxGeometry(0.34, 0.025, 0.26), c, 0, 1.52, 0.38).rotation.x = 0.15;
+    add(new THREE.BoxGeometry(0.3, 0.02, 0.16), c, 0, 1.56, 0.33).rotation.x = 0.15;
   } else if (h === 'bucket') {
     add(new THREE.CylinderGeometry(0.27, 0.33, 0.24, 18), c, 0, 1.67, 0);
     add(new THREE.CylinderGeometry(0.5, 0.5, 0.03, 24), c, 0, 1.56, 0);
@@ -175,7 +175,7 @@ export class Character {
 function disposeTree(o: THREE.Object3D): void {
   o.traverse((x) => {
     if (x instanceof THREE.Mesh || x instanceof THREE.Sprite) {
-      x.geometry.dispose();
+      if (!(x instanceof THREE.Sprite)) x.geometry.dispose(); // sprites share one geometry
       const mats = Array.isArray(x.material) ? x.material : [x.material];
       for (const m of mats) {
         (m as THREE.MeshBasicMaterial).map?.dispose();

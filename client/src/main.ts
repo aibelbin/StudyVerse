@@ -22,6 +22,14 @@ async function askJoin(error?: string): Promise<void> {
 conn.onOpen = () => {
   if (hello) conn.send(hello);
 };
+const gone = () => {
+  conn.stop();
+  game?.stop();
+  byId('gone').hidden = false;
+};
+conn.onClose = (code) => {
+  if (code === 4001) gone();
+};
 conn.onStatus = (s) => hud.setConnection(s);
 conn.onMessage = (m) => {
   if (m.t === 'welcome') {
@@ -42,8 +50,7 @@ conn.onMessage = (m) => {
     return;
   }
   if (m.t === 'error' && m.code === 'connected_elsewhere') {
-    conn.stop();
-    byId('gone').hidden = false;
+    gone();
     return;
   }
   game?.onMessage(m);
@@ -53,8 +60,9 @@ hud.onEditLook = async () => {
   const me = game?.myView();
   if (!me) return;
   const r = await showJoin({ mode: 'edit', name: me.name, look: me.look });
-  conn.send({ t: 'updateLook', look: r.look });
+  if (JSON.stringify(r.look) !== JSON.stringify(me.look)) conn.send({ t: 'updateLook', look: r.look });
 };
+hud.onEndBreak = () => conn.send({ t: 'cancelSession' });
 
 const token = localStorage.getItem(TOKEN_KEY);
 if (token) hello = { t: 'hello', token };

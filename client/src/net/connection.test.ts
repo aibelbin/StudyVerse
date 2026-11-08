@@ -14,7 +14,7 @@ class FakeWebSocket {
 
   readyState = 0;
   onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
+  onclose: ((e: { code: number }) => void) | null = null;
   onmessage: ((e: { data: string }) => void) | null = null;
 
   constructor(public url: string) {
@@ -30,7 +30,7 @@ class FakeWebSocket {
   close(): void {
     if (this.readyState === 3) return;
     this.readyState = 3;
-    this.onclose?.();
+    this.onclose?.({ code: 1000 });
   }
 
   /** Server accepts the connection. */
@@ -40,9 +40,9 @@ class FakeWebSocket {
   }
 
   /** Server or network drops the connection. */
-  drop(): void {
+  drop(code = 1006): void {
     this.readyState = 3;
-    this.onclose?.();
+    this.onclose?.({ code });
   }
 }
 
@@ -131,6 +131,21 @@ describe('Connection reconnect', () => {
     last().open();
     c.stop();
     vi.advanceTimersByTime(60000);
+    expect(sockets().length).toBe(1);
+  });
+
+  it('reports the close code via onClose, and stop() inside it prevents reconnects', () => {
+    const c = new Connection('ws://test');
+    const codes: number[] = [];
+    c.onClose = (code) => {
+      codes.push(code);
+      if (code === 4001) c.stop();
+    };
+    c.connect();
+    last().open();
+    last().drop(4001);
+    vi.advanceTimersByTime(60000);
+    expect(codes).toEqual([4001]);
     expect(sockets().length).toBe(1);
   });
 });
