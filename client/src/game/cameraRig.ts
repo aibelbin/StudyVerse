@@ -8,6 +8,9 @@ export class CameraRig {
   private target = new THREE.Vector3();
   private zoom = 1;
   private zoomTarget = 1;
+  private sky = 0;
+  private skyTarget = 0;
+  private look = new THREE.Vector3();
 
   snap(x: number, z: number): void {
     this.target.set(x, 0, z);
@@ -18,11 +21,17 @@ export class CameraRig {
     this.zoomTarget = k;
   }
 
+  /** Telescope mode: drop to eye level and tilt up at the sky. */
+  lookUp(on: boolean): void {
+    this.skyTarget = on ? 1 : 0;
+  }
+
   follow(x: number, z: number, dt: number): void {
     const k = 1 - Math.exp(-dt * 6);
     this.target.x += (x - this.target.x) * k;
     this.target.z += (z - this.target.z) * k;
     this.zoom += (this.zoomTarget - this.zoom) * (1 - Math.exp(-dt * 4));
+    this.sky += (this.skyTarget - this.sky) * (1 - Math.exp(-dt * 2.5));
     this.apply();
   }
 
@@ -32,7 +41,11 @@ export class CameraRig {
   }
 
   private apply(): void {
-    this.camera.position.copy(this.target).addScaledVector(OFFSET, this.zoom);
-    this.camera.lookAt(this.target.x, 0.8, this.target.z);
+    const k = this.sky;
+    this.camera.position.copy(this.target).addScaledVector(OFFSET, this.zoom * (1 - k));
+    this.camera.position.y += 1.7 * k;
+    this.camera.position.z += 1.2 * k;
+    this.look.set(this.target.x, 0.8 + 40 * k, this.target.z - 50 * k);
+    this.camera.lookAt(this.look);
   }
 }

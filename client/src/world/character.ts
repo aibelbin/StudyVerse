@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { Pose } from '../../../shared/scenes/types';
 import type { Anim, Hat, Look } from '../../../shared/types';
 import { Overhead } from './overhead';
 import { textSprite } from './text';
@@ -48,6 +49,10 @@ export class Character {
   readonly root = new THREE.Group();
   readonly overhead = new Overhead();
   anim: Anim = 'idle';
+  /** How to sit when anim is 'sit': on a chair, holding on (swing, rides), or rowing. */
+  pose: Pose = 'sit';
+  /** Rowing strokes while true. */
+  active = false;
   facing = 0;
 
   private rig = new THREE.Group();
@@ -151,7 +156,10 @@ export class Character {
       this.rig.rotation.z = s * 0.09;
     } else if (this.anim === 'sit') {
       for (const l of this.legs) l.rotation.x = -Math.PI / 2;
-      for (const a of this.arms) a.rotation.x = -0.9;
+      const arm = this.pose === 'sit' ? -0.9
+        : this.pose === 'row' ? (this.active ? -1.25 + Math.sin(now * 0.011) * 0.45 : -1.1)
+        : -2.5;
+      for (const a of this.arms) a.rotation.x = arm;
       this.rig.position.y = 0.16;
       this.rig.rotation.z = 0;
     } else {

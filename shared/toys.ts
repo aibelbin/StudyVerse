@@ -1,3 +1,4 @@
+import { pointInPolygon } from './geometry';
 import type { Slot, Toy } from './scenes/types';
 
 export type ToyKind =
@@ -90,3 +91,10 @@ export function slotWorld(slot: Slot, toy: Toy, pose: BoatPose): { x: number; z:
 
 /** Kinds whose slots move with the toy (so scene tests skip their collider checks). */
 export const MOVING_TOYS: ToyKind[] = ['rowboat', 'merryGoRound'];
+
+/** A boat at (x, z) fits on the water: its centre and four points 0.7 around it are inside the outline. */
+export function boatOnWater(outline: [number, number][] | undefined, x: number, z: number): boolean {
+  if (!outline) return false;
+  const r = 0.7;
+  return [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]].every(([dx, dz]) => pointInPolygon(outline, x + dx, z + dz));
+}

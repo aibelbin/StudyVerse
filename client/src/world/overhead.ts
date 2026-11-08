@@ -90,7 +90,15 @@ export class Overhead {
   }
 
   emote(kind: EmoteKind, now: number): void {
-    const s = textSprite(EMOJI[kind], 0.5, { bg: null, font: 64, pad: 6 });
+    this.float(textSprite(EMOJI[kind], 0.5, { bg: null, font: 64, pad: 6 }), now);
+  }
+
+  /** A short text bubble that floats up and fades, e.g. "4 skips!". */
+  say(text: string, now: number): void {
+    this.float(textSprite(text, 0.32, { bg: '#ffffffee', font: 40, pad: 12 }), now);
+  }
+
+  private float(s: THREE.Sprite, now: number): void {
     s.position.y = -0.2;
     this.group.add(s);
     this.emotes.push({ s, born: now });

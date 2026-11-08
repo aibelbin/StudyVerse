@@ -1,12 +1,12 @@
 import {
   CHEER_FEED_COOLDOWN_MS, DOOR_PAD, FEED_ON_WELCOME, GRACE_MS, MAX_SPEED, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS,
 } from '../../shared/constants';
-import { clampToBounds, dist, inBox, pointInPolygon } from '../../shared/geometry';
+import { clampToBounds, dist, inBox } from '../../shared/geometry';
 import type { ClientMsg, ErrorCode, ServerMsg } from '../../shared/protocol';
 import { SCENES, START_SCENE, START_SPAWN } from '../../shared/scenes';
 import type { SceneDef, Slot, Toy } from '../../shared/scenes/types';
 import {
-  BOAT_SPEED, boatPoseAt, slotWorld, spinAt, type BoatPose, type ToyAction, type ToyState,
+  BOAT_SPEED, boatOnWater, boatPoseAt, slotWorld, spinAt, type BoatPose, type ToyAction, type ToyState,
 } from '../../shared/toys';
 import type { Anim, EmoteKind, FeedKind, Look, OnlineEntry, PlayerView, Session } from '../../shared/types';
 import type { Profile } from './db';
@@ -385,19 +385,12 @@ export class World {
     this.setToyState(toyId, { kind: 'rowboat', ...pose, returnFrom: { ...pose, at: this.now() } });
   }
 
-  private onWater(sceneId: string, x: number, z: number): boolean {
-    const outline = this.scene(sceneId).water?.outline;
-    if (!outline) return false;
-    const r = 0.7;
-    return [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]].every(([dx, dz]) => pointInPolygon(outline, x + dx, z + dz));
-  }
-
   private rowBoat(p: Player, toyId: string, x: number, z: number, heading: number): void {
     const b = this.boatState(toyId);
     if (!b) return;
     const t = this.now();
     const allowed = (BOAT_SPEED * Math.max(t - p.lastMoveAt, 50)) / 1000 + 0.5;
-    if (dist(b.s.x, b.s.z, x, z) > allowed || !this.onWater(p.scene, x, z)) {
+    if (dist(b.s.x, b.s.z, x, z) > allowed || !boatOnWater(this.scene(p.scene).water?.outline, x, z)) {
       p.conn?.send({ t: 'toyState', toyId, state: b.s });
       return;
     }
