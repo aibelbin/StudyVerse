@@ -46,3 +46,39 @@ export function moveWithCollision(
 export function dist(ax: number, az: number, bx: number, bz: number): number {
   return Math.hypot(ax - bx, az - bz);
 }
+
+/** Even-odd test against a closed outline of [x, z] points. */
+export function pointInPolygon(poly: [number, number][], x: number, z: number): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, zi] = poly[i];
+    const [xj, zj] = poly[j];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/** Collider boxes for a polygon: grid cells whose centre is inside, merged into runs per row. */
+export function polygonToBoxes(poly: [number, number][], cell: number, keepClear: Box[]): Box[] {
+  const xs = poly.map((p) => p[0]);
+  const zs = poly.map((p) => p[1]);
+  const [x0, x1, z0, z1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
+  const out: Box[] = [];
+  const overlapsClear = (cx: number, cz: number) =>
+    keepClear.some((b) => Math.abs(cx - b.x) < (b.w + cell) / 2 && Math.abs(cz - b.z) < (b.d + cell) / 2);
+  for (let cz = z0 + cell / 2; cz < z1; cz += cell) {
+    let start: number | null = null;
+    let end = 0;
+    for (let cx = x0 + cell / 2; cx < x1; cx += cell) {
+      if (pointInPolygon(poly, cx, cz) && !overlapsClear(cx, cz)) {
+        start ??= cx - cell / 2;
+        end = cx + cell / 2;
+      } else if (start !== null) {
+        out.push({ x: (start + end) / 2, z: cz, w: end - start, d: cell });
+        start = null;
+      }
+    }
+    if (start !== null) out.push({ x: (start + end) / 2, z: cz, w: end - start, d: cell });
+  }
+  return out;
+}

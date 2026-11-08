@@ -35,6 +35,8 @@ export const cafe: SceneDef = {
     trim: '#9c6b55',
   },
   ...parts,
+  toys: [],
+  life: [],
   doors: [{ id: 'to-town', box: { x: 0, z: 4.6, w: 1.6, d: 0.8 }, toScene: 'town', toSpawn: 'from-cafe' }],
   spawns: [{ id: 'entrance', x: 0, z: 3.4, facing: Math.PI }],
 };

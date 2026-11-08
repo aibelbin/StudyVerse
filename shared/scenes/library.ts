@@ -33,6 +33,8 @@ export const library: SceneDef = {
     trim: '#b07f5a',
   },
   ...parts,
+  toys: [],
+  life: [],
   doors: [{ id: 'to-town', box: { x: 0, z: 5.6, w: 1.6, d: 0.8 }, toScene: 'town', toSpawn: 'from-library' }],
   spawns: [{ id: 'entrance', x: 0, z: 4.2, facing: Math.PI }],
 };

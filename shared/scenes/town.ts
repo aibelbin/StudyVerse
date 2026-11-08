@@ -45,6 +45,8 @@ export const town: SceneDef = {
     sun: { color: '#fff0d6', intensity: 2.4, x: 12, y: 22, z: 10 },
   },
   ...parts,
+  toys: [],
+  life: [],
   doors: [
     { id: 'to-library', box: { x: -9, z: -5.6, w: 1.4, d: 0.8 }, toScene: 'library', toSpawn: 'entrance' },
     { id: 'to-cafe', box: { x: 9, z: -5.6, w: 1.4, d: 0.8 }, toScene: 'cafe', toSpawn: 'entrance' },
