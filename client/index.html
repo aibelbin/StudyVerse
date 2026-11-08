@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Virtual Study World</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>" />
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="fade"></div>
+  <div id="hud" hidden>
+    <div id="status" class="glass panel"></div>
+    <div id="online" class="glass panel"></div>
+    <div id="feed" class="panel"></div>
+    <div id="prompt" class="glass" hidden></div>
+    <div id="card" class="glass" hidden></div>
+    <div id="toasts"></div>
+    <div id="conn" class="glass" hidden>🔌 Reconnecting…</div>
+  </div>
+  <div id="join" class="screen" hidden></div>
+  <div id="gone" class="screen" hidden>
+    <div class="glass join-card">
+      <h1>👋 See you in the other tab</h1>
+      <p>The town is open in another tab or device, so this one is paused.</p>
+      <button class="primary" onclick="location.reload()">Use this tab instead</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
