@@ -20,7 +20,7 @@ export interface ServerOptions {
 }
 
 export const HEARTBEAT_MS = 20_000;
-export const HELLO_TIMEOUT_MS = 10_000;
+export const HELLO_TIMEOUT_MS = 60_000;
 export const RATE_REFILL_PER_S = 40;
 export const RATE_BURST = 80;
 export const RATE_MAX_DROPS = 200;
@@ -98,7 +98,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     let failedHellos = 0;
     let warnedGarbage = false;
     let tokens = RATE_BURST;
-    let lastRefill = Date.now();
+    let lastRefill = performance.now();
     let drops = 0;
     let lastLookUpdate = 0;
     const live = ws as WebSocket & { isAlive?: boolean };
@@ -137,8 +137,9 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     });
 
     const onMessage = (data: unknown) => {
-      // Frames already in flight from a replaced tab must not act on the player's new session.
-      if (replaced) return;
+      // Frames already in flight from a replaced tab (or from a socket we are already closing)
+      // must not act on the player's new session.
+      if (replaced || ws.readyState !== WebSocket.OPEN) return;
       const msg = parseClientMsg(String(data));
       if (!msg) {
         if (!warnedGarbage) {
@@ -149,20 +150,21 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
         return;
       }
       if (playerId) {
-        const nowMs = Date.now();
-        tokens = Math.min(RATE_BURST, tokens + ((nowMs - lastRefill) / 1000) * RATE_REFILL_PER_S);
-        lastRefill = nowMs;
+        const mono = performance.now();
+        tokens = Math.min(RATE_BURST, tokens + (Math.max(0, mono - lastRefill) / 1000) * RATE_REFILL_PER_S);
+        lastRefill = mono;
+        if (tokens >= 1) drops = 0;
         if (tokens < 1) {
           if (++drops >= RATE_MAX_DROPS) ws.close(4004, 'rate limit');
           return;
         }
         tokens -= 1;
         if (msg.t === 'updateLook') {
+          const nowMs = Date.now();
           const cur = world.view(playerId)?.look;
-          if (nowMs - lastLookUpdate >= LOOK_UPDATE_MIN_MS && JSON.stringify(cur) !== JSON.stringify(msg.look)) {
-            lastLookUpdate = nowMs;
-            store.updateLook(playerId, msg.look);
-          }
+          if (nowMs - lastLookUpdate < LOOK_UPDATE_MIN_MS || JSON.stringify(cur) === JSON.stringify(msg.look)) return;
+          lastLookUpdate = nowMs;
+          store.updateLook(playerId, msg.look);
         }
         world.handle(playerId, msg);
         return;
@@ -175,6 +177,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
           return;
         }
         playerId = profile.id;
+        clearTimeout(helloTimer);
         world.join(profile, conn);
         return;
       }
@@ -189,6 +192,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       }
       const { profile, token } = store.create(name, msg.look);
       playerId = profile.id;
+      clearTimeout(helloTimer);
       world.join(profile, conn, token);
     };
 
