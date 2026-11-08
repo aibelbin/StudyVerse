@@ -79,3 +79,12 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 13px; 
 .swatch { width: 30px; height: 30px; border-radius: 50%; padding: 0; border: 3px solid #fff; }
 .swatch.on, .hats button.on { outline: 3px solid var(--acc); }
 .err { color: var(--bad); min-height: 1.2em; font-size: 13px; }
+
+.fps {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  padding: 4px 10px;
+  font: 600 12px/1.4 ui-monospace, monospace;
+  z-index: 50;
+}

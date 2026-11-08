@@ -66,7 +66,7 @@ const builders: Record<DecorKind, Builder> = {
   lampPost() {
     return group(
       mesh(cyl(0.05, 0.07, 2.4, 8), mat(P.dark), 0, 1.2, 0),
-      mesh(sph(0.16, 2), glow(P.lampGlow), 0, 2.5, 0, false),
+      mesh(sph(0.16, 2), glow(P.lampGlow, 1.6, 'street'), 0, 2.5, 0, false),
       mesh(new THREE.ConeGeometry(0.22, 0.16, 8), mat(P.dark), 0, 2.68, 0),
     );
   },
@@ -115,7 +115,7 @@ const builders: Record<DecorKind, Builder> = {
     g.add(mesh(sph(0.05, 1), mat(P.metal), 0.33, 0.85, front + 0.1, false));
     for (const x of [-w / 2 + 1.3, w / 2 - 1.3]) {
       g.add(mesh(box(1.2, 1.0, 0.08), mat(P.woodLight), x, 1.7, front + 0.02));
-      g.add(mesh(box(1.0, 0.8, 0.1), glow(P.windowGlow, 0.5), x, 1.7, front + 0.03, false));
+      g.add(mesh(box(1.0, 0.8, 0.1), glow(P.windowGlow, 0.5, 'window'), x, 1.7, front + 0.03, false));
     }
     const awning = mesh(box(w * 0.55, 0.08, 0.9), mat(accent), 0, 2.15, front + 0.4);
     awning.rotation.x = 0.28;
@@ -278,10 +278,122 @@ const builders: Record<DecorKind, Builder> = {
       mesh(cyl(0.045, 0.045, 0.005, 12), mat(P.coffee), 0, 0.092, 0, false),
     );
   },
+  lake(d) {
+    const pts = d.points ?? [];
+    const cx = pts.reduce((a, p) => a + p[0], 0) / Math.max(pts.length, 1);
+    const cz = pts.reduce((a, p) => a + p[1], 0) / Math.max(pts.length, 1);
+    const shape = (k: number) =>
+      new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(cx + (x - cx) * k, -(cz + (z - cz) * k))));
+    const flat = (geo: THREE.BufferGeometry, m: THREE.Material, y: number) => {
+      const o = mesh(geo, m, 0, y, 0, false);
+      o.rotation.x = -Math.PI / 2;
+      return o;
+    };
+    return group(
+      flat(new THREE.ShapeGeometry(shape(1.06), 2), mat('#e8d8a8', 1), 0.012),
+      flat(new THREE.ShapeGeometry(shape(1.0), 2), mat(P.waterRim, 0.6), 0.02),
+      flat(new THREE.ShapeGeometry(shape(0.96), 2), new THREE.MeshStandardMaterial({ color: P.water, roughness: 0.12, metalness: 0.1 }), 0.03),
+    );
+  },
+
+  dock(d) {
+    const w = d.w ?? 2;
+    const dd = d.d ?? 8;
+    const g = group();
+    for (let z = -dd / 2 + 0.2; z < dd / 2; z += 0.42) g.add(mesh(box(w, 0.08, 0.38), mat(z % 0.84 < 0.42 ? P.wood : P.woodLight), 0, 0.16, z));
+    for (const x of [-w / 2 + 0.1, w / 2 - 0.1]) for (let z = -dd / 2 + 0.4; z < dd / 2; z += 2.2) g.add(mesh(cyl(0.08, 0.08, 0.6, 8), mat(P.woodDark), x, 0.0, z));
+    return g;
+  },
+
+  lilyPad(_d, r) {
+    const pad = mesh(cyl(0.3 + r() * 0.15, 0.3 + r() * 0.15, 0.02, 12, ), mat(r() < 0.5 ? P.leaf1 : P.leaf2), 0, 0.05, 0, false);
+    const g = group(pad);
+    if (r() < 0.35) g.add(mesh(sph(0.08, 0), mat(r() < 0.5 ? '#f7a1c4' : '#ffffff'), 0.08, 0.1, 0.05, false));
+    return g;
+  },
+
+  rock(_d, r) {
+    const s = 0.18 + r() * 0.3;
+    const o = mesh(sph(s, 0), mat(r() < 0.5 ? '#b8b2b8' : '#a9a3ad'), 0, s * 0.45, 0);
+    o.scale.set(1.2, 0.7, 1);
+    return group(o);
+  },
+
+  grass(_d, r) {
+    const g = group();
+    for (let i = 0; i < 3; i++) {
+      const blade = mesh(new THREE.ConeGeometry(0.035, 0.28 + r() * 0.16, 3), mat(i % 2 ? P.leaf2 : P.leaf3), (r() - 0.5) * 0.16, 0.15, (r() - 0.5) * 0.16, false);
+      blade.rotation.z = (r() - 0.5) * 0.5;
+      g.add(blade);
+    }
+    return g;
+  },
+
+  hedge(d) {
+    const w = d.w ?? 2;
+    const dd = d.d ?? 1;
+    const g = group(mesh(box(w, 0.8, dd), mat(P.pine1), 0, 0.4, 0));
+    const along = w > dd;
+    const len = along ? w : dd;
+    for (let k = -len / 2 + 0.6; k < len / 2; k += 1.2) {
+      g.add(mesh(sph(0.5, 1), mat(P.pine2), along ? k : 0, 0.75, along ? 0 : k));
+    }
+    return g;
+  },
+
+  bandstand(d) {
+    const r = d.w ?? 3.2;
+    const g = group(
+      mesh(cyl(r, r + 0.15, 0.08, 8), mat('#fff6ea'), 0, 0.04, 0, false),
+      mesh(new THREE.ConeGeometry(r + 0.5, 1.3, 8), mat('#e98a8a'), 0, 3.35, 0),
+      mesh(sph(0.15, 1), mat('#ffd36e'), 0, 4.05, 0),
+    );
+    g.children[1].rotation.y = Math.PI / 8;
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 + Math.PI / 8;
+      g.add(mesh(cyl(0.08, 0.1, 2.7, 8), mat('#fff6ea'), Math.sin(a) * 3, 1.35, Math.cos(a) * 3));
+    }
+    return g;
+  },
+
+  swingSet(d) {
+    const w = d.w ?? 4.8;
+    const g = group(mesh(cyl(0.06, 0.06, w, 8), mat('#e98a8a'), 0, 2.4, 0));
+    (g.children[0] as THREE.Mesh).rotation.z = Math.PI / 2;
+    for (const sx of [-w / 2, w / 2]) {
+      for (const sz of [-0.6, 0.6]) {
+        const leg = mesh(cyl(0.05, 0.05, 2.5, 8), mat('#7ab8ff'), sx, 1.2, sz / 2);
+        leg.rotation.x = sz > 0 ? -0.25 : 0.25;
+        g.add(leg);
+      }
+    }
+    return g;
+  },
+
+  log(d) {
+    const o = mesh(cyl(0.22, 0.24, 1.3, 10), mat(P.trunk), 0, 0.22, 0);
+    o.rotation.z = Math.PI / 2;
+    return group(o, mesh(cyl(0.2, 0.2, 0.02, 10), mat(P.woodLight), 0.66, 0.22, 0, false));
+  },
+
+  leafPile() {
+    return group(); // drawn and animated by the leaves life system
+  },
+
+  mound(d) {
+    const r = d.w ?? 3;
+    const o = mesh(sph(r, 2), mat(P.leaf3, 1), 0, -r * 0.88, 0, false);
+    return group(o);
+  },
 };
 
+/** The decor object at the origin, unrotated (used as an instancing template). */
+export function decorTemplate(d: Decor): THREE.Object3D {
+  return builders[d.kind](d, rng(d.seed ?? d.x * 131 + d.z * 71));
+}
+
 export function makeDecor(d: Decor): THREE.Object3D {
-  const o = builders[d.kind](d, rng(d.seed ?? d.x * 131 + d.z * 71));
+  const o = decorTemplate(d);
   o.position.set(d.x, d.y ?? 0, d.z);
   o.rotation.y = d.rot ?? 0;
   return o;

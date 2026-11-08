@@ -37,7 +37,7 @@ describe('joining', () => {
     w.join(prof('b', 'Alex'), b);
     const welcomeA = a.of('welcome')[0];
     expect(welcomeA.token).toBe('tok');
-    expect(welcomeA.you).toMatchObject({ id: 'a', scene: 'town', x: 0, z: 0, connected: true });
+    expect(welcomeA.you).toMatchObject({ id: 'a', scene: 'town', x: 0, z: 1.5, connected: true });
     expect(b.of('welcome')[0].players.map((p) => p.id)).toEqual(['a']);
     expect(a.of('playerJoined')[0].player.id).toBe('b');
     expect(a.feed()).toEqual(['🌷 Sam arrived', '🌷 Alex arrived']);
@@ -194,7 +194,7 @@ describe('scenes and emotes', () => {
     const a = new FakeConn(), b = new FakeConn();
     w.join(prof('a', 'Sam'), a);
     w.join(prof('b', 'Alex'), b);
-    goTo('a', -9, -5.5);
+    goTo('a', -12, -2.1);
     send('a', { t: 'enterScene', doorId: 'to-library' });
     const snap = a.of('sceneSnapshot')[0];
     expect(snap.scene).toBe('library');

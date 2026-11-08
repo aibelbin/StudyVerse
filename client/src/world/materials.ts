@@ -13,8 +13,9 @@ export function mat(color: string, roughness = 0.85): THREE.MeshStandardMaterial
   return m;
 }
 
-export function glow(color: string, intensity = 1.6): THREE.MeshStandardMaterial {
-  const key = `glow|${color}|${intensity}`;
+/** Emissive material. A tag gives a separate instance (e.g. 'street' lamps that day/night dims). */
+export function glow(color: string, intensity = 1.6, tag = ''): THREE.MeshStandardMaterial {
+  const key = `glow|${color}|${intensity}|${tag}`;
   let m = cache.get(key);
   if (!m) {
     m = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: intensity, roughness: 0.5 });

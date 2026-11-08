@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SCENES } from '../../../shared/scenes';
 import type { Door, SceneDef } from '../../../shared/scenes/types';
 import { makeDecor } from './decor';
+import { buildInstanced, INSTANCED_KINDS, type Sway } from './instanced';
 import { mat, mesh } from './materials';
 import { PALETTE as P } from './palette';
 import { rng } from './rng';
@@ -97,22 +98,18 @@ function doorMat(door: Door): THREE.Group {
   return g;
 }
 
-/** Picket fence around the outdoor area so the invisible bounds feel intentional. */
-function fence(def: SceneDef): THREE.Group {
-  const { w, d } = def.size;
-  const g = new THREE.Group();
-  const m = mat('#fff6ea');
-  const rails: [number, number, number, number][] = [
-    [0, -d / 2, w, 0.06], [0, d / 2, w, 0.06], [-w / 2, 0, 0.06, d], [w / 2, 0, 0.06, d],
-  ];
-  for (const [x, z, rw, rd] of rails) for (const y of [0.3, 0.55]) g.add(mesh(new THREE.BoxGeometry(rw, 0.06, rd), m, x, y, z));
-  const post = new THREE.BoxGeometry(0.08, 0.75, 0.08);
-  for (let x = -w / 2; x <= w / 2; x += 2) for (const z of [-d / 2, d / 2]) g.add(mesh(post, m, x, 0.375, z));
-  for (let z = -d / 2 + 2; z < d / 2; z += 2) for (const x of [-w / 2, w / 2]) g.add(mesh(post, m, x, 0.375, z));
-  return g;
+export interface BuiltScene {
+  scene: THREE.Scene;
+  sun: THREE.DirectionalLight;
+  /** Sun position relative to what it shines on; outdoor shadows follow the player. */
+  sunOffset: THREE.Vector3;
+  sway: Sway;
+  outdoor: boolean;
 }
 
-export function buildScene(def: SceneDef): THREE.Scene {
+const SHADOW_EXTENT = 22;
+
+export function buildScene(def: SceneDef): BuiltScene {
   const th = def.theme;
   const scene = new THREE.Scene();
   scene.background = Array.isArray(th.background) ? gradient(th.background) : new THREE.Color(th.background);
@@ -120,10 +117,11 @@ export function buildScene(def: SceneDef): THREE.Scene {
 
   scene.add(new THREE.HemisphereLight(th.hemi.sky, th.hemi.ground, th.hemi.intensity));
   const sun = new THREE.DirectionalLight(th.sun.color, th.sun.intensity);
-  sun.position.set(th.sun.x, th.sun.y, th.sun.z);
+  const sunOffset = new THREE.Vector3(th.sun.x, th.sun.y, th.sun.z);
+  sun.position.copy(sunOffset);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  const ext = Math.max(def.size.w, def.size.d) / 2 + 3;
+  const ext = th.indoor ? Math.max(def.size.w, def.size.d) / 2 + 3 : SHADOW_EXTENT;
   Object.assign(sun.shadow.camera, { left: -ext, right: ext, top: ext, bottom: -ext, near: 1, far: 80 });
   sun.shadow.camera.updateProjectionMatrix();
   sun.shadow.bias = -0.0005;
@@ -135,17 +133,26 @@ export function buildScene(def: SceneDef): THREE.Scene {
   if (th.indoor) {
     scene.add(walls(def));
     for (const door of def.doors) scene.add(doorMat(door));
-  } else {
-    scene.add(fence(def));
   }
-  for (const d of def.decor) scene.add(makeDecor(d));
+  const sway: Sway = { value: 0 };
+  scene.add(buildInstanced(def.decor, sway));
+  for (const d of def.decor) if (!INSTANCED_KINDS.has(d.kind)) scene.add(makeDecor(d));
 
-  const lamps = def.decor.filter((d) => d.kind === 'deskLamp' || d.kind === 'lampPost').slice(0, 8);
-  for (const d of lamps) {
-    const post = d.kind === 'lampPost';
-    const light = new THREE.PointLight(P.lampGlow, post ? 6 : 1.6, post ? 7 : 3, 2);
-    light.position.set(d.x, post ? 2.4 : 1.05, d.z);
-    scene.add(light);
+  if (th.indoor) {
+    const lamps = def.decor.filter((d) => d.kind === 'deskLamp' || d.kind === 'lampPost').slice(0, 8);
+    for (const d of lamps) {
+      const post = d.kind === 'lampPost';
+      const light = new THREE.PointLight(P.lampGlow, post ? 6 : 1.6, post ? 7 : 3, 2);
+      light.position.set(d.x, post ? 2.4 : 1.05, d.z);
+      scene.add(light);
+    }
   }
-  return scene;
+  return { scene, sun, sunOffset, sway, outdoor: !th.indoor };
+}
+
+/** Keeps the outdoor shadow area centred on the player. */
+export function followSun(b: BuiltScene, x: number, z: number): void {
+  if (!b.outdoor) return;
+  b.sun.target.position.set(x, 0, z);
+  b.sun.position.set(x + b.sunOffset.x, b.sunOffset.y, z + b.sunOffset.z);
 }

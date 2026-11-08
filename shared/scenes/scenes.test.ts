@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PLAYER_RADIUS } from '../constants';
-import { inBox } from '../geometry';
+import { inBox, pointInPolygon } from '../geometry';
+import { MOVING_TOYS, TOY_KINDS } from '../toys';
 import { findSlot, SCENES, START_SCENE, START_SPAWN } from './index';
 
 const scenes = Object.values(SCENES);
@@ -16,11 +17,37 @@ describe('scene data', () => {
     for (const [key, s] of Object.entries(SCENES)) expect(s.id).toBe(key);
   });
 
-  it.each(scenes.map((s) => [s.id, s] as const))('%s: slots are inside bounds and outside colliders', (_id, s) => {
+  it.each(scenes.map((s) => [s.id, s] as const))('%s: fixed slots are inside bounds and outside colliders', (_id, s) => {
+    const moving = new Set(s.toys.filter((t) => MOVING_TOYS.includes(t.kind)).map((t) => t.id));
     for (const slot of s.slots) {
+      if (slot.toyId && moving.has(slot.toyId)) continue;
       expect(inside(s.size.w, s.size.d, slot.x, slot.z, PLAYER_RADIUS), slot.id).toBe(true);
       expect(s.colliders.some((c) => inBox(c, slot.x, slot.z, 0.05)), slot.id).toBe(false);
     }
+  });
+
+  it.each(scenes.map((s) => [s.id, s] as const))('%s: slots and toys point at each other', (_id, s) => {
+    for (const slot of s.slots) {
+      if (!slot.toyId) continue;
+      const toy = s.toys.find((t) => t.id === slot.toyId);
+      expect(toy?.slotIds, slot.id).toContain(slot.id);
+    }
+    for (const toy of s.toys) for (const id of toy.slotIds ?? []) expect(s.slots.find((x) => x.id === id)?.toyId, id).toBe(toy.id);
+  });
+
+  it.each(scenes.map((s) => [s.id, s] as const))('%s: every toy can be reached', (_id, s) => {
+    for (const toy of s.toys) {
+      expect(inside(s.size.w, s.size.d, toy.x, toy.z, 0), toy.id).toBe(true);
+      if (toy.slotIds?.length) continue;
+      const spots = [[0, 0], ...Array.from({ length: 8 }, (_, k) => [Math.sin(k * Math.PI / 4), Math.cos(k * Math.PI / 4)])]
+        .map(([dx, dz]) => [toy.x + dx * toy.radius * 0.8, toy.z + dz * toy.radius * 0.8]);
+      const clear = spots.some(([x, z]) => !s.colliders.some((c) => inBox(c, x, z, PLAYER_RADIUS)));
+      expect(clear, toy.id).toBe(true);
+    }
+  });
+
+  it.each(scenes.map((s) => [s.id, s] as const))('%s: life zones are inside bounds', (_id, s) => {
+    for (const z of s.life) expect(inside(s.size.w, s.size.d, z.x, z.z, 0), `${z.kind}@${z.x},${z.z}`).toBe(true);
   });
 
   it.each(scenes.map((s) => [s.id, s] as const))('%s: spawns are clear of colliders and doors', (_id, s) => {
@@ -40,15 +67,45 @@ describe('scene data', () => {
     }
   });
 
-  it('slot ids are unique across all scenes', () => {
-    const ids = scenes.flatMap((s) => s.slots.map((x) => x.id));
-    expect(new Set(ids).size).toBe(ids.length);
+  it('slot and toy ids are unique across all scenes', () => {
+    for (const ids of [scenes.flatMap((s) => s.slots.map((x) => x.id)), scenes.flatMap((s) => s.toys.map((x) => x.id))]) {
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+
+  it('the town is 120 x 90 with every kind of toy', () => {
+    const town = SCENES.town;
+    expect(town.size).toEqual({ w: 120, d: 90 });
+    for (const k of TOY_KINDS) expect(town.toys.some((t) => t.kind === k), k).toBe(true);
+  });
+
+  it('boats moor on the water, sailboats sail on it, landings are on shore', () => {
+    const w = SCENES.town.water!;
+    for (const t of SCENES.town.toys.filter((x) => x.kind === 'rowboat')) expect(pointInPolygon(w.outline, t.x, t.z), t.id).toBe(true);
+    for (const p of w.sailPaths.flatMap((x) => x.points)) expect(pointInPolygon(w.outline, p[0], p[1])).toBe(true);
+    expect(w.landings.length).toBeGreaterThanOrEqual(4);
+    for (const l of w.landings) {
+      expect(pointInPolygon(w.outline, l.x, l.z)).toBe(false);
+      expect(inside(120, 90, l.x, l.z, PLAYER_RADIUS)).toBe(true);
+      expect(SCENES.town.colliders.some((c) => inBox(c, l.x, l.z, PLAYER_RADIUS)), `${l.x},${l.z}`).toBe(false);
+    }
+  });
+
+  it('you can board each boat from the dock', () => {
+    const t = SCENES.town;
+    for (const id of ['boat-1-row', 'boat-2-row']) {
+      const slot = t.slots.find((s) => s.id === id)!;
+      // a spot on the dock within reach of the rowing seat
+      const ok = [23.35, 24.65].some((x) => Math.hypot(x - slot.x, -15.9 - slot.z) <= 1.5
+        && !t.colliders.some((c) => inBox(c, x, -15.9, PLAYER_RADIUS)));
+      expect(ok, id).toBe(true);
+    }
   });
 
   it('has the slots later tests rely on', () => {
     const slot = findSlot('town', 'park-b1-a')!;
-    expect(slot.x).toBeCloseTo(5.55);
-    expect(slot.z).toBe(5);
+    expect(slot.x).toBeCloseTo(-20.45);
+    expect(slot.z).toBe(12);
     expect(SCENES.library.slots.length).toBe(16);
     expect(SCENES.cafe.slots.length).toBe(12);
   });

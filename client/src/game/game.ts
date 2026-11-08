@@ -10,7 +10,7 @@ import { statusText } from '../hud/format';
 import type { Hud } from '../hud/hud';
 import { Interp } from '../net/interp';
 import { Character } from '../world/character';
-import { buildScene } from '../world/sceneBuilder';
+import { buildScene, followSun, type BuiltScene } from '../world/sceneBuilder';
 import { CameraRig } from './cameraRig';
 import { serverNow, syncClock } from './clock';
 import { Input } from './input';
@@ -30,7 +30,9 @@ export class Game {
   private rig = new CameraRig();
   private input = new Input();
   private fade: Fade;
-  private scenes = new Map<string, THREE.Scene>();
+  private scenes = new Map<string, BuiltScene>();
+  private built: BuiltScene | null = null;
+  private fps: { el: HTMLElement; frames: number; since: number } | null = null;
   private def: SceneDef | null = null;
   private scene: THREE.Scene | null = null;
   private me: PlayerView | null = null;
@@ -49,7 +51,7 @@ export class Game {
 
   constructor(canvas: HTMLCanvasElement, fadeEl: HTMLElement, private hud: Hud, private send: (m: ClientMsg) => void) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -62,6 +64,12 @@ export class Game {
       this.hud.closeModals();
       this.hud.closeCard();
     });
+    if (new URLSearchParams(location.search).has('fps')) {
+      const el = document.createElement('div');
+      el.className = 'fps glass';
+      document.body.append(el);
+      this.fps = { el, frames: 0, since: performance.now() };
+    }
     this.renderer.setAnimationLoop(() => this.frame());
   }
 
@@ -125,11 +133,13 @@ export class Game {
   private enter(you: PlayerView, players: PlayerView[]): void {
     for (const id of [...this.remotes.keys()]) this.removeRemote(id);
     this.def = getScene(you.scene)!;
-    let scene = this.scenes.get(you.scene);
-    if (!scene) {
-      scene = buildScene(this.def);
-      this.scenes.set(you.scene, scene);
+    let built = this.scenes.get(you.scene);
+    if (!built) {
+      built = buildScene(this.def);
+      this.scenes.set(you.scene, built);
     }
+    this.built = built;
+    const scene = built.scene;
     this.scene = scene;
     this.myChar ??= new Character(you.look, you.name, true);
     this.myChar.setLook(you.look);
@@ -370,6 +380,18 @@ export class Game {
     }
 
     this.rig.follow(this.x, this.z, dt);
+    if (this.built) {
+      this.built.sway.value = nowP / 1000;
+      followSun(this.built, this.x, this.z);
+    }
     this.renderer.render(this.scene, this.rig.camera);
+    if (this.fps) {
+      this.fps.frames++;
+      if (nowP - this.fps.since >= 500) {
+        this.fps.el.textContent = `${Math.round((this.fps.frames * 1000) / (nowP - this.fps.since))} fps`;
+        this.fps.frames = 0;
+        this.fps.since = nowP;
+      }
+    }
   }
 }

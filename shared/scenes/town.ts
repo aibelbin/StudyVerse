@@ -1,59 +1,46 @@
-import { bench, building, lampPost, merge, tree } from './kit';
-import type { SceneDef } from './types';
+import { pointInPolygon } from '../geometry';
+import { merge } from './kit';
+import { edges } from './town/edges';
+import { lake, OUTLINE, water } from './town/lake';
+import { park } from './town/park';
+import { playground } from './town/playground';
+import { inAny, PATHS, scatter } from './town/scatter';
+import { square, squareDoors, squareSpawns } from './town/square';
+import { woods } from './town/woods';
+import type { Decor, SceneDef } from './types';
 
-const parts = merge(
-  building(-9, -9, 8, 6, 4.2, '#f2dcc0', '#8c5a6e', 'Library'),
-  building(9, -9, 7, 6, 3.6, '#f7d0c8', '#5f9a72', 'Café'),
-  bench('park-b1', 6, 5, 0),
-  bench('park-b2', 6, 11.5, Math.PI),
-  bench('park-b3', -6, 5, 0),
-  bench('park-b4', -10, 5, 0),
-  tree(-16, -1, 1.1), tree(-14, 4, 0.9), tree(-17, 9, 1.2), tree(-12, 12, 1), tree(-3, 12.5, 0.9),
-  tree(2.5, 13.5, 1.1), tree(12, 13, 1), tree(16, 9.5, 1.2), tree(17, 3, 0.9), tree(15.5, -1.5, 1),
-  tree(-1.5, -10, 1, 'pine'), tree(1.8, -11.5, 1.2, 'pine'), tree(-17, -11, 1.3, 'pine'),
-  tree(17, -11, 1.2, 'pine'), tree(15, -13.5, 1, 'pine'), tree(-15, -13.5, 0.9, 'pine'),
-  lampPost(-4, -2.6), lampPost(4, -2.6), lampPost(-1.6, 6), lampPost(1.6, 10),
-  {
-    decor: [
-      { kind: 'path', x: 0, z: -4, w: 32, d: 2 },
-      { kind: 'path', x: 0, z: 5, w: 2, d: 18 },
-      { kind: 'path', x: -9, z: -5.4, w: 1.6, d: 1.4 },
-      { kind: 'path', x: 9, z: -5.4, w: 1.6, d: 1.4 },
-      { kind: 'pond', x: 6, z: 8, w: 6, d: 4, seed: 4 },
-      { kind: 'flowers', x: -12, z: -5.4, seed: 1 }, { kind: 'flowers', x: -6, z: -5.4, seed: 2 },
-      { kind: 'flowers', x: 5.6, z: -5.4, seed: 3 }, { kind: 'flowers', x: 12.4, z: -5.4, seed: 4 },
-      { kind: 'flowers', x: -8, z: 7.5, seed: 5 }, { kind: 'flowers', x: 3, z: 6.5, seed: 6 },
-      { kind: 'bush', x: -13.5, z: -5.6, seed: 7 }, { kind: 'bush', x: 13, z: -5.6, seed: 8 },
-      { kind: 'bush', x: 9.5, z: 10.5, seed: 9 }, { kind: 'bush', x: -4, z: 9, seed: 10 },
-    ],
-    colliders: [{ x: 6, z: 8, w: 5, d: 3 }],
-  },
-);
+const zones = merge(square, lake, woods, park, playground, edges);
+
+const MAP = { x: 0, z: 0, w: 114, d: 84 };
+const free = (pad: number) => (x: number, z: number) =>
+  !inAny(PATHS, x, z, pad) && !inAny(zones.colliders, x, z, pad) && !pointInPolygon(OUTLINE, x, z)
+  && !zones.toys.some((t) => Math.hypot(t.x - x, t.z - z) < t.radius + 0.5);
+
+const grass: Decor[] = scatter(9001, 600, MAP, free(0.3)).map(([x, z], i) => ({ kind: 'grass', x, z, seed: i }));
+const rocks: Decor[] = scatter(9002, 60, MAP, free(0.8)).map(([x, z], i) => ({ kind: 'rock', x, z, rot: i * 1.7, seed: 50 + i }));
+
+const paths: Decor[] = PATHS.map((b) => ({ kind: 'path', x: b.x, z: b.z, w: b.w, d: b.d }));
 
 export const town: SceneDef = {
   id: 'town',
   name: 'Town',
   where: 'in the park',
-  size: { w: 40, d: 30 },
+  size: { w: 120, d: 90 },
   theme: {
     indoor: false,
     floor: '#9fd38a',
     floorAccent: '#8cc77a',
     background: ['#9fd0f2', '#fde9d6'],
-    fog: { color: '#fbe7d4', near: 30, far: 70 },
+    fog: { color: '#fbe7d4', near: 34, far: 78 },
     hemi: { sky: '#fff3e0', ground: '#7fae6a', intensity: 1.7 },
     sun: { color: '#fff0d6', intensity: 2.4, x: 12, y: 22, z: 10 },
   },
-  ...parts,
-  toys: [],
-  life: [],
-  doors: [
-    { id: 'to-library', box: { x: -9, z: -5.6, w: 1.4, d: 0.8 }, toScene: 'library', toSpawn: 'entrance' },
-    { id: 'to-cafe', box: { x: 9, z: -5.6, w: 1.4, d: 0.8 }, toScene: 'cafe', toSpawn: 'entrance' },
-  ],
-  spawns: [
-    { id: 'start', x: 0, z: 0, facing: 0 },
-    { id: 'from-library', x: -9, z: -3.6, facing: 0 },
-    { id: 'from-cafe', x: 9, z: -3.6, facing: 0 },
-  ],
+  decor: [...paths, ...zones.decor, ...grass, ...rocks],
+  colliders: zones.colliders,
+  slots: zones.slots,
+  toys: zones.toys,
+  life: zones.life,
+  water,
+  doors: squareDoors,
+  spawns: squareSpawns,
 };
