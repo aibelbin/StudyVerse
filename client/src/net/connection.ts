@@ -2,6 +2,9 @@ import type { ClientMsg, ServerMsg } from '../../../shared/protocol';
 
 export type ConnStatus = 'connecting' | 'open' | 'reconnecting' | 'stopped';
 
+/** A socket must stay open this long before a drop counts as a recovery and resets the backoff. */
+export const STABLE_MS = 5000;
+
 export function backoffDelay(attempt: number): number {
   return [1000, 2000, 4000, 8000][attempt] ?? 10000;
 }
@@ -14,18 +17,28 @@ export class Connection {
 
   private ws: WebSocket | null = null;
   private attempt = 0;
+  private started = false;
   private stopped = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(private url: string) {}
 
   connect(): void {
-    if (this.stopped) return;
-    this.onStatus(this.attempt === 0 ? 'connecting' : 'reconnecting');
-    const ws = new WebSocket(this.url);
+    if (this.stopped || this.ws) return;
+    clearTimeout(this.timer);
+    this.onStatus(this.started ? 'reconnecting' : 'connecting');
+    this.started = true;
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(this.url);
+    } catch {
+      this.retry();
+      return;
+    }
     this.ws = ws;
+    let openedAt = 0;
     ws.onopen = () => {
-      this.attempt = 0;
+      openedAt = Date.now();
       this.onStatus('open');
       this.onOpen();
     };
@@ -42,9 +55,14 @@ export class Connection {
       if (this.ws !== ws) return;
       this.ws = null;
       if (this.stopped) return;
-      this.onStatus('reconnecting');
-      this.timer = setTimeout(() => this.connect(), backoffDelay(this.attempt++));
+      if (openedAt && Date.now() - openedAt >= STABLE_MS) this.attempt = 0;
+      this.retry();
     };
+  }
+
+  private retry(): void {
+    this.onStatus('reconnecting');
+    this.timer = setTimeout(() => this.connect(), backoffDelay(this.attempt++));
   }
 
   send(msg: ClientMsg): void {

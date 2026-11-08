@@ -32,6 +32,7 @@ export class Interp {
       this.drawn = { ...pose };
     }
     const last = this.buf[this.buf.length - 1];
+    if (last) t = Math.max(t, last.t); // a late packet must not move time backwards
     if (last && t - last.t > IDLE_GAP_MS) {
       // They stood still for a while: restamp the old pose just before this one so the first step eases in.
       this.buf = [{ ...last, t: t - EASE_MS }];

@@ -46,3 +46,16 @@ describe('lerpAngle', () => {
     expect(lerpAngle(0, 1, 0.5)).toBeCloseTo(0.5);
   });
 });
+
+describe('Interp out-of-order pushes', () => {
+  it('ignores a late timestamp instead of sampling backwards in time', () => {
+    const i = new Interp();
+    i.push({ x: 0, z: 0, facing: 0 }, 1000);
+    i.push({ x: 1, z: 0, facing: 0 }, 1100);
+    i.push({ x: 2, z: 0, facing: 0 }, 1050); // late packet
+    const mid = i.sample(1160); // target 1060 lies between the first two samples
+    expect(Number.isFinite(mid.x)).toBe(true);
+    expect(mid.x).toBeCloseTo(0.6);
+    expect(i.sample(9999).x).toBe(2); // newest pose once the delay has passed
+  });
+});
