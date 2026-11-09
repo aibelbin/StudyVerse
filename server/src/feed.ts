@@ -27,4 +27,5 @@ export const feedText = {
     `🥀 ${name} disconnected and didn't come back, ${elapsed} min into a ${total} min session`,
   cheer: (from: string, to: string, emoji: string) => `${from} cheered ${to} ${emoji}`,
   coffee: (name: string, stars: number, drink: string) => `☕ ${name} made a ${'★'.repeat(stars)} ${drink}`,
+  gift: (from: string, to: string, stars: number, drink: string) => `🎁 ${from} gave ${to} a ${'★'.repeat(stars)} ${drink}`,
 };

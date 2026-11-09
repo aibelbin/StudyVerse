@@ -104,6 +104,12 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'brew':
       if (!DRINKS.includes(m.drink as Drink) || !Number.isInteger(m.stars)) return null;
       return { t: 'brew', drink: m.drink as Drink, stars: Math.max(1, Math.min(3, m.stars as number)) };
+    case 'sip':
+      return { t: 'sip' };
+    case 'offerCoffee':
+      return isStr(m.to, 64) ? { t: 'offerCoffee', to: m.to } : null;
+    case 'answerCoffee':
+      return isStr(m.fromId, 64) && typeof m.accept === 'boolean' ? { t: 'answerCoffee', fromId: m.fromId, accept: m.accept } : null;
     case 'setVoice':
       return typeof m.on === 'boolean' ? { t: 'setVoice', on: m.on } : null;
     case 'rtc':

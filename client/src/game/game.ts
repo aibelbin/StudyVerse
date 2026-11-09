@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { INTERACT_RADIUS, MOVE_SPEED, PLAYER_RADIUS } from '../../../shared/constants';
+import { GIFT_RANGE, INTERACT_RADIUS, MOVE_SPEED, PLAYER_RADIUS } from '../../../shared/constants';
+import { showGiftOffer } from '../hud/giftCard';
 import { inBox, moveWithCollision } from '../../../shared/geometry';
 import type { ClientMsg, ErrorCode, ServerMsg } from '../../../shared/protocol';
 import { getScene } from '../../../shared/scenes';
@@ -142,6 +143,17 @@ export class Game {
       if (this.telescope) this.setTelescope(false);
     });
     for (let i = 1; i <= 8; i++) this.input.on(String(i), () => this.playNote(i - 1));
+    this.input.on('c', () => {
+      if (this.me?.holding && !this.hud.modalOpen()) this.send({ t: 'sip' });
+    });
+    this.input.on('g', () => {
+      if (this.hud.modalOpen() || !this.me) return;
+      if (!this.me.holding) return this.hud.toast('Make a drink in the Café first ☕');
+      const to = this.nearestPlayer(GIFT_RANGE - 0.5);
+      if (!to) return this.hud.toast('Walk up to someone to share your drink 🎁');
+      this.send({ t: 'offerCoffee', to: to.view.id });
+      this.hud.toast(`Offering your ${this.me.holding.item} to ${to.view.name}…`, 2500);
+    });
     this.input.on('h', () => {
       if (this.driving?.kind === 'truck' && !this.hud.modalOpen()) this.send({ t: 'use', toyId: this.driving.toyId, action: 'honk' });
     });
@@ -210,6 +222,12 @@ export class Game {
         if (m.kind === 'coffee') c?.sip(performance.now());
         break;
       }
+      case 'coffeeOffer':
+        showGiftOffer(m.name, m.drink, m.stars, (accept) => this.send({ t: 'answerCoffee', fromId: m.fromId, accept }));
+        break;
+      case 'coffeeAnswer':
+        this.hud.toast(m.accepted ? `${m.name} took your drink ☕💛` : `${m.name} said no thanks`, 3500);
+        break;
       case 'toyState':
         this.toyStates[m.toyId] = m.state;
         if (this.driving?.toyId === m.toyId && (m.state.kind === 'rowboat' || m.state.kind === 'truck')) {
@@ -343,6 +361,7 @@ export class Game {
     }
     this.syncRowing(p);
     this.myChar!.setLook(p.look);
+    if (prev.holding?.sips === 1 && !p.holding) this.hud.toast('All gone ☕', 2500);
     if (prev.session?.phase === 'focus' && p.session?.phase === 'break') {
       chime();
       this.hud.toast('✨ Session done! Break time ☕ Stretch, wander, grab a coffee.', 6000);
@@ -737,6 +756,20 @@ export class Game {
     });
   }
 
+  /** The closest other player within range, if any. */
+  private nearestPlayer(range: number): Remote | null {
+    let best: Remote | null = null;
+    let bestD = range;
+    for (const r of this.remotes.values()) {
+      const d = Math.hypot(r.char.root.position.x - this.x, r.char.root.position.z - this.z);
+      if (d <= bestD) {
+        bestD = d;
+        best = r;
+      }
+    }
+    return best;
+  }
+
   private promptText(): string | null {
     const me = this.me!;
     if (this.transitioning) return null;
@@ -756,7 +789,9 @@ export class Game {
     const t = this.target;
     if (t?.kind === 'toy') return t.prompt;
     if (t?.kind === 'slot') return slotPrompt(t.slot, t.slot.toyId ? this.toyById(t.slot.toyId) : undefined);
-    if (t?.kind === 'player') return `[E] say hi to ${this.remotes.get(t.id)?.view.name ?? 'them'}`;
+    const cup = me.holding;
+    if (t?.kind === 'player') return `[E] say hi to ${this.remotes.get(t.id)?.view.name ?? 'them'}${cup ? ` · [G] give your ${cup.item}` : ''}`;
+    if (cup) return `[C] sip your ${cup.item} (${cup.sips} left) · [G] give it to someone`;
     return null;
   }
 
@@ -822,7 +857,7 @@ export class Game {
       r.char.facing = facing;
       r.char.setDim(!r.view.connected);
       r.char.overhead.setBadge(this.badgeFor(r.view));
-      r.char.setHolding(r.view.holding && r.view.holding.until > sNow ? r.view.holding.item : null);
+      r.char.setHolding(r.view.holding?.item ?? null);
       r.char.overhead.setSession(r.view.session, sNow);
       r.char.overhead.setRain(r.view.rainUntil > sNow);
       r.char.update(dt, nowP);
@@ -867,7 +902,7 @@ export class Game {
       { id: this.me.id, x: this.x, z: this.z, voice: this.me.voice, dnd: this.me.dnd },
       [...this.remotes.values()].map((r) => ({ id: r.view.id, x: r.char.root.position.x, z: r.char.root.position.z, voice: r.view.voice && r.view.connected, dnd: r.view.dnd })),
     );
-    c.setHolding(this.me.holding && this.me.holding.until > sNow ? this.me.holding.item : null);
+    c.setHolding(this.me.holding?.item ?? null);
     c.update(dt, nowP);
 
     if (this.transitioning || this.me.slotId || mySlide || this.telescope) {

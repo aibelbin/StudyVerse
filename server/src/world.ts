@@ -1,6 +1,6 @@
 import {
   CHEER_FEED_COOLDOWN_MS, DOOR_PAD, FEED_ON_WELCOME, GRACE_MS, MAX_SPEED, NOTE_COOLDOWN_MS, NOTE_MAX, NOTES_PER_AUTHOR,
-  NOTES_SHOWN, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS, BREW_COOLDOWN_MS, HOLD_MS, SELF_PARK_MS,
+  NOTES_SHOWN, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS, BREW_COOLDOWN_MS, CUP_SIPS, GIFT_RANGE, GIFT_TTL_MS, SELF_PARK_MS,
 } from '../../shared/constants';
 import { clampToBounds, dist, inBox, pointInPolygon } from '../../shared/geometry';
 import type { ClientMsg, ErrorCode, IceServer, ServerMsg } from '../../shared/protocol';
@@ -49,7 +49,7 @@ interface Player {
   wallet: Wallet & { lastDay: string | null };
   dnd: boolean;
   voice: boolean;
-  holding: { item: Drink; stars: number; until: number } | null;
+  holding: { item: Drink; stars: number; sips: number } | null;
   pet: PetView | null;
   lastNoteAt: number;
   lastBrewAt: number;
@@ -63,6 +63,7 @@ export class World {
   private slots = new Map<string, string>(); // slotId -> playerId
   private feed = new Feed();
   private toyStates = new Map<string, ToyState>(); // toyId -> state (toy ids are unique across scenes)
+  private offers = new Map<string, { fromId: string; at: number }>(); // target playerId -> pending coffee offer
   private lastDrivenAt = new Map<string, number>(); // truck toyId -> when someone last drove it (absent = never)
   private toySceneOf = new Map<string, string>(); // toyId -> scene id
   /** STUN/TURN servers handed to clients for voice chat. */
@@ -144,6 +145,9 @@ export class World {
       case 'postNote': return this.postNote(p, msg.text);
       case 'deleteNote': return this.deleteNote(p, msg.id);
       case 'brew': return this.brew(p, msg.drink, msg.stars);
+      case 'sip': return this.sip(p);
+      case 'offerCoffee': return this.offerCoffee(p, msg.to);
+      case 'answerCoffee': return this.answerCoffee(p, msg.fromId, msg.accept);
       case 'setVoice': {
         const on = msg.on && !p.dnd;
         if (p.voice === on) return;
@@ -182,11 +186,13 @@ export class World {
         if (event === 'focusDone') this.finishFocus(p, session!.focusMin);
         if (event) this.updated(p);
       }
-      if (p.holding && p.holding.until <= t) {
-        p.holding = null;
-        this.updated(p);
-      }
       if (!p.conn && p.disconnectedAt !== null && t - p.disconnectedAt >= GRACE_MS) this.remove(p);
+    }
+    for (const [toId, o] of this.offers) {
+      if (t - o.at < GIFT_TTL_MS) continue;
+      this.offers.delete(toId);
+      const to = this.players.get(toId);
+      this.players.get(o.fromId)?.conn?.send({ t: 'coffeeAnswer', name: to?.name ?? 'They', accepted: false });
     }
     this.selfPark(t);
   }
@@ -345,6 +351,8 @@ export class World {
       this.pushFeed('leave', feedText.leave(p.name));
     }
     this.freeSlot(p);
+    this.offers.delete(p.id);
+    for (const [toId, o] of this.offers) if (o.fromId === p.id) this.offers.delete(toId);
     this.players.delete(p.id);
     this.toScene(p.scene, { t: 'playerLeft', id: p.id });
     this.broadcastOnline();
@@ -425,6 +433,49 @@ export class World {
 
   // ---------- coffee ----------
 
+  /** A sip from your cup (the ☕ emote); the fourth one finishes it. */
+  private sip(p: Player): void {
+    if (!p.holding) return;
+    p.holding = p.holding.sips > 1 ? { ...p.holding, sips: p.holding.sips - 1 } : null;
+    this.toScene(p.scene, { t: 'emote', fromId: p.id, kind: 'coffee' });
+    this.updated(p);
+  }
+
+  private offerCoffee(p: Player, toId: string): void {
+    const to = this.players.get(toId);
+    const why = !p.holding ? 'You have nothing to give.'
+      : !to || to.id === p.id || to.scene !== p.scene || !to.conn ? 'There is nobody there.'
+      : dist(p.x, p.z, to.x, to.z) > GIFT_RANGE ? `Get a little closer to ${to.name}.`
+      : to.dnd ? `${to.name} is focusing (do not disturb).`
+      : to.holding ? `${to.name} already has a drink.`
+      : this.offers.has(to.id) ? `${to.name} is already deciding on a drink.`
+      : null;
+    if (why || !to || !p.holding) return this.error(p, 'bad_gift', why ?? 'There is nobody there.');
+    this.offers.set(to.id, { fromId: p.id, at: this.now() });
+    to.conn!.send({ t: 'coffeeOffer', fromId: p.id, name: p.name, drink: p.holding.item, stars: p.holding.stars });
+  }
+
+  private answerCoffee(p: Player, fromId: string, accept: boolean): void {
+    const o = this.offers.get(p.id);
+    if (!o || o.fromId !== fromId) return;
+    this.offers.delete(p.id);
+    const from = this.players.get(fromId);
+    if (!from) return;
+    const cup = from.holding;
+    const ok = accept && cup && !p.holding && this.now() - o.at < GIFT_TTL_MS;
+    if (!ok) {
+      from.conn?.send({ t: 'coffeeAnswer', name: p.name, accepted: false });
+      if (accept && !cup) this.error(p, 'bad_gift', `${from.name} doesn't have it any more.`);
+      return;
+    }
+    p.holding = cup;
+    from.holding = null;
+    this.updated(p);
+    this.updated(from);
+    from.conn?.send({ t: 'coffeeAnswer', name: p.name, accepted: true });
+    this.pushFeed('gift', feedText.gift(from.name, p.name, cup.stars, cup.item));
+  }
+
   private brew(p: Player, drink: Drink, stars: number): void {
     const machine = this.scene(p.scene).toys.find((x) => x.kind === 'coffee');
     if (!machine || p.slotId || dist(p.x, p.z, machine.x, machine.z) > machine.radius + 0.5) {
@@ -433,7 +484,7 @@ export class World {
     const t = this.now();
     if (t - p.lastBrewAt < BREW_COOLDOWN_MS) return;
     p.lastBrewAt = t;
-    p.holding = { item: drink, stars, until: t + HOLD_MS };
+    p.holding = { item: drink, stars, sips: CUP_SIPS };
     this.updated(p);
     this.pushFeed('coffee', feedText.coffee(p.name, stars, drink));
   }

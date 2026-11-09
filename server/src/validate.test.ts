@@ -18,6 +18,14 @@ describe('parseClientMsg', () => {
     expect(parseClientMsg(JSON.stringify({ t: 'sit', slotId: 'a' }))).toEqual({ t: 'sit', slotId: 'a' });
     expect(parseClientMsg(JSON.stringify({ t: 'sit', seatId: 'a' }))).toBeNull();
   });
+  it('parses sips and coffee gifts', () => {
+    expect(parseClientMsg(JSON.stringify({ t: 'sip' }))).toEqual({ t: 'sip' });
+    expect(parseClientMsg(JSON.stringify({ t: 'offerCoffee', to: 'p1' }))).toEqual({ t: 'offerCoffee', to: 'p1' });
+    expect(parseClientMsg(JSON.stringify({ t: 'offerCoffee', to: 5 }))).toBeNull();
+    expect(parseClientMsg(JSON.stringify({ t: 'answerCoffee', fromId: 'p1', accept: true }))).toEqual({ t: 'answerCoffee', fromId: 'p1', accept: true });
+    expect(parseClientMsg(JSON.stringify({ t: 'answerCoffee', fromId: 'p1', accept: 'yes' }))).toBeNull();
+  });
+
   it('accepts a truck tilt within range and refuses a wild one', () => {
     const base = { t: 'move', x: 1, z: 2, facing: 0, anim: 'sit' };
     expect(parseClientMsg(JSON.stringify({ ...base, tilt: { y: 0.1, pitch: 0.2, roll: -0.1, extra: 1 } }))).toEqual({ ...base, tilt: { y: 0.1, pitch: 0.2, roll: -0.1 } });

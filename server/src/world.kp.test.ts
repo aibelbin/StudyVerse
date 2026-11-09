@@ -157,9 +157,86 @@ describe('coffee', () => {
     expect(b.c.of('feed').at(-1)!.event.text).toBe('☕ Sam made a ★★★ latte');
     w.handle(a.id, { t: 'brew', drink: 'cocoa', stars: 1 });
     expect(w.view(a.id)!.holding!.item).toBe('latte'); // cooldown
-    t += 10 * MIN;
+    t += 60 * MIN;
     w.tick();
+    expect(w.view(a.id)!.holding).toMatchObject({ item: 'latte', sips: 4 }); // cups don't vanish any more
+  });
+
+  it('four sips finish the cup, each one a coffee emote', () => {
+    const a = joinNew('Sam');
+    toCafe(a.id);
+    w.handle(a.id, { t: 'brew', drink: 'matcha', stars: 2 });
+    for (let i = 0; i < 3; i++) w.handle(a.id, { t: 'sip' });
+    expect(w.view(a.id)!.holding).toMatchObject({ sips: 1 });
+    w.handle(a.id, { t: 'sip' });
     expect(w.view(a.id)!.holding).toBeNull();
+    expect(a.c.of('emote').filter((e) => e.kind === 'coffee')).toHaveLength(4);
+    w.handle(a.id, { t: 'sip' }); // nothing left: nothing happens
+    expect(a.c.of('emote')).toHaveLength(4);
+  });
+
+  describe('gifts', () => {
+    function pair() {
+      const a = joinNew('Sam');
+      const b = joinNew('Jo');
+      toCafe(a.id);
+      toCafe(b.id);
+      w.handle(b.id, { t: 'move', x: -1.5, z: -2.2, facing: 0, anim: 'idle' });
+      w.handle(a.id, { t: 'brew', drink: 'latte', stars: 3 });
+      return { a, b };
+    }
+
+    it('offers a cup and moves it, sips and all, when accepted', () => {
+      const { a, b } = pair();
+      w.handle(a.id, { t: 'sip' });
+      w.handle(a.id, { t: 'offerCoffee', to: b.id });
+      expect(b.c.of('coffeeOffer').at(-1)).toEqual({ t: 'coffeeOffer', fromId: a.id, name: 'Sam', drink: 'latte', stars: 3 });
+      w.handle(b.id, { t: 'answerCoffee', fromId: a.id, accept: true });
+      expect(w.view(a.id)!.holding).toBeNull();
+      expect(w.view(b.id)!.holding).toEqual({ item: 'latte', stars: 3, sips: 3 });
+      expect(a.c.of('coffeeAnswer').at(-1)).toEqual({ t: 'coffeeAnswer', name: 'Jo', accepted: true });
+      expect(a.c.of('feed').at(-1)!.event.text).toBe('🎁 Sam gave Jo a ★★★ latte');
+      w.handle(b.id, { t: 'answerCoffee', fromId: a.id, accept: true }); // a stale second answer does nothing
+      expect(w.view(b.id)!.holding).toMatchObject({ sips: 3 });
+    });
+
+    it('tells the giver when it is declined or times out', () => {
+      const { a, b } = pair();
+      w.handle(a.id, { t: 'offerCoffee', to: b.id });
+      w.handle(b.id, { t: 'answerCoffee', fromId: a.id, accept: false });
+      expect(a.c.of('coffeeAnswer').at(-1)).toMatchObject({ accepted: false });
+      expect(w.view(a.id)!.holding).not.toBeNull();
+      w.handle(a.id, { t: 'offerCoffee', to: b.id });
+      t += 16_000;
+      w.tick();
+      expect(a.c.of('coffeeAnswer')).toHaveLength(2);
+      w.handle(b.id, { t: 'answerCoffee', fromId: a.id, accept: true });
+      expect(w.view(b.id)!.holding).toBeNull(); // too late
+    });
+
+    it('refuses empty hands, people far away, on do-not-disturb, or already holding a cup', () => {
+      const { a, b } = pair();
+      const c = joinNew('Ali');
+      w.handle(c.id, { t: 'offerCoffee', to: a.id });
+      expect(c.c.of('error').at(-1)).toMatchObject({ code: 'bad_gift' });
+      w.handle(a.id, { t: 'offerCoffee', to: c.id }); // Ali is out in town
+      expect(a.c.of('error').at(-1)).toMatchObject({ code: 'bad_gift' });
+      t += 1000;
+      w.handle(b.id, { t: 'move', x: -1.5, z: 2.5, facing: 0, anim: 'idle' });
+      w.handle(a.id, { t: 'offerCoffee', to: b.id });
+      expect(a.c.of('error').at(-1)!.message).toMatch(/closer/);
+      t += 1000;
+      w.handle(b.id, { t: 'move', x: -1.5, z: -2.2, facing: 0, anim: 'idle' });
+      w.handle(b.id, { t: 'setDnd', on: true });
+      w.handle(a.id, { t: 'offerCoffee', to: b.id });
+      expect(a.c.of('error').at(-1)!.message).toMatch(/focusing/);
+      w.handle(b.id, { t: 'setDnd', on: false });
+      t += 30_000;
+      w.handle(b.id, { t: 'brew', drink: 'cocoa', stars: 1 });
+      w.handle(a.id, { t: 'offerCoffee', to: b.id });
+      expect(a.c.of('error').at(-1)!.message).toMatch(/already has/);
+      expect(b.c.of('coffeeOffer')).toHaveLength(0);
+    });
   });
 
   it('needs you at the machine', () => {

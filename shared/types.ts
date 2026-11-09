@@ -43,7 +43,7 @@ export interface PlayerView {
   /** Opted in to proximity voice chat. */
   voice: boolean;
   /** A drink in hand until the given server time. */
-  holding: { item: Drink; stars: number; until: number } | null;
+  holding: { item: Drink; stars: number; sips: number } | null;
   pet: PetView | null;
 }
 
@@ -65,7 +65,7 @@ export interface OnlineEntry {
   scene: string;
 }
 
-export type FeedKind = 'arrive' | 'leave' | 'start' | 'finish' | 'quit' | 'cheer' | 'coffee';
+export type FeedKind = 'arrive' | 'leave' | 'start' | 'finish' | 'quit' | 'cheer' | 'coffee' | 'gift';
 
 export interface FeedEvent {
   kind: FeedKind;

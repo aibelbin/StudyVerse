@@ -19,6 +19,9 @@ export type ClientMsg =
   | { t: 'deleteNote'; id: number }
   | { t: 'setDnd'; on: boolean }
   | { t: 'brew'; drink: Drink; stars: number }
+  | { t: 'sip' }
+  | { t: 'offerCoffee'; to: string }
+  | { t: 'answerCoffee'; fromId: string; accept: boolean }
   | { t: 'setVoice'; on: boolean }
   | { t: 'adoptPet'; kind: PetKind; name: string }
   | { t: 'setPetOut'; on: boolean }
@@ -40,9 +43,12 @@ export type ErrorCode =
   | 'bad_look'
   | 'bad_item'
   | 'no_kp'
-  | 'bad_note';
+  | 'bad_note'
+  | 'bad_gift';
 
 export type ServerMsg =
+  | { t: 'coffeeOffer'; fromId: string; name: string; drink: Drink; stars: number }
+  | { t: 'coffeeAnswer'; name: string; accepted: boolean }
   | {
       t: 'welcome';
       you: PlayerView;
