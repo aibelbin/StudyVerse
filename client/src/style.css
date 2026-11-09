@@ -141,5 +141,21 @@ button:disabled { opacity: 0.5; cursor: default; }
 .coffee .zone { position: absolute; top: 0; bottom: 0; background: #a8d8a0; }
 .coffee .marker { position: absolute; top: -2px; bottom: -2px; width: 6px; margin-left: -3px; background: #5a3e36; border-radius: 3px; }
 .coffee .marker.hit { background: #3f9e5a; } .coffee .marker.miss { background: #e85a6a; }
+.barista .stage-wrap { position: relative; display: flex; justify-content: center; margin: 6px 0; }
+.barista .stage { border-radius: 16px; background: #fbf3ea; touch-action: none; cursor: grab; box-shadow: inset 0 0 0 2px #f0e2d6; }
+.barista .step-title { font-weight: 700; margin: 4px 0 0; }
+.barista .steps-dots { display: flex; gap: 6px; justify-content: center; }
+.barista .steps-dots span { width: 9px; height: 9px; border-radius: 50%; background: #e3cdb8; }
+.barista .steps-dots span.done { background: #c99a6e; }
+.barista .steps-dots span.now { background: #5a3e36; transform: scale(1.25); }
+.barista .verdict { position: absolute; top: 40%; left: 0; right: 0; text-align: center; font-size: 28px; font-weight: 800; opacity: 0; transform: scale(0.8); transition: all 0.2s; pointer-events: none; color: #5a3e36; text-shadow: 0 2px 0 #fff; }
+.barista .verdict.show { opacity: 1; transform: scale(1); }
+.barista .verdict.good { color: #3f9e5a; } .barista .verdict.bad { color: #e85a6a; }
+.barista .art-pic { display: block; width: 160px; margin: 4px auto; border-radius: 12px; }
+.barista .score-bars { display: grid; gap: 4px; margin: 8px 0; }
+.barista .score-row { display: grid; grid-template-columns: 130px 1fr 34px; align-items: center; gap: 8px; font-size: 13px; }
+.barista .track { height: 8px; border-radius: 4px; background: #f0e2d6; overflow: hidden; }
+.barista .track .fill { display: block; height: 100%; background: #c99a6e; }
+.barista .pct { text-align: right; opacity: 0.7; }
 .coffee .result { font-size: 34px; text-align: center; margin: 4px 0; color: #f2a65a; }
 .pet-emoji { font-size: 26px; }
