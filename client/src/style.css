@@ -233,3 +233,62 @@ button:disabled { opacity: 0.5; cursor: default; }
 .golf-cell { display: flex; flex-direction: column; align-items: center; min-width: 22px; padding: 2px 3px; border-radius: 6px; background: rgba(255, 255, 255, 0.5); font-size: 12px; }
 .golf-cell b { font-size: 10px; color: var(--mut); }
 .golf-cell.on { outline: 2px solid var(--acc); }
+
+/* ---------- phones and tablets (body.touch) ---------- */
+body.touch { overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+body.touch canvas#c, body.touch .touch-actions, body.touch .touch-piano, body.touch .touch-rounds, body.touch canvas { touch-action: none; }
+body.touch input, body.touch textarea { -webkit-user-select: text; user-select: text; }
+body.touch #online, body.touch #feed, body.touch #chat, body.touch #prompt, body.touch #minimap:not(.big) { display: none; }
+body.touch #status { top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); min-width: 0; padding: 6px 10px; font-size: 12px; border-radius: 14px; }
+body.touch #status .buttons { display: none; }
+body.touch #status .sub:not(.kp) { display: none; }
+body.touch #toasts { top: 52px; font-size: 13px; }
+body.touch .toast { padding: 7px 12px; }
+
+/* floating joystick */
+.stick-base { position: fixed; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; background: rgba(255, 255, 255, 0.22); border: 2px solid rgba(255, 255, 255, 0.55); pointer-events: none; z-index: 20; }
+.stick-knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; border-radius: 50%; background: rgba(255, 250, 244, 0.9); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2); transform: translate(-50%, -50%); }
+
+/* action buttons, bottom right */
+.touch-actions { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 8px; z-index: 20; }
+.touch-act { border: 0; border-radius: 22px; padding: 10px 16px; font: 700 14px ui-rounded, system-ui, sans-serif; color: var(--ink); background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 4px 14px rgba(74, 64, 88, 0.2); min-height: 44px; max-width: 44vw; }
+.touch-act.main { min-width: 92px; min-height: 92px; border-radius: 46px; padding: 12px; font-size: 15px; background: #ffd9a0; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.15; }
+.touch-act:active, .touch-act.down { transform: scale(0.94); filter: brightness(0.95); }
+
+/* note keys for instruments */
+.touch-piano { position: fixed; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 6px; z-index: 20; }
+.touch-key { width: 46px; height: 64px; border: 0; border-radius: 10px; background: #fffaf0; box-shadow: 0 3px 10px rgba(74, 64, 88, 0.22); font: 700 14px ui-rounded, system-ui; color: var(--mut); }
+.touch-key.down { transform: translateY(3px); background: #ffe7c2; }
+
+/* chat, emotes, menu */
+.touch-rounds { position: fixed; top: max(8px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); display: flex; gap: 8px; z-index: 25; }
+.touch-round { position: relative; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 3px 10px rgba(74, 64, 88, 0.2); font-size: 20px; }
+.touch-round.dot::after { content: ''; position: absolute; top: 4px; right: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--bad); }
+body.touch.chat-open #chat { display: flex; left: max(10px, env(safe-area-inset-left)); right: auto; top: 60px; bottom: calc(10px + var(--kb, 0px)); width: min(440px, 62vw); max-height: none; z-index: 30; }
+body.touch.chat-open #chat .chat-list { flex: 1; max-height: none; }
+body.touch.chat-open #chat input { font-size: 16px; } /* stops iOS zooming in on focus */
+.touch-menu { position: fixed; top: 60px; right: max(10px, env(safe-area-inset-right)); width: min(300px, 46vw); padding: 10px; z-index: 30; max-height: calc(100vh - 76px); overflow: auto; }
+.touch-menu-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.touch-item { min-height: 44px; border: 0; border-radius: 12px; background: rgba(255, 255, 255, 0.7); font: 650 13px ui-rounded, system-ui; color: var(--ink); }
+.touch-menu-note { font-size: 11px; color: var(--mut); margin-top: 8px; text-align: right; }
+body.touch.menu-open #online { display: block; top: 60px; right: calc(min(300px, 46vw) + 20px); max-height: calc(100vh - 76px); overflow: auto; z-index: 30; }
+body.touch.menu-open #feed { display: flex; bottom: 12px; left: max(10px, env(safe-area-inset-left)); width: min(360px, 44vw); z-index: 30; }
+body.touch.menu-open #feed .item.old { opacity: 0.85; }
+
+/* modals: bigger targets, never taller than the screen */
+body.touch .modal { max-height: 92vh; overflow: auto; }
+body.touch .modal button { min-height: 44px; }
+body.touch #card button { min-height: 40px; }
+
+/* landscape only */
+.touch-portrait { display: none; }
+@media (orientation: portrait) {
+  body.touch .touch-portrait { display: flex; position: fixed; inset: 0; z-index: 100; flex-direction: column; align-items: center; justify-content: center; background: #3d2f3a; color: #fff6ea; font-weight: 700; text-align: center; }
+  body.touch .touch-portrait div { font-size: 56px; animation: tp-turn 1.6s ease-in-out infinite; }
+}
+@keyframes tp-turn { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+/* the join card scrolls on short landscape phones, and inputs don't trigger iOS zoom */
+body.touch .screen { overflow-y: auto; place-items: start center; padding: 12px 0; }
+body.touch .join-card { margin: auto; }
+body.touch input, body.touch select { font-size: 16px; }
+@media (max-height: 500px) { .join-card { padding: 14px 18px; gap: 8px; } .join-card h1 { font-size: 20px; } }

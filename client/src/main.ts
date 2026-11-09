@@ -9,6 +9,8 @@ import { showJoin } from './hud/joinScreen';
 import { openBarista } from './coffee/barista';
 import { openStageScreen } from './hud/stageScreen';
 import { GardenPanel } from './hud/garden';
+import { isTouchDevice } from './touch/detect';
+import { TouchUI } from './touch/ui';
 import { NotesBoard } from './hud/notes';
 import { Wardrobe } from './hud/wardrobe';
 import { Voice } from './voice/voice';
@@ -41,6 +43,12 @@ const wardrobe = new Wardrobe({
 });
 
 const chat = new ChatPanel(byId('chat'));
+const touch = isTouchDevice(location.search, (q) => matchMedia(q));
+if (touch) {
+  document.body.classList.add('touch'); // before the game reads it (Lite default, pixel ratio)
+  hud.touch = true;
+}
+let touchUI: TouchUI | null = null;
 chat.onSend = (text, to) => conn.send(to ? { t: 'chat', text, to } : { t: 'chat', text });
 chat.onReact = (id, emoji) => conn.send({ t: 'react', id, emoji });
 chat.onPing = (m) => {
@@ -114,6 +122,7 @@ conn.onMessage = (m) => {
   if (m.t === 'rtc') void voice.onSignal(m.from, m.data);
   if (m.t === 'chat') {
     chat.add(m.msg);
+    touchUI?.onChat(m.msg, m.msg.from === hud.meId);
     if (m.msg.to === null) game?.chatBubble(m.msg.from, m.msg.text);
   }
   if (m.t === 'chatReact') chat.setReactions(m.id, m.reactions);
@@ -163,6 +172,19 @@ conn.onMessage = (m) => {
       hud.onToggleQuality = () => {
         hud.quality = g.toggleQuality();
       };
+      if (touch) {
+        touchUI = new TouchUI({
+          input: g.input,
+          canvas: byId('c') as HTMLCanvasElement,
+          hud,
+          joystickOn: () => !g.golfing(),
+          toggleMap: () => g.toggleMap(),
+          openChat: () => chat.focus(),
+          closeChat: () => chat.close(),
+        });
+        g.onFrame = () => touchUI?.update(g.currentPrompt());
+      }
+      setTimeout(() => (hud.feedLive = true), 3000);
       game.onToggleDnd = toggleDnd;
       game.onChatKey = () => chat.focus();
       game.voice = voice;

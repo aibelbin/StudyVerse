@@ -1,10 +1,11 @@
 export type Quality = 'high' | 'lite';
 export const QUALITY_KEY = 'sv-quality';
 
-/** ?lite forces Lite; otherwise the saved choice; otherwise High. */
-export function initialQuality(search: string, stored: string | null): Quality {
+/** ?lite forces Lite; otherwise the saved choice; otherwise High (Lite on touch devices, to spare phones). */
+export function initialQuality(search: string, stored: string | null, touch = false): Quality {
   if (new URLSearchParams(search).has('lite')) return 'lite';
-  return stored === 'lite' ? 'lite' : 'high';
+  if (stored === 'lite' || stored === 'high') return stored;
+  return touch ? 'lite' : 'high';
 }
 
 /** Watches frame times on High and says once (per session) if Lite would be smoother. */

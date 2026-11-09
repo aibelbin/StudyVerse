@@ -1,0 +1,10 @@
+{
+  "name": "StudyVerse",
+  "short_name": "StudyVerse",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#3d2f3a",
+  "theme_color": "#3d2f3a",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

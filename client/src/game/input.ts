@@ -9,6 +9,8 @@ export class Input {
   private down = new Set<string>();
   private handlers = new Map<string, () => void>();
   private upHandlers = new Map<string, () => void>();
+  /** The touch joystick's push (length 0..1); used when no movement keys are down. */
+  stick = { x: 0, z: 0 };
 
   constructor() {
     addEventListener('keydown', (e) => {
@@ -30,6 +32,17 @@ export class Input {
     this.handlers.set(key, fn);
   }
 
+  /** A touch button standing in for a key going down (runs its handler, counts as held). */
+  press(key: string): void {
+    this.down.add(key);
+    this.handlers.get(key)?.();
+  }
+
+  release(key: string): void {
+    this.down.delete(key);
+    this.upHandlers.get(key)?.();
+  }
+
   /** Runs fn when the key is released (not while typing). */
   onUp(key: string, fn: () => void): void {
     this.upHandlers.set(key, fn);
@@ -38,6 +51,11 @@ export class Input {
   /** Tank-style driving keys: W/↑ throttle, S/↓ brake-then-reverse, A/← steer left (+), D/→ right. */
   driveAxis(): { throttle: number; steer: number } {
     const d = (a: string, b: string) => this.down.has(a) || this.down.has(b);
+    const keys = d('w', 'arrowup') || d('s', 'arrowdown') || d('a', 'arrowleft') || d('d', 'arrowright');
+    if (!keys && (this.stick.x || this.stick.z)) {
+      const dz = (v: number) => (Math.abs(v) < 0.15 ? 0 : Math.sign(v) * Math.min(1, (Math.abs(v) - 0.15) / 0.75));
+      return { throttle: dz(-this.stick.z), steer: dz(-this.stick.x) };
+    }
     return {
       throttle: (d('w', 'arrowup') ? 1 : 0) - (d('s', 'arrowdown') ? 1 : 0),
       steer: (d('a', 'arrowleft') ? 1 : 0) - (d('d', 'arrowright') ? 1 : 0),
@@ -53,7 +71,8 @@ export class Input {
     if (len > 0) {
       x /= len;
       z /= len;
+      return { x, z };
     }
-    return { x, z };
+    return { x: this.stick.x, z: this.stick.z };
   }
 }

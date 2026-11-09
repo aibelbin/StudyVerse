@@ -7,6 +7,8 @@ describe('graphics quality', () => {
     expect(initialQuality('', 'lite')).toBe('lite');
     expect(initialQuality('', 'junk')).toBe('high');
     expect(initialQuality('?debug&lite', 'high')).toBe('lite');
+    expect(initialQuality('', null, true)).toBe('lite'); // phones start on Lite
+    expect(initialQuality('', 'high', true)).toBe('high'); // …unless they chose High
   });
 
   it('suggests Lite once after 5 s under 40 fps on High', () => {

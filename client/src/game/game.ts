@@ -98,6 +98,8 @@ export class Game {
   onLocalToy: (toy: Toy) => void = () => {};
   /** E on your own garden plot. */
   onOpenGarden: (toyId: string) => void = () => {};
+  /** Called once per frame after the HUD updates (the touch controls follow the hint). */
+  onFrame: () => void = () => {};
   onToggleDnd: () => void = () => {};
   onVoiceKey: () => void = () => {};
   voice: Voice | null = null;
@@ -109,7 +111,7 @@ export class Game {
 
   private renderer: THREE.WebGLRenderer;
   private rig = new CameraRig();
-  private input = new Input();
+  readonly input = new Input();
   private fade: Fade;
   private runtimes = new Map<string, SceneRuntime>();
   private rt: SceneRuntime | null = null;
@@ -157,12 +159,12 @@ export class Game {
 
   constructor(canvas: HTMLCanvasElement, fadeEl: HTMLElement, private hud: Hud, private send: (m: ClientMsg) => void) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, document.body.classList.contains('touch') ? 1.25 : 1.5)); // phones run cooler at 1.25
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.post = new Post(this.renderer);
-    this.quality = initialQuality(location.search, localStorage.getItem(QUALITY_KEY));
+    this.quality = initialQuality(location.search, localStorage.getItem(QUALITY_KEY), document.body.classList.contains('touch'));
     this.post.high = this.quality === 'high';
     this.fade = new Fade(fadeEl);
     addEventListener('resize', () => this.resize());
@@ -969,6 +971,20 @@ export class Game {
     this.post?.resize();
   }
 
+  toggleMap(): void {
+    this.minimap.toggle();
+  }
+
+  /** A mini-golf hole is being played (finger drags putt instead of walking). */
+  golfing(): boolean {
+    return this.golf.active !== null;
+  }
+
+  /** The hint currently shown (also drives the touch buttons). */
+  currentPrompt(): string | null {
+    return this.me ? this.promptText() : null;
+  }
+
   /** High (night glow, cloud shadows) or Lite; remembered on this device. */
   toggleQuality(): Quality {
     this.quality = this.quality === 'high' ? 'lite' : 'high';
@@ -1101,6 +1117,7 @@ export class Game {
       this.target = pickTarget(this.x, this.z, placed, this.occupied, toys, others);
     }
     this.hud.setPrompt(this.promptText());
+    this.onFrame();
     this.hud.setStatus(this.me, this.def, sNow);
 
     const cardId = this.hud.cardTarget();

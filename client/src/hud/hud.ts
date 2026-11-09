@@ -21,6 +21,8 @@ export class Hud {
   /** Open a private chat with this player. */
   onOpenDm: (id: string, name: string) => void = () => {};
   meId = '';
+  /** Touch layout: feed lines also pop up as toasts (the feed panel is hidden). */
+  touch = false;
   /** 'off' | 'on' | 'muted' */
   voiceState: 'off' | 'on' | 'muted' = 'off';
   muted = false;
@@ -107,7 +109,11 @@ export class Hud {
     feed.append(item);
     while (feed.children.length > FEED_SHOWN) feed.firstElementChild!.remove();
     setTimeout(() => item.classList.add('old'), FEED_FADE_MS);
+    if (this.touch && this.feedLive) this.toast(e.text, 3000);
   }
+
+  /** Feed items after the welcome burst (so joining doesn't pop a pile of toasts). */
+  feedLive = false;
 
   setPrompt(text: string | null): void {
     const el = byId('prompt');

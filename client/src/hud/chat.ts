@@ -133,6 +133,11 @@ export class ChatPanel {
     this.render();
   }
 
+  /** Closes the panel (the touch chat sheet's ✕). */
+  close(): void {
+    this.collapse();
+  }
+
   private collapse(): void {
     this.open = false;
     this.pickerFor = null;

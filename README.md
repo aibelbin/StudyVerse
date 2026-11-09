@@ -49,6 +49,12 @@ One process serves the page and the WebSocket (`/ws`). Profiles are stored in `d
 | P | bring out / put away your pet |
 | Esc | close dialogs and the player card, stop stargazing |
 
+On phones and tablets (held sideways) the town switches to touch controls: put a thumb on the left of the screen
+for a joystick (it drives the truck and rows the boat too), tap the big button on the right for whatever the hint
+says (sit, feed, drive, hop out…), small buttons appear for study, sip, give and honk, and instruments get 8 note
+keys. 💬 opens chat, 😊 the emotes, ☰ the map, settings and who's online. Phones start on Lite graphics. Add the page
+to your home screen to play full screen. `?touch` forces touch mode on a computer (`?touch=0` turns it off).
+
 ## Knowledge Points, wardrobe and pets
 
 Finishing a focus session earns ✨ Knowledge Points: 1 per focus minute, plus a daily-streak bonus. Leaving early
