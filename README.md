@@ -31,16 +31,35 @@ One process serves the page and the WebSocket (`/ws`). Profiles are stored in `d
 
 | Key | Action |
 |---|---|
-| WASD / arrows | walk (or row, while in a rowboat) |
+| WASD / arrows | walk (or row a boat / drive a truck) |
 | E | sit / stand / use a toy / say hi to someone nearby |
 | Space | start a study session (at a desk, café table or bench) |
 | 1–8 | play notes while sitting at the piano |
+| H | honk (in a truck) |
+| M | big map |
+| N | do not disturb |
+| V | mute / unmute your mic (when on voice) |
+| P | bring out / put away your pet |
 | Esc | close dialogs and the player card, stop stargazing |
+
+## Knowledge Points, wardrobe and pets
+
+Finishing a focus session earns ✨ Knowledge Points: 1 per focus minute, plus a daily-streak bonus. Leaving early
+earns nothing. Spend them in the Boutique (✏️ or the stall in the square) on hats, tops, glasses, backpacks and
+more, or adopt a pet. Pets are driven by a tiny neural network trained with evolution strategies
+(`pets/train.ts`, run it on a remote machine: `npm run train:pets -- 300 shared/pets/policy.json`).
+
+## Voice chat
+
+🎙️ in the status panel joins proximity voice: people nearby hear you, quieter with distance. Browsers only allow
+microphones on secure pages, so for friends on other machines serve the town over HTTPS:
+`TLS_CERT=/path/cert.pem TLS_KEY=/path/key.pem`. Optional `ICE_SERVERS` (JSON) adds STUN/TURN servers, e.g. a
+TURN server for friends behind strict networks.
 
 ## The town
 
-A 120×90 town with a square (Library, Café, bandstand piano, fountain, bell, jukebox), a lake with a dock and
-two rowboats, woods with a campfire, a park with wind chimes and a telescope, and a playground (swings, seesaw,
+A 120×90 town with a square (Library, Café, bandstand piano, fountain, bell, jukebox, Boutique, notice board,
+knowledge tree), two trucks to drive around, a lake with a dock and two rowboats, woods with a campfire, a park with wind chimes and a telescope, and a playground (swings, seesaw,
 merry-go-round, slide). Toys are shared: friends see and hear them. Ducks, fish, frogs, birds, insects, sailboats
 and clouds wander around on their own, and the sky follows your local clock (stars and fireflies at night).
 All art is procedural and all sound is synthesized in the browser; 🔊 in the status panel mutes it.

@@ -10,6 +10,7 @@ export function worldToMap(x: number, z: number, size: Bounds, w: number, h: num
 const ICONS: Partial<Record<ToyKind, string>> = {
   piano: '🎹', jukebox: '🎵', fountain: '⛲', bell: '🔔', chimes: '🎐', campfire: '🔥', telescope: '🔭',
   ducks: '🦆', swing: '🛝', merryGoRound: '🎠', stones: '🪨', slide: '🛝', seesaw: '⚖️',
+  shop: '👕', board: '📌', quotes: '📖', coffee: '☕',
 };
 
 export interface MapDot {
