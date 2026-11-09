@@ -87,6 +87,21 @@ export const VOICES: Record<SoundKind, Voice> = {
   whoosh(c, out, _arg, at = c.currentTime) {
     burst(c, out, at, 400, 1.2, 0.25, 1.2, 1800);
   },
+  honk(c, out, _arg, at = c.currentTime) {
+    for (const d of [0, 0.22]) {
+      for (const f of [392, 494]) {
+        const o = c.createOscillator();
+        o.type = 'square';
+        o.frequency.value = f;
+        const lp = c.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 1800;
+        o.connect(lp).connect(env(c, out, at + d, 0.06, 0.01, 0.17));
+        o.start(at + d);
+        o.stop(at + d + 0.2);
+      }
+    }
+  },
   quack(c, out, _arg, at = c.currentTime) {
     for (const d of [0, 0.22]) {
       const o = c.createOscillator();

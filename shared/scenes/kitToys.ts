@@ -90,3 +90,13 @@ export function campfire(id: string, x: number, z: number): Partial<Parts> {
     colliders: [sq(x, z, 1)],
   };
 }
+
+/** A little pickup truck parked at (x, z) facing rot: a driver up front, three seats in the bed. */
+export function truck(id: string, x: number, z: number, rot: number): Partial<Parts> {
+  const at = (lx: number, lf: number) => ({ x: x + Math.cos(rot) * lx + Math.sin(rot) * lf, z: z - Math.sin(rot) * lx + Math.cos(rot) * lf });
+  const seats: [string, number, number, Slot['pose']][] = [
+    ['drive', -0.32, 0.35, 'drive'], ['bed-l', -0.38, -0.8, 'sit'], ['bed-r', 0.38, -0.8, 'sit'], ['bed-b', 0, -1.35, 'sit'],
+  ];
+  const slots: Slot[] = seats.map(([k, lx, lf, pose]) => ({ id: `${id}-${k}`, ...at(lx, lf), facing: rot, pose, toyId: id }));
+  return { toys: [{ id, kind: 'truck', x, z, rot, radius: 2.2, slotIds: slots.map((s) => s.id) }], slots };
+}

@@ -4,20 +4,23 @@ import type { Slot, Toy } from './scenes/types';
 export type ToyKind =
   | 'swing' | 'seesaw' | 'merryGoRound' | 'slide' | 'piano' | 'jukebox' | 'ducks'
   | 'fountain' | 'bell' | 'chimes' | 'stones' | 'campfire' | 'telescope' | 'rowboat'
-  | 'shop' | 'board' | 'quotes' | 'coffee';
+  | 'shop' | 'board' | 'quotes' | 'coffee' | 'truck';
 
 export const TOY_KINDS: ToyKind[] = [
   'swing', 'seesaw', 'merryGoRound', 'slide', 'piano', 'jukebox', 'ducks',
   'fountain', 'bell', 'chimes', 'stones', 'campfire', 'telescope', 'rowboat',
-  'shop', 'board', 'quotes', 'coffee',
+  'shop', 'board', 'quotes', 'coffee', 'truck',
 ];
 
 /** Toys whose E opens something on your own screen instead of telling the server. */
 export const LOCAL_TOYS: ToyKind[] = ['telescope', 'shop', 'board', 'quotes', 'coffee'];
 
-export type ToyAction = 'push' | 'slide' | 'note' | 'next' | 'feed' | 'coin' | 'ring' | 'skip' | 'toggle';
+export type ToyAction = 'push' | 'slide' | 'note' | 'next' | 'feed' | 'coin' | 'ring' | 'skip' | 'toggle' | 'honk';
 
-export const TOY_ACTIONS: ToyAction[] = ['push', 'slide', 'note', 'next', 'feed', 'coin', 'ring', 'skip', 'toggle'];
+/** Actions you do from one of the toy's seats rather than standing next to it. */
+export const SEATED_ACTIONS: ToyAction[] = ['note', 'honk'];
+
+export const TOY_ACTIONS: ToyAction[] = ['push', 'slide', 'note', 'next', 'feed', 'coin', 'ring', 'skip', 'toggle', 'honk'];
 
 export interface BoatPose {
   x: number;
@@ -30,7 +33,8 @@ export type ToyState =
   /** track 0 = off, 1..3 = a loop; startedAt keeps everyone on the same bar. */
   | { kind: 'jukebox'; track: number; startedAt: number }
   | { kind: 'campfire'; lit: boolean }
-  | { kind: 'rowboat'; x: number; z: number; heading: number; returnFrom: (BoatPose & { at: number }) | null };
+  | { kind: 'rowboat'; x: number; z: number; heading: number; returnFrom: (BoatPose & { at: number }) | null }
+  | { kind: 'truck'; x: number; z: number; heading: number; returnFrom: null };
 
 export const BOAT_SPEED = 2.4;        // m/s while rowing
 export const BOAT_RETURN_SPEED = 1.5; // m/s gliding home
@@ -56,7 +60,7 @@ export function angleDelta(a: number, b: number): number {
 }
 
 /** Where a rowboat is now: its stored pose, or partway along its glide home to the mooring. */
-export function boatPoseAt(s: Extract<ToyState, { kind: 'rowboat' }>, mooring: BoatPose, now: number): BoatPose {
+export function boatPoseAt(s: Extract<ToyState, { kind: 'rowboat' | 'truck' }>, mooring: BoatPose, now: number): BoatPose {
   const r = s.returnFrom;
   if (!r) return { x: s.x, z: s.z, heading: s.heading };
   const d = Math.hypot(mooring.x - r.x, mooring.z - r.z);
@@ -95,7 +99,7 @@ export function slotWorld(slot: Slot, toy: Toy, pose: BoatPose): { x: number; z:
 }
 
 /** Kinds whose slots move with the toy (so scene tests skip their collider checks). */
-export const MOVING_TOYS: ToyKind[] = ['rowboat', 'merryGoRound'];
+export const MOVING_TOYS: ToyKind[] = ['rowboat', 'merryGoRound', 'truck'];
 
 /** A boat at (x, z) fits on the water: its centre and four points 0.7 around it are inside the outline. */
 export function boatOnWater(outline: [number, number][] | undefined, x: number, z: number): boolean {

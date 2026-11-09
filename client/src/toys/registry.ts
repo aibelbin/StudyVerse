@@ -6,6 +6,7 @@ import { bellView, chimesView, jukeboxView, pianoView } from './music';
 import { merryGoRoundView, seesawView, slideView, swingView } from './playground';
 import { boardView, coffeeView, quotesView, shopView } from './local';
 import { campfireView, telescopeView } from './misc';
+import { truckView } from './truck';
 import { ducksView, fountainView, rowboatView, stonesView } from './water';
 
 export interface ToyCtx {
@@ -15,6 +16,8 @@ export interface ToyCtx {
   state?: ToyState;
   /** Slot ids with someone in them. */
   occupied: Set<string>;
+  /** 0 by day, 1 at night. */
+  night: number;
 }
 
 export interface ToyEvent {
@@ -98,5 +101,6 @@ function build(toy: Toy, def: SceneDef, fx: ToyFx): ToyView {
     case 'board': return boardView();
     case 'quotes': return quotesView();
     case 'coffee': return coffeeView();
+    case 'truck': return truckView(toy, fx);
   }
 }

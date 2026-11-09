@@ -2,13 +2,14 @@ import {
   CHEER_FEED_COOLDOWN_MS, DOOR_PAD, FEED_ON_WELCOME, GRACE_MS, MAX_SPEED, NOTE_COOLDOWN_MS, NOTE_MAX, NOTES_PER_AUTHOR,
   NOTES_SHOWN, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS, BREW_COOLDOWN_MS, HOLD_MS,
 } from '../../shared/constants';
-import { clampToBounds, dist, inBox } from '../../shared/geometry';
+import { clampToBounds, dist, inBox, pointInPolygon } from '../../shared/geometry';
 import type { ClientMsg, ErrorCode, ServerMsg } from '../../shared/protocol';
 import { SCENES, START_SCENE, START_SPAWN } from '../../shared/scenes';
 import type { SceneDef, Slot, Toy } from '../../shared/scenes/types';
 import {
-  BOAT_SPEED, boatOnWater, boatPoseAt, slotWorld, spinAt, type BoatPose, type ToyAction, type ToyState,
+  boatPoseAt, SEATED_ACTIONS, slotWorld, spinAt, type BoatPose, type ToyAction, type ToyState,
 } from '../../shared/toys';
+import { CONTROLLER_POSES, VEHICLES, vehicleOk } from '../../shared/vehicles';
 import type { Anim, Drink, EmoteKind, FeedKind, Look, OnlineEntry, PetView, PlayerView, Session, Wallet } from '../../shared/types';
 import { isFree, itemById, SLOTS } from '../../shared/wardrobe';
 import { ProfileStore, type Profile, type Store } from './db';
@@ -166,7 +167,7 @@ export class World {
   private move(p: Player, x: number, z: number, facing: number, anim: Anim): void {
     if (p.slotId) {
       const slot = this.findSlot(p.scene, p.slotId);
-      if (slot?.pose === 'row' && slot.toyId) this.rowBoat(p, slot.toyId, x, z, facing);
+      if (slot && isController(slot.pose) && slot.toyId) this.driveVehicle(p, slot.toyId, x, z, facing);
       return;
     }
     const t = this.now();
@@ -216,7 +217,7 @@ export class World {
     p.facing = pos.facing;
     p.anim = 'sit';
     p.lastMoveAt = t;
-    if (slot.pose === 'row' && slot.toyId) this.freezeBoat(slot.toyId, t);
+    if (isController(slot.pose) && slot.toyId) this.freezeVehicle(slot.toyId, t);
     this.updated(p);
   }
 
@@ -241,7 +242,7 @@ export class World {
     const slot = this.findSlot(p.scene, p.slotId);
     this.slots.delete(p.slotId);
     p.slotId = null;
-    if (slot?.pose === 'row' && slot.toyId) this.sendBoatHome(slot.toyId);
+    if (slot && isController(slot.pose) && slot.toyId) this.sendVehicleHome(slot.toyId);
   }
 
   private startSession(p: Player, focusMin: number, breakMin: number): void {
@@ -373,9 +374,9 @@ export class World {
     const toy = def.toys.find((x) => x.id === toyId);
     const handler = toy && HANDLERS[toy.kind];
     if (!toy || !handler || !handler.actions.includes(action)) return this.error(p, 'bad_toy', "That isn't here.");
-    if (action === 'note') {
-      if (!p.slotId || !toy.slotIds?.includes(p.slotId)) return this.error(p, 'not_seated', 'Sit at the piano first.');
-      if (arg === undefined) return;
+    if (SEATED_ACTIONS.includes(action)) {
+      if (!p.slotId || !toy.slotIds?.includes(p.slotId)) return this.error(p, 'not_seated', 'Hop on first.');
+      if (action === 'note' && arg === undefined) return;
     } else if (p.slotId || dist(p.x, p.z, toy.x, toy.z) > toy.radius + 0.3) {
       return this.error(p, 'bad_toy', 'Get a little closer.');
     }
@@ -431,7 +432,7 @@ export class World {
   /** Where a toy is right now (boats drift home, the merry-go-round turns). */
   private toyPose(toy: Toy, t: number): BoatPose {
     const s = this.stateOf(toy);
-    if (s?.kind === 'rowboat') return boatPoseAt(s, this.mooring(toy), t);
+    if (s?.kind === 'rowboat' || s?.kind === 'truck') return boatPoseAt(s, this.mooring(toy), t);
     if (s?.kind === 'merryGoRound') return { x: toy.x, z: toy.z, heading: (toy.rot ?? 0) + spinAt(s, t).angle };
     return this.mooring(toy);
   }
@@ -456,6 +457,20 @@ export class World {
       }
       return { x: best.x, z: best.z };
     }
+    if (toy?.kind === 'truck') {
+      const def = this.scene(this.toySceneOf.get(toy.id)!);
+      const pose = this.toyPose(toy, t);
+      const right = { x: Math.cos(pose.heading), z: -Math.sin(pose.heading) };
+      const back = { x: -Math.sin(pose.heading), z: -Math.cos(pose.heading) };
+      const spots = [
+        { x: pose.x - right.x * 1.7, z: pose.z - right.z * 1.7 },
+        { x: pose.x + right.x * 1.7, z: pose.z + right.z * 1.7 },
+        { x: pose.x + back.x * 2.6, z: pose.z + back.z * 2.6 },
+      ];
+      const clear = spots.find((q) => Math.abs(q.x) < def.size.w / 2 - 0.5 && Math.abs(q.z) < def.size.d / 2 - 0.5
+        && !def.colliders.some((b) => inBox(b, q.x, q.z, PLAYER_RADIUS)) && !(def.water && pointInPolygon(def.water.outline, q.x, q.z)));
+      return clear ?? pos;
+    }
     if (toy?.kind === 'merryGoRound') {
       const a = Math.atan2(pos.x - toy.x, pos.z - toy.z);
       return { x: toy.x + Math.sin(a) * 2.2, z: toy.z + Math.cos(a) * 2.2 };
@@ -463,39 +478,43 @@ export class World {
     return pos;
   }
 
-  private boatState(toyId: string): { toy: Toy; s: Extract<ToyState, { kind: 'rowboat' }> } | null {
+  private vehicleState(toyId: string): { toy: Toy; s: Extract<ToyState, { kind: 'rowboat' | 'truck' }> } | null {
     const toy = this.findToy(toyId);
     const s = toy && this.stateOf(toy);
-    return toy && s?.kind === 'rowboat' ? { toy, s } : null;
+    return toy && (s?.kind === 'rowboat' || s?.kind === 'truck') ? { toy, s } : null;
   }
 
-  private freezeBoat(toyId: string, t: number): void {
-    const b = this.boatState(toyId);
-    if (!b || !b.s.returnFrom) return;
+  private freezeVehicle(toyId: string, t: number): void {
+    const b = this.vehicleState(toyId);
+    if (!b || b.s.kind !== 'rowboat' || !b.s.returnFrom) return;
     const pose = boatPoseAt(b.s, this.mooring(b.toy), t);
     this.setToyState(toyId, { kind: 'rowboat', ...pose, returnFrom: null });
   }
 
-  private sendBoatHome(toyId: string): void {
-    const b = this.boatState(toyId);
-    if (!b) return;
+  private sendVehicleHome(toyId: string): void {
+    const b = this.vehicleState(toyId);
+    if (!b || b.s.kind !== 'rowboat' || !VEHICLES[b.toy.kind]?.home) return;
     const pose = boatPoseAt(b.s, this.mooring(b.toy), this.now());
     this.setToyState(toyId, { kind: 'rowboat', ...pose, returnFrom: { ...pose, at: this.now() } });
   }
 
-  private rowBoat(p: Player, toyId: string, x: number, z: number, heading: number): void {
-    const b = this.boatState(toyId);
-    if (!b) return;
+  private driveVehicle(p: Player, toyId: string, x: number, z: number, heading: number): void {
+    const b = this.vehicleState(toyId);
+    const spec = b && VEHICLES[b.toy.kind];
+    if (!b || !spec) return;
     const t = this.now();
-    const allowed = (BOAT_SPEED * Math.max(t - p.lastMoveAt, 50)) / 1000 + 0.5;
-    if (dist(b.s.x, b.s.z, x, z) > allowed || !boatOnWater(this.scene(p.scene).water?.outline, x, z)) {
+    const allowed = (spec.speed * Math.max(t - p.lastMoveAt, 50)) / 1000 + 0.5;
+    if (dist(b.s.x, b.s.z, x, z) > allowed || !vehicleOk(b.toy.kind, this.scene(p.scene), x, z)) {
       p.conn?.send({ t: 'toyState', toyId, state: b.s });
       return;
     }
     p.lastMoveAt = t;
     p.x = x;
     p.z = z;
-    this.setToyState(toyId, { kind: 'rowboat', x, z, heading, returnFrom: null }, p.id);
+    const state: ToyState = b.s.kind === 'rowboat'
+      ? { kind: 'rowboat', x, z, heading, returnFrom: null }
+      : { kind: 'truck', x, z, heading, returnFrom: null };
+    this.setToyState(toyId, state, p.id);
   }
 
   // ---------- messaging ----------
@@ -556,4 +575,8 @@ export class World {
       dnd: p.dnd, voice: p.voice, holding: p.holding, pet: p.pet,
     };
   }
+}
+
+function isController(pose: string): boolean {
+  return (CONTROLLER_POSES as readonly string[]).includes(pose);
 }

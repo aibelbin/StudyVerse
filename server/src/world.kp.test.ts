@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ErrorCode, ServerMsg } from '../../shared/protocol';
 import { DEFAULT_LOOK } from '../../shared/wardrobe';
+import { SCENES } from '../../shared/scenes';
 import { ProfileStore } from './db';
 import { World, type Conn } from './world';
 
@@ -165,5 +166,47 @@ describe('coffee', () => {
     const a = joinNew('Sam');
     w.handle(a.id, { t: 'brew', drink: 'latte', stars: 3 });
     expect(a.c.of('error').at(-1)!.code).toBe('bad_toy');
+  });
+});
+
+describe('trucks', () => {
+  const truckState = (c: FakeConn) => c.of('toyState').filter((m) => m.toyId === 'truck-1').at(-1)?.state;
+
+  function board(id: string, slotId = 'truck-1-drive') {
+    const slot = SCENES.town.slots.find((s) => s.id === slotId)!;
+    t += 10_000;
+    w.handle(id, { t: 'move', x: slot.x, z: slot.z + 1.0, facing: 0, anim: 'idle' });
+    w.handle(id, { t: 'sit', slotId });
+  }
+
+  it('drives on land, refuses water, walls and speeding, and does not drive home', () => {
+    const a = joinNew('Sam');
+    const b = joinNew('Jo');
+    board(a.id);
+    expect(w.view(a.id)!.slotId).toBe('truck-1-drive');
+    const truck = SCENES.town.toys.find((x) => x.id === 'truck-1')!;
+    t += 1000;
+    w.handle(a.id, { t: 'move', x: truck.x + 5, z: truck.z, facing: Math.PI / 2, anim: 'sit' });
+    expect(truckState(b.c)).toMatchObject({ kind: 'truck', x: truck.x + 5 });
+    t += 100;
+    w.handle(a.id, { t: 'move', x: truck.x + 15, z: truck.z, facing: 0, anim: 'sit' });
+    expect(truckState(a.c)).toMatchObject({ x: truck.x + 5 }); // too fast: snapped back
+    t += 60_000;
+    w.handle(a.id, { t: 'move', x: 28, z: -24, facing: 0, anim: 'sit' }); // the middle of the lake
+    expect(truckState(a.c)).toMatchObject({ x: truck.x + 5 });
+    w.handle(a.id, { t: 'stand' });
+    const v = w.view(a.id)!;
+    expect(Math.hypot(v.x - (truck.x + 5), v.z - truck.z)).toBeGreaterThan(1.5);
+    expect(truckState(b.c)).toMatchObject({ x: truck.x + 5, returnFrom: null });
+  });
+
+  it('anyone in the truck can honk, people outside cannot', () => {
+    const a = joinNew('Sam');
+    const b = joinNew('Jo');
+    board(b.id, 'truck-1-bed-l');
+    w.handle(b.id, { t: 'use', toyId: 'truck-1', action: 'honk' });
+    expect(b.c.of('toyEvent').filter((e) => e.action === 'honk')).toHaveLength(1); // any seat in the truck may honk
+    w.handle(a.id, { t: 'use', toyId: 'truck-1', action: 'honk' });
+    expect(a.c.of('error').at(-1)!.code).toBe('not_seated');
   });
 });

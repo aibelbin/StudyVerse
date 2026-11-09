@@ -14,7 +14,7 @@ export interface ToyHandler {
 }
 
 export const COOLDOWN_MS: Record<ToyAction, number> = {
-  note: 100, ring: 1500, coin: 1500, feed: 3000, skip: 2000, push: 500, slide: 2000, toggle: 1000, next: 1000,
+  note: 100, honk: 800, ring: 1500, coin: 1500, feed: 3000, skip: 2000, push: 500, slide: 2000, toggle: 1000, next: 1000,
 };
 
 const none: ToyHandler = { actions: [], apply: () => ({}) };
@@ -28,6 +28,11 @@ export const HANDLERS: Record<ToyKind, ToyHandler> = {
   board: none,
   quotes: none,
   coffee: none,
+  truck: {
+    actions: ['honk'],
+    init: (toy) => ({ kind: 'truck', x: toy.x, z: toy.z, heading: toy.rot ?? 0, returnFrom: null }),
+    apply: () => ({}),
+  },
   rowboat: {
     actions: [],
     init: (toy) => ({ kind: 'rowboat', x: toy.x, z: toy.z, heading: toy.rot ?? 0, returnFrom: null }),

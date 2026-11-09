@@ -129,7 +129,7 @@ This spec builds on the living world (`2026-11-09-living-world-design.md`). It s
 - **Getting out:** you're placed 1.6 m to the left of the truck, or the right, or behind it: the first spot clear of colliders.
 - **folio-2025 touches:**
   - Dust puffs behind the wheels when fast.
-  - **H** honks (`use honk`, driver only, cooldown 800 ms, shared sound).
+  - **H** honks (`use honk`, from any seat in the truck, cooldown 800 ms, shared sound).
   - Headlights glow and cast one pool light at night.
   - The camera pulls back while driving.
 - **Minimap:** trucks appear as icons.
