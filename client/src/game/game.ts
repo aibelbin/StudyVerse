@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GIFT_RANGE, INTERACT_RADIUS, MOVE_SPEED, PLAYER_RADIUS } from '../../../shared/constants';
 import { showGiftOffer } from '../hud/giftCard';
+import { EmoteWheel } from '../hud/emoteWheel';
 import { inBox, moveWithCollision } from '../../../shared/geometry';
 import type { ClientMsg, ErrorCode, ServerMsg } from '../../../shared/protocol';
 import { getScene } from '../../../shared/scenes';
@@ -124,6 +125,7 @@ export class Game {
   private ctxDt = 0;
   private occupied = new Set<string>();
   private minimap = new Minimap(document.body);
+  private wheel = new EmoteWheel();
 
   constructor(canvas: HTMLCanvasElement, fadeEl: HTMLElement, private hud: Hud, private send: (m: ClientMsg) => void) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -142,6 +144,7 @@ export class Game {
     this.input.on('escape', () => {
       this.hud.closeModals();
       this.hud.closeCard();
+      this.wheel.close();
       if (this.telescope) this.setTelescope(false);
     });
     for (let i = 1; i <= 8; i++) this.input.on(String(i), () => this.playNote(i - 1));
@@ -158,6 +161,13 @@ export class Game {
       this.send({ t: 'offerCoffee', to: to.view.id });
       this.hud.toast(`Offering your ${this.me.holding.item} to ${to.view.name}…`, 2500);
     });
+    this.wheel.onPick = (kind) => this.send({ t: 'act', kind });
+    this.input.on('t', () => {
+      if (this.hud.modalOpen() || !this.me) return;
+      if (this.wheel.open) this.wheel.close();
+      else this.wheel.show();
+    });
+    this.input.onUp('t', () => this.wheel.release());
     this.input.on('enter', () => {
       if (!this.hud.modalOpen()) this.onChatKey();
     });
@@ -234,6 +244,9 @@ export class Game {
         if (m.kind === 'coffee') c?.sip(performance.now());
         break;
       }
+      case 'act':
+        this.charOf(m.fromId)?.act(m.kind, performance.now());
+        break;
       case 'coffeeOffer':
         showGiftOffer(m.name, m.drink, m.stars, (accept) => this.send({ t: 'answerCoffee', fromId: m.fromId, accept }));
         break;

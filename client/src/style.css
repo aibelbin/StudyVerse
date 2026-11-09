@@ -192,3 +192,10 @@ button:disabled { opacity: 0.5; cursor: default; }
 #chat .chat-empty { opacity: 0.6; padding: 6px 4px; }
 #online .who { cursor: pointer; text-decoration: underline dotted #4a405860; }
 #online .who:hover { color: var(--acc, #c9744f); }
+
+.emote-wheel { position: fixed; left: 50%; top: 50%; width: 300px; height: 300px; transform: translate(-50%, -50%); z-index: 40; pointer-events: auto; }
+.emote-wheel .hub { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 70px; height: 70px; border-radius: 50%; background: var(--glass); backdrop-filter: blur(10px); display: grid; place-items: center; font-weight: 700; font-size: 12px; opacity: 0.9; }
+.emote-wheel .wheel-item { position: absolute; transform: translate(-50%, -50%); width: 64px; height: 64px; border-radius: 50%; border: 0; background: var(--glass); backdrop-filter: blur(10px); box-shadow: 0 3px 12px #4a405830; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: transform 0.12s; font: inherit; color: inherit; }
+.emote-wheel .wheel-item .emoji { font-size: 26px; line-height: 1; }
+.emote-wheel .wheel-item .label { font-size: 10px; font-weight: 650; opacity: 0.75; }
+.emote-wheel .wheel-item.hot { transform: translate(-50%, -50%) scale(1.2); background: #fff; }

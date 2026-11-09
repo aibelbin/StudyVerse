@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Pose } from '../../../shared/scenes/types';
-import type { Anim, Drink, Eyes, Look, OutfitSlot } from '../../../shared/types';
+import { ACT_EMOJI, type Act, type Anim, type Drink, type Eyes, type Look, type OutfitSlot } from '../../../shared/types';
 import { SLOTS } from '../../../shared/wardrobe';
 import { BODY, buildItem } from './outfits';
 import { Overhead } from './overhead';
@@ -38,6 +38,9 @@ export class Character {
   private cupKind: Drink | null = null;
   private steam: THREE.Mesh[] = [];
   private sipAt = -1e9;
+  private actKind: Act | null = null;
+  private actAt = 0;
+  private pops: { at: number; emoji: string }[] = [];
 
   constructor(look: Look, name: string, isMe = false) {
     const part = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number, parent: THREE.Object3D = this.rig) => {
@@ -155,6 +158,16 @@ export class Character {
     this.cup = g;
   }
 
+  /** Act out an emote from the wheel: an animation plus its emoji (and extras for love/sleepy/think). */
+  act(kind: Act, now: number): void {
+    this.actKind = kind;
+    this.actAt = now;
+    this.overhead.pop(ACT_EMOJI[kind], now);
+    const extra: Partial<Record<Act, string>> = { love: '💗', sleepy: '💤', think: '💭' };
+    const e = extra[kind];
+    this.pops = e ? [700, 1400].map((d) => ({ at: now + d, emoji: e })) : [];
+  }
+
   /** Raise the cup for a sip (the ☕ emote). */
   sip(now: number): void {
     this.sipAt = now;
@@ -180,6 +193,8 @@ export class Character {
 
   update(dt: number, now: number): void {
     this.rig.rotation.y = this.facing;
+    this.rig.rotation.x = 0;
+    this.rig.position.x = 0;
     const [l0, l1] = this.legs;
     const [a0, a1] = this.arms;
     if (this.anim === 'walk') {
@@ -228,7 +243,81 @@ export class Character {
     this.body.scale.set(1, breathe, 1);
     const blinking = this.eyeKey === 'dot' && (now + this.blinkAt) % 4200 < 120;
     this.eyes.scale.y = blinking ? 0.15 : 1;
+    this.animateAct(now);
+    while (this.pops.length && this.pops[0].at <= now) this.overhead.pop(this.pops.shift()!.emoji, now, 0.38);
     this.overhead.update(dt, now);
+  }
+
+  /** Overrides limbs (and, standing, the whole body) for the emote being acted out. */
+  private animateAct(now: number): void {
+    const kind = this.actKind;
+    if (!kind) return;
+    const t = (now - this.actAt) / 1000;
+    if (this.anim === 'walk' || t > (kind === 'dance' ? 4 : 2.5)) {
+      this.actKind = null;
+      this.pops = [];
+      return;
+    }
+    const body = this.anim !== 'sit'; // seated: arms and a little tilt only
+    const [l0, l1] = this.legs;
+    const [a0, a1] = this.arms;
+    const fade = Math.min(1, t * 6, ((kind === 'dance' ? 4 : 2.5) - t) * 4); // ease in and out
+    const set = (o: THREE.Object3D, x: number, z: number) => {
+      o.rotation.x += (x - o.rotation.x) * fade;
+      o.rotation.z += (z - o.rotation.z) * fade;
+    };
+    switch (kind) {
+      case 'wave':
+        set(a1, 0, 2.6 + Math.sin(t * 12) * 0.35);
+        break;
+      case 'cheer':
+        set(a0, 0, -2.7);
+        set(a1, 0, 2.7);
+        if (body) this.rig.position.y = Math.abs(Math.sin(t * 7)) * 0.25 * fade;
+        break;
+      case 'dance': {
+        const s = Math.sin(t * 6);
+        set(a0, 0, -1.2 - s * 0.8);
+        set(a1, 0, 1.2 - s * 0.8);
+        this.rig.rotation.z = s * 0.2 * fade;
+        if (body) {
+          this.rig.rotation.y = this.facing + Math.sin(t * 3) * 0.6 * fade;
+          this.rig.position.y = Math.abs(s) * 0.1 * fade;
+          l0.rotation.x = s * 0.5 * fade;
+          l1.rotation.x = -s * 0.5 * fade;
+        }
+        break;
+      }
+      case 'laugh':
+        set(a0, -0.6, 0.5);
+        set(a1, -0.6, -0.5);
+        this.rig.rotation.x = (-0.25 + Math.sin(t * 30) * 0.04) * fade;
+        this.rig.position.x = Math.sin(t * 40) * 0.02 * fade;
+        break;
+      case 'love': {
+        const q = Math.sin(t * 9) * 0.08 * fade;
+        this.body.scale.set(1 + q, 1 - q, 1 + q);
+        set(a0, -0.4, 0.9);
+        set(a1, -0.4, -0.9);
+        break;
+      }
+      case 'think':
+        set(a1, -2.0, 0.6);
+        this.rig.rotation.z = 0.12 * fade;
+        break;
+      case 'sleepy':
+        this.rig.rotation.x = (0.18 + Math.sin(t * 2) * 0.05) * fade;
+        this.eyes.scale.y = 0.3;
+        set(a0, 0.1, 0);
+        set(a1, 0.1, 0);
+        break;
+      case 'clap': {
+        const c = (1 + Math.sin(t * 14)) / 2;
+        set(a0, -1.3, 0.15 + c * 0.45);
+        set(a1, -1.3, -0.15 - c * 0.45);
+        break;
+      }
+    }
   }
 
   dispose(): void {

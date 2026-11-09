@@ -8,6 +8,7 @@ function isTyping(t: EventTarget | null): boolean {
 export class Input {
   private down = new Set<string>();
   private handlers = new Map<string, () => void>();
+  private upHandlers = new Map<string, () => void>();
 
   constructor() {
     addEventListener('keydown', (e) => {
@@ -17,12 +18,21 @@ export class Input {
       this.down.add(k);
       if (!e.repeat) this.handlers.get(k)?.();
     });
-    addEventListener('keyup', (e) => this.down.delete(e.key.toLowerCase()));
+    addEventListener('keyup', (e) => {
+      const k = e.key.toLowerCase();
+      this.down.delete(k);
+      if (!isTyping(e.target)) this.upHandlers.get(k)?.();
+    });
     addEventListener('blur', () => this.down.clear());
   }
 
   on(key: string, fn: () => void): void {
     this.handlers.set(key, fn);
+  }
+
+  /** Runs fn when the key is released (not while typing). */
+  onUp(key: string, fn: () => void): void {
+    this.upHandlers.set(key, fn);
   }
 
   /** Tank-style driving keys: W/↑ throttle, S/↓ brake-then-reverse, A/← steer left (+), D/→ right. */

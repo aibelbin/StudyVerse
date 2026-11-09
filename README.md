@@ -39,6 +39,8 @@ One process serves the page and the WebSocket (`/ws`). Profiles are stored in `d
 | H | honk (in a truck) |
 | C | sip your drink (four sips per cup) |
 | G | offer your drink to someone nearby (they get Accept / No thanks, or Y / N) |
+| Enter | open chat / send; Esc closes it |
+| T | emote wheel (hold, point, let go; or click) |
 | M | big map |
 | N | do not disturb |
 | V | mute / unmute your mic (when on voice) |
@@ -51,6 +53,14 @@ Finishing a focus session earns ✨ Knowledge Points: 1 per focus minute, plus a
 earns nothing. Spend them in the Boutique (✏️ or the stall in the square) on hats, tops, glasses, backpacks and
 more, or adopt a pet. Pets are driven by a tiny neural network trained with evolution strategies
 (`pets/train.ts`, run it on a remote machine: `npm run train:pets -- 300 shared/pets/policy.json`).
+
+## Chat and emotes
+
+The chat panel (bottom left) has an **Everyone** tab, which reaches all online players in any building and pops a
+speech bubble over the sender's head, and a tab per private conversation. Start one with 💬 Message on someone's
+player card, or by clicking their name in the online list. DMs to people who are offline wait for them. The last 100
+messages per channel are kept. React to any message with 👍 ❤️ 😂 😮 🎉. There's a gentle rate limit (one message a
+second, five per ten seconds). Hold **T** for the emote wheel: wave, cheer, dance, laugh, love, think, sleepy, clap.
 
 ## Voice chat
 
