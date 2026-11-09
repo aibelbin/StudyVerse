@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { SceneDef } from '../../../shared/scenes/types';
 import type { ToyState } from '../../../shared/toys';
 import { glow } from './materials';
+import { SUNBEAM } from './decor';
 import { PALETTE as P } from './palette';
 import { rng } from './rng';
 import type { BuiltScene } from './sceneBuilder';
@@ -234,6 +235,7 @@ export class SkyRig {
 
 /** Indoor scenes only tint their windows towards the night sky. */
 export function tintIndoorWindows(night: number): void {
+  SUNBEAM.opacity = 0.16 * (1 - night);
   glow(P.sky, 0.35).color.set(lerpHex(P.sky, '#3a4a7a', night));
   glow(P.sky, 0.35).emissive.set(lerpHex(P.sky, '#3a4a7a', night));
 }

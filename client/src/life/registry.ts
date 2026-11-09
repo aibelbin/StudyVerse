@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { SceneDef } from '../../../shared/scenes/types';
-import { birds, clouds, fireflies, flyers, leaves } from './air';
+import { birds, chimneySmoke, clouds, fireflies, flyers, leaves } from './air';
 import { crawlers, leafPiles } from './ground';
 import type { LifeCtx, LifeSystem } from './kit';
 import { dragonflies, ducks, fish, frogs, sailboats } from './water';
@@ -13,6 +13,8 @@ export function buildLife(def: SceneDef): { root: THREE.Group; update(ctx: LifeC
   const w = def.water;
   if (w) systems.push(sailboats(w));
   if (!def.theme.indoor) systems.push(clouds());
+  const buildings = def.decor.filter((d) => d.kind === 'building');
+  if (buildings.length) systems.push(chimneySmoke(buildings));
   const piles = def.decor.filter((d) => d.kind === 'leafPile');
   if (piles.length) systems.push(leafPiles(piles));
   for (const z of def.life) {

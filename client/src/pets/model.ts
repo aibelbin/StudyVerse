@@ -30,7 +30,12 @@ export class PetModel {
     };
     add(new THREE.SphereGeometry(0.2, 16, 12).scale(1, 0.9, 1.1), c.body, 0, 0.2, 0);
     add(new THREE.SphereGeometry(0.12, 12, 8).scale(1, 0.8, 0.5), c.belly, 0, 0.17, 0.14);
-    for (const s of [-1, 1]) add(new THREE.SphereGeometry(0.025, 8, 6), '#2a2430', s * 0.07, 0.27, 0.18);
+    for (const s of [-1, 1]) {
+      add(new THREE.SphereGeometry(0.025, 8, 6), '#2a2430', s * 0.07, 0.27, 0.18);
+      add(new THREE.SphereGeometry(0.008, 6, 4), '#ffffff', s * 0.07 + 0.008, 0.28, 0.203); // eye shine
+      const foot = add(new THREE.SphereGeometry(0.045, 8, 6), c.body, s * 0.09, 0.03, 0.08); // little feet
+      foot.scale.set(1, 0.5, 1.3);
+    }
     if (kind === 'duckling') {
       add(new THREE.ConeGeometry(0.05, 0.1, 6).rotateX(Math.PI / 2), c.extra, 0, 0.22, 0.24);
       for (const s of [-1, 1]) add(new THREE.SphereGeometry(0.07, 8, 6).scale(0.4, 0.8, 1.2), c.body, s * 0.19, 0.2, -0.02);

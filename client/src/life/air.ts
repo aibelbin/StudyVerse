@@ -5,6 +5,8 @@ import { PALETTE as P } from '../world/palette';
 import { Instances, lambert, nearby, type LifeSystem } from './kit';
 import { hash, noise1 } from './math';
 import { toonMat } from '../world/materials';
+import { chimneyLocal } from '../world/decor';
+import type { Decor } from '../../../shared/scenes/types';
 
 /** Butterflies (flapping wing pairs) or bees (buzzing dots) looping over flower beds. */
 export function flyers(zone: LifeZone, def: SceneDef, kind: 'butterflies' | 'bees'): LifeSystem {
@@ -254,6 +256,38 @@ export function clouds(): LifeSystem {
       for (const c of list) {
         const x = ((ctx.t / 1000 + c.off) % 180) - 90;
         c.g.position.set(x, c.y, c.z);
+      }
+    },
+  };
+}
+
+/** Slow soft puffs rising from every building's chimney. */
+export function chimneySmoke(buildings: Decor[]): LifeSystem {
+  const root = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color: '#f4f0ea', transparent: true, opacity: 0.6, depthWrite: false });
+  const geo = new THREE.IcosahedronGeometry(0.22, 1);
+  const PUFFS = 4;
+  const stacks = buildings.map((d) => {
+    const p = chimneyLocal(d).applyAxisAngle(new THREE.Vector3(0, 1, 0), d.rot ?? 0);
+    const base = new THREE.Vector3(d.x + p.x, (d.y ?? 0) + p.y, d.z + p.z);
+    const puffs = Array.from({ length: PUFFS }, () => {
+      const m = new THREE.Mesh(geo, mat.clone());
+      m.castShadow = false;
+      root.add(m);
+      return m;
+    });
+    return { base, puffs };
+  });
+  return {
+    root,
+    update(ctx) {
+      for (const [si, s] of stacks.entries()) {
+        s.puffs.forEach((m, i) => {
+          const k = ((ctx.t / 4200 + i / PUFFS + si * 0.13) % 1);
+          m.position.set(s.base.x + Math.sin(k * 3 + i) * 0.25 + k * 0.8, s.base.y + k * 2.4, s.base.z + Math.cos(k * 2 + i) * 0.15);
+          m.scale.setScalar(0.6 + k * 1.6);
+          (m.material as THREE.MeshBasicMaterial).opacity = 0.55 * (1 - k) * Math.min(1, k * 5);
+        });
       }
     },
   };

@@ -53,6 +53,8 @@ export class Character {
   private limbMat = toonMat({ roughness: 0.8 });
   private inkMat = toonMat({ color: INK, roughness: 0.5 });
   private blushMat = toonMat({ color: '#ff9fb0', roughness: 1 });
+  private bellyMat = toonMat({});
+  private sparkMat = toonMat({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 0.4 });
   private body: THREE.Mesh;
   private eyes = new THREE.Group();
   private eyeKey = '';
@@ -80,6 +82,9 @@ export class Character {
       return o;
     };
     this.body = part(new THREE.SphereGeometry(1, 32, 24).scale(BODY.rx, BODY.ry, BODY.rz), this.bodyMat, 0, BODY.cy, 0);
+    // a soft lighter belly patch on the front
+    const belly = part(new THREE.SphereGeometry(1, 24, 16).scale(0.27, 0.25, 0.1), this.bellyMat, 0, 0.42, BODY.rz * 0.84);
+    belly.castShadow = false;
     this.eyes.position.set(0, 0.68, 0.355);
     this.rig.add(this.eyes);
     for (const s of [-1, 1]) {
@@ -125,6 +130,7 @@ export class Character {
 
   setLook(look: Look): void {
     this.bodyMat.color.set(look.body);
+    this.bellyMat.color.set(look.body).offsetHSL(0, -0.08, 0.1);
     this.limbMat.color.set(look.body).offsetHSL(0, -0.05, -0.12);
     if (look.eyes !== this.eyeKey) this.buildEyes(look.eyes);
     for (const slot of SLOTS) {
@@ -154,6 +160,11 @@ export class Character {
       const e = new THREE.Mesh(geo, this.inkMat);
       e.position.set(s * 0.12, 0, 0);
       this.eyes.add(e);
+      if (style !== 'happy' && style !== 'sleepy') {
+        const spark = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), this.sparkMat);
+        spark.position.set(s * 0.12 + 0.015, 0.017, 0.035); // a little shine in each eye
+        this.eyes.add(spark);
+      }
     }
   }
 

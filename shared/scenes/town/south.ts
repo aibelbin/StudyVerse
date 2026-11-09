@@ -34,9 +34,18 @@ function gardenRing(): Decor[] {
   return out;
 }
 
+/** Wooden signposts pointing the way south of the square and at the park/strip junction. */
+const signposts: Partial<Parts> = {
+  decor: [
+    { kind: 'signpost', x: 2.3, z: -2, label: 'Park & Garden|Stage & Golf|Lake' },
+    { kind: 'signpost', x: -43.1, z: 37.4, label: 'Zen corner|Stage|Mini-golf' },
+  ],
+  colliders: [{ x: 2.3, z: -2, w: 0.3, d: 0.3 }, { x: -43.1, z: 37.4, w: 0.3, d: 0.3 }],
+};
+
 /** Everything added for the south strip and the park reserve, in final town coordinates. */
 export function south(placed: Parts, lake: [number, number][]): Parts {
-  const own = merge({ decor: gardenRing() }, garden, golf, zen, stage);
+  const own = merge({ decor: gardenRing() }, garden, golf, zen, stage, signposts);
   const taken = merge(placed, own, { colliders: [STAGE_BOX] }); // keeps the meadow off the stage ground
   return merge(own, meadows(taken, lake, STRIP_GAPS, PATHS, 1500));
 }

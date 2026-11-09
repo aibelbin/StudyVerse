@@ -35,7 +35,8 @@ export type DecorKind =
   | 'desk' | 'chair' | 'deskLamp' | 'bookshelf' | 'rug' | 'plant' | 'window' | 'sign'
   | 'cafeTable' | 'stool' | 'counter' | 'coffeeMachine' | 'cup'
   | 'lake' | 'dock' | 'lilyPad' | 'rock' | 'grass' | 'hedge' | 'bandstand' | 'swingSet' | 'log' | 'leafPile' | 'mound' | 'knowledgeTree' | 'parking'
-  | 'cherry' | 'bridge' | 'gravel' | 'blanket' | 'lantern' | 'cushion' | 'stage' | 'amphiSeat' | 'spotlight' | 'soil';
+  | 'cherry' | 'bridge' | 'gravel' | 'blanket' | 'lantern' | 'cushion' | 'stage' | 'amphiSeat' | 'spotlight' | 'soil'
+  | 'signpost' | 'frame' | 'pendant' | 'chalkboard' | 'stringLights' | 'sunbeam';
 
 /** Visual-only object. Size fields mean different things per kind (see client/src/world/decor.ts). */
 export interface Decor {

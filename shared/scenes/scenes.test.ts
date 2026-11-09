@@ -185,6 +185,22 @@ describe('car parks', () => {
       expect(inBox(st.stage, st.audience.x, st.audience.z)).toBe(false);
     });
 
+    it('puts the signposts on grass, clear of paths', () => {
+      const posts = town.decor.filter((d) => d.kind === 'signpost');
+      expect(posts).toHaveLength(2);
+      for (const p of posts) {
+        expect(inBoxes(PATHS, p.x, p.z, 0.3), p.label).toBe(false);
+        expect(p.label!.split('|').length).toBe(3);
+      }
+    });
+
+    it('decorates the library and the café', () => {
+      const kinds = (id: 'library' | 'cafe') => new Set(SCENES[id].decor.map((d) => d.kind));
+      for (const k of ['frame', 'sunbeam'] as const) expect(kinds('library').has(k), k).toBe(true);
+      for (const k of ['frame', 'pendant', 'chalkboard', 'stringLights'] as const) expect(kinds('cafe').has(k), k).toBe(true);
+      expect(SCENES.cafe.decor.filter((d) => d.kind === 'pendant')).toHaveLength(6);
+    });
+
     it('scatters no rocks or grass on the stage or in the zen corner', () => {
       const tidy = [{ x: -30, z: 50, w: 22, d: 18 }, { x: -32, z: 25, w: 14, d: 12 }];
       expect(town.decor.filter((d) => (d.kind === 'rock' || d.kind === 'grass') && inBoxes(tidy, d.x, d.z))).toHaveLength(0);
