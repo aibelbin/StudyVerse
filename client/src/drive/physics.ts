@@ -132,6 +132,9 @@ export class DriveWorld {
         .setMassProperties(C.mass, { x: 0, y: C.centerOfMass, z: 0 }, { x: 1, y: 1, z: 1 }, { x: 0, y: 0, z: 0, w: 1 }),
       this.chassis,
     );
+    // folio's massless "bumper": the long springs hold the chassis ~1.1 m up, so this box reaches down
+    // to 0.32 m off the ground, so it catches cones high enough to tip them and still meets crates and walkers.
+    this.world.createCollider(R.ColliderDesc.cuboid(1.6, 0.3, 0.8).setTranslation(0, -0.47, 0).setDensity(0).setFriction(0.1).setRestitution(0), this.chassis);
     this.car = this.world.createVehicleController(this.chassis);
     const W = TUNING.wheels;
     for (const [f, s] of [[W.forward, W.side], [W.forward, -W.side], [-W.forward, W.side], [-W.forward, -W.side]]) {
