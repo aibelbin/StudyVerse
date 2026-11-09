@@ -2,12 +2,11 @@ import type { SceneDef } from '../../../shared/scenes/types';
 import type { AudioEngine, Emitter } from './engine';
 import { burst, chirp, tone } from './voices';
 
-/** Birdsong by day, crickets at night, water near the lake and crackle by a lit fire. */
+/** Birdsong by day, water near the lake and crackle by a lit fire (no crickets: the user found them annoying). */
 export class Ambience {
   private water: Emitter | null = null;
   private fire: Emitter | null = null;
   private nextBird = 0;
-  private nextCricket = 0;
   private nextCrackle = 0;
   private nextLap = 0;
   private fireSpot: { x: number; z: number } | null;
@@ -36,12 +35,6 @@ export class Ambience {
         const base = 2200 + Math.random() * 1800;
         for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) chirp(c, bus, base, base * (1.2 + Math.random() * 0.4), now + i * 0.11, g, 0.08);
       }
-    }
-    if (now > this.nextCricket) {
-      // Just the odd soft chirp now and then (a constant cricket loop gets tiring fast).
-      this.nextCricket = now + 12 + Math.random() * 18;
-      const g = night * 0.005;
-      if (g > 0.001) for (let i = 0; i < 3; i++) chirp(c, bus, 4300, 4200, now + i * 0.09, g, 0.04, 'sine');
     }
 
     const w = this.def.water;
