@@ -1,5 +1,5 @@
 import type { ToyAction, ToyState } from './toys';
-import type { Anim, EmoteKind, FeedEvent, Look, Note, OnlineEntry, PlayerView, Wallet } from './types';
+import type { Anim, Drink, EmoteKind, FeedEvent, Look, Note, OnlineEntry, PlayerView, Wallet } from './types';
 
 export type ClientMsg =
   | { t: 'hello'; token?: string; inviteCode?: string; name?: string; look?: Look }
@@ -16,7 +16,8 @@ export type ClientMsg =
   | { t: 'getNotes' }
   | { t: 'postNote'; text: string }
   | { t: 'deleteNote'; id: number }
-  | { t: 'setDnd'; on: boolean };
+  | { t: 'setDnd'; on: boolean }
+  | { t: 'brew'; drink: Drink; stars: number };
 
 export type ErrorCode =
   | 'bad_invite'

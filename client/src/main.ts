@@ -6,6 +6,7 @@ import { Game } from './game/game';
 import { byId } from './hud/dom';
 import { Hud } from './hud/hud';
 import { showJoin } from './hud/joinScreen';
+import { openCoffee } from './hud/coffee';
 import { NotesBoard } from './hud/notes';
 import { Wardrobe } from './hud/wardrobe';
 import type { Wallet } from '../../shared/types';
@@ -78,6 +79,7 @@ conn.onMessage = (m) => {
       game.onLocalToy = (toy) => {
         if (toy.kind === 'shop') wardrobe.open('hat');
         if (toy.kind === 'board') board.show();
+        if (toy.kind === 'coffee') openCoffee(hud, (drink, stars) => conn.send({ t: 'brew', drink, stars }));
       };
       game.onToggleDnd = toggleDnd;
       if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { game });

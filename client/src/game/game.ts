@@ -178,6 +178,7 @@ export class Game {
       case 'emote': {
         const c = this.charOf(m.fromId);
         c?.overhead.emote(m.kind, performance.now());
+        if (m.kind === 'coffee') c?.sip(performance.now());
         break;
       }
       case 'toyState':
@@ -630,6 +631,7 @@ export class Game {
       r.char.facing = facing;
       r.char.setDim(!r.view.connected);
       r.char.overhead.setBadge(r.view.dnd ? '🔕' : r.view.voice ? '🎙️' : '');
+      r.char.setHolding(r.view.holding && r.view.holding.until > sNow ? r.view.holding.item : null);
       r.char.overhead.setSession(r.view.session, sNow);
       r.char.overhead.setRain(r.view.rainUntil > sNow);
       r.char.update(dt, nowP);
@@ -670,6 +672,7 @@ export class Game {
     c.overhead.setSession(this.me.session, sNow);
     c.overhead.setRain(this.me.rainUntil > sNow);
     c.overhead.setBadge(this.me.dnd ? '🔕' : this.me.voice ? '🎙️' : '');
+    c.setHolding(this.me.holding && this.me.holding.until > sNow ? this.me.holding.item : null);
     c.update(dt, nowP);
 
     if (this.transitioning || this.me.slotId || mySlide || this.telescope) {

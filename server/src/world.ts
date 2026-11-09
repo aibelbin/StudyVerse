@@ -1,6 +1,6 @@
 import {
   CHEER_FEED_COOLDOWN_MS, DOOR_PAD, FEED_ON_WELCOME, GRACE_MS, MAX_SPEED, NOTE_COOLDOWN_MS, NOTE_MAX, NOTES_PER_AUTHOR,
-  NOTES_SHOWN, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS,
+  NOTES_SHOWN, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS, BREW_COOLDOWN_MS, HOLD_MS,
 } from '../../shared/constants';
 import { clampToBounds, dist, inBox } from '../../shared/geometry';
 import type { ClientMsg, ErrorCode, ServerMsg } from '../../shared/protocol';
@@ -47,6 +47,7 @@ interface Player {
   holding: { item: Drink; stars: number; until: number } | null;
   pet: PetView | null;
   lastNoteAt: number;
+  lastBrewAt: number;
 }
 
 const EMOJI: Record<EmoteKind, string> = { wave: '👋', clap: '👏', flex: '💪', coffee: '☕' };
@@ -96,7 +97,7 @@ export class World {
       slotId: null, session: null, rainUntil: 0,
       conn, disconnectedAt: null, lastMoveAt: this.now(), lastCheerFeedAt: 0, lastUse: new Map(),
       wallet: this.store.wallet(profile.id),
-      dnd: false, voice: false, holding: null, pet: null, lastNoteAt: 0,
+      dnd: false, voice: false, holding: null, pet: null, lastNoteAt: 0, lastBrewAt: 0,
     };
     this.players.set(p.id, p);
     this.sendWelcome(p, newToken);
@@ -131,6 +132,7 @@ export class World {
       case 'getNotes': return p.conn!.send({ t: 'notes', list: this.store.notes(NOTES_SHOWN) });
       case 'postNote': return this.postNote(p, msg.text);
       case 'deleteNote': return this.deleteNote(p, msg.id);
+      case 'brew': return this.brew(p, msg.drink, msg.stars);
       case 'setDnd':
         if (p.dnd === msg.on) return;
         p.dnd = msg.on;
@@ -150,6 +152,10 @@ export class World {
         p.session = session;
         if (event === 'focusDone') this.finishFocus(p, session!.focusMin);
         if (event) this.updated(p);
+      }
+      if (p.holding && p.holding.until <= t) {
+        p.holding = null;
+        this.updated(p);
       }
       if (!p.conn && p.disconnectedAt !== null && t - p.disconnectedAt >= GRACE_MS) this.remove(p);
     }
@@ -326,6 +332,21 @@ export class World {
     p.look = look;
     this.store.updateLook(p.id, look);
     this.updated(p);
+  }
+
+  // ---------- coffee ----------
+
+  private brew(p: Player, drink: Drink, stars: number): void {
+    const machine = this.scene(p.scene).toys.find((x) => x.kind === 'coffee');
+    if (!machine || p.slotId || dist(p.x, p.z, machine.x, machine.z) > machine.radius + 0.5) {
+      return this.error(p, 'bad_toy', 'Stand at the coffee machine to brew.');
+    }
+    const t = this.now();
+    if (t - p.lastBrewAt < BREW_COOLDOWN_MS) return;
+    p.lastBrewAt = t;
+    p.holding = { item: drink, stars, until: t + HOLD_MS };
+    this.updated(p);
+    this.pushFeed('coffee', feedText.coffee(p.name, stars, drink));
   }
 
   // ---------- notice board ----------

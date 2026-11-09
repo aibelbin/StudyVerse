@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Pose } from '../../../shared/scenes/types';
-import type { Anim, Eyes, Look, OutfitSlot } from '../../../shared/types';
+import type { Anim, Drink, Eyes, Look, OutfitSlot } from '../../../shared/types';
 import { SLOTS } from '../../../shared/wardrobe';
 import { BODY, buildItem } from './outfits';
 import { Overhead } from './overhead';
@@ -34,6 +34,10 @@ export class Character {
   private phase = 0;
   private dimmed = false;
   private blinkAt = Math.random() * 4000;
+  private cup: THREE.Group | null = null;
+  private cupKind: Drink | null = null;
+  private steam: THREE.Mesh[] = [];
+  private sipAt = -1e9;
 
   constructor(look: Look, name: string, isMe = false) {
     const part = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number, parent: THREE.Object3D = this.rig) => {
@@ -121,6 +125,41 @@ export class Character {
     }
   }
 
+  /** A cup of coffee (or matcha, or cocoa) in the right hand, steaming. */
+  setHolding(drink: Drink | null): void {
+    if (drink === this.cupKind) return;
+    this.cupKind = drink;
+    if (this.cup) {
+      this.cup.removeFromParent();
+      disposeTree(this.cup);
+      this.cup = null;
+      this.steam = [];
+    }
+    if (!drink) return;
+    const fill = { espresso: '#5a3220', latte: '#c9a27a', matcha: '#8cc77a', cocoa: '#6b3e2a' }[drink];
+    const g = new THREE.Group();
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.055, 0.13, 14), new THREE.MeshStandardMaterial({ color: '#fffaf2', roughness: 0.6 }));
+    cup.castShadow = true;
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.064, 0.064, 0.01, 14), new THREE.MeshStandardMaterial({ color: fill }));
+    top.position.y = 0.06;
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.066, 0.05, 14), new THREE.MeshStandardMaterial({ color: '#c98a5a' }));
+    g.add(cup, top, sleeve);
+    const steamMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.5, depthWrite: false });
+    for (let i = 0; i < 3; i++) {
+      const puff = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 4), steamMat);
+      this.steam.push(puff);
+      g.add(puff);
+    }
+    g.position.set(0, -0.1, 0.07);
+    this.arms[1].add(g); // the right hand (arms[1] is +x)
+    this.cup = g;
+  }
+
+  /** Raise the cup for a sip (the ☕ emote). */
+  sip(now: number): void {
+    this.sipAt = now;
+  }
+
   /** Faded look while their connection is lost. */
   setDim(on: boolean): void {
     if (on === this.dimmed) return;
@@ -173,6 +212,17 @@ export class Character {
       a0.rotation.z = a1.rotation.z = 0;
       this.rig.position.y = 0;
       this.rig.rotation.z = 0;
+    }
+    if (this.cup) {
+      const sipping = now - this.sipAt < 1200;
+      if (this.anim !== 'walk') a1.rotation.x = sipping ? -2.2 : this.anim === 'sit' ? a1.rotation.x : -0.7;
+      this.cup.rotation.x = -a1.rotation.x * 0.9; // keep the cup upright
+      this.steam.forEach((p, i) => {
+        const k = ((now / 1400 + i / 3) % 1);
+        p.position.set(Math.sin(now / 300 + i) * 0.02, 0.08 + k * 0.22, 0);
+        p.scale.setScalar(0.6 + k);
+        (p.material as THREE.MeshBasicMaterial).opacity = 0.5 * (1 - k);
+      });
     }
     const breathe = 1 + Math.sin(now * 0.0025) * 0.015;
     this.body.scale.set(1, breathe, 1);

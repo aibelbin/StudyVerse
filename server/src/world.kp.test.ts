@@ -137,3 +137,33 @@ describe('do not disturb', () => {
     expect(b.c.of('emote')).toEqual([]);
   });
 });
+
+describe('coffee', () => {
+  function toCafe(id: string) {
+    t += 10_000;
+    w.handle(id, { t: 'move', x: 12, z: -2.35, facing: 0, anim: 'idle' });
+    w.handle(id, { t: 'enterScene', doorId: 'to-cafe' });
+    t += 10_000;
+    w.handle(id, { t: 'move', x: -2.8, z: -2.2, facing: 0, anim: 'idle' });
+  }
+
+  it('brews at the machine, carries the cup for a while, and announces it', () => {
+    const a = joinNew('Sam');
+    const b = joinNew('Jo');
+    toCafe(a.id);
+    w.handle(a.id, { t: 'brew', drink: 'latte', stars: 3 });
+    expect(w.view(a.id)!.holding).toMatchObject({ item: 'latte', stars: 3 });
+    expect(b.c.of('feed').at(-1)!.event.text).toBe('☕ Sam made a ★★★ latte');
+    w.handle(a.id, { t: 'brew', drink: 'cocoa', stars: 1 });
+    expect(w.view(a.id)!.holding!.item).toBe('latte'); // cooldown
+    t += 10 * MIN;
+    w.tick();
+    expect(w.view(a.id)!.holding).toBeNull();
+  });
+
+  it('needs you at the machine', () => {
+    const a = joinNew('Sam');
+    w.handle(a.id, { t: 'brew', drink: 'latte', stars: 3 });
+    expect(a.c.of('error').at(-1)!.code).toBe('bad_toy');
+  });
+});

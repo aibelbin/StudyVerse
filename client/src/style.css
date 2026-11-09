@@ -136,3 +136,9 @@ button:disabled { opacity: 0.5; cursor: default; }
 .notes-new { margin-top: 12px; }
 .notes-new textarea { width: 100%; box-sizing: border-box; border-radius: 10px; padding: 8px; font: inherit; resize: none; border: 1px solid #0002; }
 #status .mini.on { background: #ffd9a0; }
+.coffee .drinks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.coffee .bar { position: relative; height: 26px; border-radius: 13px; background: #f0e2d6; margin: 12px 0; overflow: hidden; }
+.coffee .zone { position: absolute; top: 0; bottom: 0; background: #a8d8a0; }
+.coffee .marker { position: absolute; top: -2px; bottom: -2px; width: 6px; margin-left: -3px; background: #5a3e36; border-radius: 3px; }
+.coffee .marker.hit { background: #3f9e5a; } .coffee .marker.miss { background: #e85a6a; }
+.coffee .result { font-size: 34px; text-align: center; margin: 4px 0; color: #f2a65a; }

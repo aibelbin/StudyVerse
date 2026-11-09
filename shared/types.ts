@@ -48,6 +48,7 @@ export interface PlayerView {
 }
 
 export type Drink = 'espresso' | 'latte' | 'matcha' | 'cocoa';
+export const DRINKS: Drink[] = ['espresso', 'latte', 'matcha', 'cocoa'];
 
 export interface PetView {
   kind: PetKind;
@@ -64,7 +65,7 @@ export interface OnlineEntry {
   scene: string;
 }
 
-export type FeedKind = 'arrive' | 'leave' | 'start' | 'finish' | 'quit' | 'cheer';
+export type FeedKind = 'arrive' | 'leave' | 'start' | 'finish' | 'quit' | 'cheer' | 'coffee';
 
 export interface FeedEvent {
   kind: FeedKind;

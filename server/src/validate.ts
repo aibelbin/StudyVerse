@@ -2,7 +2,7 @@ import { NAME_MAX } from '../../shared/constants';
 import { normalizeLook } from '../../shared/wardrobe';
 import type { ClientMsg } from '../../shared/protocol';
 import { TOY_ACTIONS, type ToyAction } from '../../shared/toys';
-import type { Anim, EmoteKind, Look } from '../../shared/types';
+import { DRINKS, type Anim, type Drink, type EmoteKind, type Look } from '../../shared/types';
 
 const ANIMS: Anim[] = ['idle', 'walk', 'sit'];
 const EMOTES: EmoteKind[] = ['wave', 'clap', 'flex', 'coffee'];
@@ -90,6 +90,9 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return Number.isInteger(m.id) ? { t: 'deleteNote', id: m.id as number } : null;
     case 'setDnd':
       return typeof m.on === 'boolean' ? { t: 'setDnd', on: m.on } : null;
+    case 'brew':
+      if (!DRINKS.includes(m.drink as Drink) || !Number.isInteger(m.stars)) return null;
+      return { t: 'brew', drink: m.drink as Drink, stars: Math.max(1, Math.min(3, m.stars as number)) };
     case 'buy':
       return isStr(m.itemId, 40) ? { t: 'buy', itemId: m.itemId } : null;
     case 'updateLook':
