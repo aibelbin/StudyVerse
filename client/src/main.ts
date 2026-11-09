@@ -13,6 +13,7 @@ import { Voice } from './voice/voice';
 import { petsTab } from './hud/petsTab';
 import type { Wallet } from '../../shared/types';
 import { Connection } from './net/connection';
+import { ChatPanel } from './hud/chat';
 
 const TOKEN_KEY = 'vsw-token';
 const hud = new Hud();
@@ -35,6 +36,14 @@ const wardrobe = new Wardrobe({
     setOut: (on) => conn.send({ t: 'setPetOut', on }),
   })],
 });
+
+const chat = new ChatPanel(byId('chat'));
+chat.onSend = (text, to) => conn.send(to ? { t: 'chat', text, to } : { t: 'chat', text });
+chat.onReact = (id, emoji) => conn.send({ t: 'react', id, emoji });
+chat.onPing = (m) => {
+  if (!game?.myView()?.dnd) hud.toast(`💬 ${m.fromName}: ${m.text.length > 50 ? `${m.text.slice(0, 47)}…` : m.text}`, 5000);
+};
+hud.onOpenDm = (id, name) => chat.openDm(id, name);
 
 const voice = new Voice(() => game?.myView()?.id ?? null, (to, data) => conn.send({ t: 'rtc', to, data }));
 const refreshVoiceHud = () => {
@@ -100,9 +109,19 @@ conn.onMessage = (m) => {
   if (m.t === 'wallet') setWallet(m.wallet);
   if (m.t === 'notes') board.set(m.list);
   if (m.t === 'rtc') void voice.onSignal(m.from, m.data);
+  if (m.t === 'chat') {
+    chat.add(m.msg);
+    if (m.msg.to === null) game?.chatBubble(m.msg.from, m.msg.text);
+  }
+  if (m.t === 'chatReact') chat.setReactions(m.id, m.reactions);
+  if (m.t === 'online') for (const p of m.list) chat.setName(p.id, p.name);
   if (m.t === 'welcome') {
     setWallet(m.wallet);
     voice.ice = m.ice;
+    hud.meId = m.you.id;
+    chat.setMe(m.you.id);
+    for (const p of m.online) chat.setName(p.id, p.name);
+    chat.load(m.chat);
     if (voice.on) conn.send({ t: 'setVoice', on: true }); // after a reconnect
     if (m.token) localStorage.setItem(TOKEN_KEY, m.token);
     hello = { t: 'hello', token: localStorage.getItem(TOKEN_KEY)! };
@@ -122,6 +141,7 @@ conn.onMessage = (m) => {
         if (toy.kind === 'coffee') openBarista(hud, (drink, stars) => conn.send({ t: 'brew', drink, stars }));
       };
       game.onToggleDnd = toggleDnd;
+      game.onChatKey = () => chat.focus();
       game.voice = voice;
       game.onPetKey = () => {
         if (!wallet?.pet) {

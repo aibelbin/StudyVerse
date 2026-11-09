@@ -81,6 +81,7 @@ export class Game {
   onVoiceKey: () => void = () => {};
   voice: Voice | null = null;
   onPetKey: () => void = () => {};
+  onChatKey: () => void = () => {};
   private pets = new Map<string, { model: PetModel; key: string; x: number; z: number; facing: number; anim: 'idle' | 'walk' | 'sit'; tx: number; tz: number }>();
   private localPet: LocalPet | null = null;
   private treeMinutes = 0;
@@ -157,6 +158,9 @@ export class Game {
       this.send({ t: 'offerCoffee', to: to.view.id });
       this.hud.toast(`Offering your ${this.me.holding.item} to ${to.view.name}…`, 2500);
     });
+    this.input.on('enter', () => {
+      if (!this.hud.modalOpen()) this.onChatKey();
+    });
     this.input.on('h', () => {
       if (this.driving?.kind === 'truck' && !this.hud.modalOpen()) this.send({ t: 'use', toyId: this.driving.toyId, action: 'honk' });
     });
@@ -180,6 +184,11 @@ export class Game {
 
   stop(): void {
     this.renderer.setAnimationLoop(null);
+  }
+
+  /** A speech bubble over whoever said something in Everyone chat, if they're in this scene. */
+  chatBubble(fromId: string, text: string): void {
+    this.charOf(fromId)?.overhead.bubble(text, performance.now());
   }
 
   myView(): PlayerView | null {

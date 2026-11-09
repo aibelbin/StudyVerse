@@ -16,6 +16,8 @@ export class Overhead {
   private cloud = new THREE.Group();
   private drops: THREE.Mesh[] = [];
   private emotes: { s: THREE.Sprite; born: number }[] = [];
+  private bubbleSprite: THREE.Sprite | null = null;
+  private bubbleAt = 0;
 
   constructor() {
     this.canvas.width = this.canvas.height = 128;
@@ -113,6 +115,31 @@ export class Overhead {
     this.float(textSprite(EMOJI[kind], 0.5, { bg: null, font: 64, pad: 6 }), now);
   }
 
+  /** A chat speech bubble that sits above the head for 6 s; a newer one replaces it. */
+  bubble(text: string, now: number): void {
+    this.clearBubble();
+    const short = text.length > 60 ? `${text.slice(0, 57)}…` : text;
+    const s = textSprite(short, 0.3, { bg: '#ffffffee', font: 40, pad: 14 });
+    s.position.y = 0.55;
+    s.renderOrder = 14;
+    this.group.add(s);
+    this.bubbleSprite = s;
+    this.bubbleAt = now;
+  }
+
+  /** An emoji that pops up and floats away (emote wheel). */
+  pop(emoji: string, now: number, size = 0.5): void {
+    this.float(textSprite(emoji, size, { bg: null, font: 64, pad: 6 }), now);
+  }
+
+  private clearBubble(): void {
+    if (!this.bubbleSprite) return;
+    this.bubbleSprite.removeFromParent();
+    this.bubbleSprite.material.map?.dispose();
+    this.bubbleSprite.material.dispose();
+    this.bubbleSprite = null;
+  }
+
   /** A short text bubble that floats up and fades, e.g. "4 skips!". */
   say(text: string, now: number): void {
     this.float(textSprite(text, 0.32, { bg: '#ffffffee', font: 40, pad: 12 }), now);
@@ -125,6 +152,11 @@ export class Overhead {
   }
 
   update(_dt: number, now: number): void {
+    if (this.bubbleSprite) {
+      const age = (now - this.bubbleAt) / 6000;
+      if (age >= 1) this.clearBubble();
+      else this.bubbleSprite.material.opacity = age > 0.85 ? (1 - age) / 0.15 : 1;
+    }
     if (this.cloud.visible) {
       this.cloud.position.set(Math.sin(now * 0.002) * 0.05, this.ring.visible ? 0.55 : 0.1, 0);
       for (const d of this.drops) {

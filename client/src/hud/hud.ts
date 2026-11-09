@@ -15,6 +15,9 @@ export class Hud {
   onToggleMute: () => void = () => {};
   onToggleDnd: () => void = () => {};
   onToggleVoice: () => void = () => {};
+  /** Open a private chat with this player. */
+  onOpenDm: (id: string, name: string) => void = () => {};
+  meId = '';
   /** 'off' | 'on' | 'muted' */
   voiceState: 'off' | 'on' | 'muted' = 'off';
   muted = false;
@@ -75,14 +78,17 @@ export class Hud {
   }
 
   setOnline(list: OnlineEntry[]): void {
-    const by = new Map<string, string[]>();
+    const by = new Map<string, OnlineEntry[]>();
     for (const p of list) {
       const scene = SCENES[p.scene]?.name ?? p.scene;
-      by.set(scene, [...(by.get(scene) ?? []), p.name]);
+      by.set(scene, [...(by.get(scene) ?? []), p]);
     }
+    const who = (p: OnlineEntry) => p.id === this.meId
+      ? h('span', { textContent: p.name })
+      : h('span', { className: 'who', textContent: p.name, title: `Message ${p.name}`, onclick: () => this.onOpenDm(p.id, p.name) });
     byId('online').replaceChildren(
       h('div', { className: 'title', textContent: `🏡 ${list.length} in town` }),
-      ...[...by].map(([scene, names]) => h('div', {}, h('b', { textContent: scene }), ` · ${names.join(', ')}`)),
+      ...[...by].map(([scene, people]) => h('div', {}, h('b', { textContent: scene }), ' · ', ...people.flatMap((p, i) => (i ? [', ', who(p)] : [who(p)])))),
     );
   }
 
@@ -194,6 +200,13 @@ export class Hud {
       v.dnd
         ? h('div', { className: 'sub', textContent: '🔕 Do not disturb: they are focusing' })
         : h('div', { className: 'actions' }, ...EMOTE_BUTTONS.map(([k, label]) => h('button', { textContent: label, onclick: () => onEmote(k) }))),
+      h('div', { className: 'actions' }, h('button', {
+        textContent: '💬 Message',
+        onclick: () => {
+          this.closeCard();
+          this.onOpenDm(v.id, v.name);
+        },
+      })),
     );
   }
 
