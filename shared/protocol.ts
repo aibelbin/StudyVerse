@@ -17,7 +17,10 @@ export type ClientMsg =
   | { t: 'postNote'; text: string }
   | { t: 'deleteNote'; id: number }
   | { t: 'setDnd'; on: boolean }
-  | { t: 'brew'; drink: Drink; stars: number };
+  | { t: 'brew'; drink: Drink; stars: number }
+  | { t: 'setVoice'; on: boolean }
+  /** WebRTC signalling for proximity voice, relayed to one player in the same scene. */
+  | { t: 'rtc'; to: string; data: string };
 
 export type ErrorCode =
   | 'bad_invite'
@@ -48,6 +51,8 @@ export type ServerMsg =
       wallet: Wallet;
       /** The whole town's focus minutes today (the knowledge tree). */
       treeMinutes: number;
+      /** STUN/TURN servers for voice chat. */
+      ice: IceServer[];
     }
   | { t: 'error'; code: ErrorCode; message: string }
   | { t: 'sceneSnapshot'; scene: string; you: PlayerView; players: PlayerView[]; toys: Record<string, ToyState> }
@@ -62,4 +67,11 @@ export type ServerMsg =
   | { t: 'toyState'; toyId: string; state: ToyState }
   | { t: 'wallet'; wallet: Wallet }
   | { t: 'tree'; minutes: number }
-  | { t: 'notes'; list: Note[] };
+  | { t: 'notes'; list: Note[] }
+  | { t: 'rtc'; from: string; data: string };
+
+export interface IceServer {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+}

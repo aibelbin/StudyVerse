@@ -174,7 +174,7 @@ describe('server', () => {
   it('survives an oversize frame', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { c } = await join('Sam');
-    c.ws.send('x'.repeat(9 * 1024));
+    c.ws.send('x'.repeat(17 * 1024)); // just over the 16 KB frame limit
     await new Promise((r) => c.ws.once('close', r));
     expect(await (await fetch(`http://127.0.0.1:${srv.port}/health`)).text()).toBe('ok');
     await join('Alex');

@@ -29,6 +29,7 @@ import { pickTarget, type PlacedSlot, type Target } from './interaction';
 import { treeStage } from '../../../shared/tree';
 import { QUOTES } from './quotes';
 import { Fade } from './transition';
+import type { Voice } from '../voice/voice';
 
 interface Remote {
   view: PlayerView;
@@ -74,6 +75,8 @@ export class Game {
   /** E on a toy that opens something on this screen only (Boutique, notice board, coffee machine). */
   onLocalToy: (toy: Toy) => void = () => {};
   onToggleDnd: () => void = () => {};
+  onVoiceKey: () => void = () => {};
+  voice: Voice | null = null;
   private treeMinutes = 0;
 
   private renderer: THREE.WebGLRenderer;
@@ -131,6 +134,9 @@ export class Game {
     for (let i = 1; i <= 8; i++) this.input.on(String(i), () => this.playNote(i - 1));
     this.input.on('h', () => {
       if (this.driving?.kind === 'truck' && !this.hud.modalOpen()) this.send({ t: 'use', toyId: this.driving.toyId, action: 'honk' });
+    });
+    this.input.on('v', () => {
+      if (!this.hud.modalOpen()) this.onVoiceKey();
     });
     this.input.on('n', () => {
       if (!this.hud.modalOpen()) this.onToggleDnd();
@@ -402,6 +408,12 @@ export class Game {
     if (!toy || toy.kind !== 'piano' || this.hud.modalOpen()) return;
     this.send({ t: 'use', toyId: toy.id, action: 'note', arg: i });
     this.rt?.toys.get(toy.id)?.onEvent?.({ action: 'note', arg: i, by: this.me!.id }, this.toyCtx(toy.id));
+  }
+
+  private badgeFor(v: PlayerView): string {
+    if (v.dnd) return '🔕';
+    if (!v.voice) return '';
+    return this.voice?.isSpeaking(v.id) ? '🔊' : '🎙️';
   }
 
   private setTelescope(on: boolean): void {
@@ -698,7 +710,7 @@ export class Game {
       r.char.root.position.set(x, y, z);
       r.char.facing = facing;
       r.char.setDim(!r.view.connected);
-      r.char.overhead.setBadge(r.view.dnd ? '🔕' : r.view.voice ? '🎙️' : '');
+      r.char.overhead.setBadge(this.badgeFor(r.view));
       r.char.setHolding(r.view.holding && r.view.holding.until > sNow ? r.view.holding.item : null);
       r.char.overhead.setSession(r.view.session, sNow);
       r.char.overhead.setRain(r.view.rainUntil > sNow);
@@ -739,7 +751,11 @@ export class Game {
     c.facing = this.facing;
     c.overhead.setSession(this.me.session, sNow);
     c.overhead.setRain(this.me.rainUntil > sNow);
-    c.overhead.setBadge(this.me.dnd ? '🔕' : this.me.voice ? '🎙️' : '');
+    c.overhead.setBadge(this.badgeFor(this.me));
+    this.voice?.update(
+      { id: this.me.id, x: this.x, z: this.z, voice: this.me.voice, dnd: this.me.dnd },
+      [...this.remotes.values()].map((r) => ({ id: r.view.id, x: r.char.root.position.x, z: r.char.root.position.z, voice: r.view.voice && r.view.connected, dnd: r.view.dnd })),
+    );
     c.setHolding(this.me.holding && this.me.holding.until > sNow ? this.me.holding.item : null);
     c.update(dt, nowP);
 

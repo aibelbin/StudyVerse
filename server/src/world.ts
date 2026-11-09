@@ -3,7 +3,7 @@ import {
   NOTES_SHOWN, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS, BREW_COOLDOWN_MS, HOLD_MS,
 } from '../../shared/constants';
 import { clampToBounds, dist, inBox, pointInPolygon } from '../../shared/geometry';
-import type { ClientMsg, ErrorCode, ServerMsg } from '../../shared/protocol';
+import type { ClientMsg, ErrorCode, IceServer, ServerMsg } from '../../shared/protocol';
 import { SCENES, START_SCENE, START_SPAWN } from '../../shared/scenes';
 import type { SceneDef, Slot, Toy } from '../../shared/scenes/types';
 import {
@@ -59,6 +59,8 @@ export class World {
   private feed = new Feed();
   private toyStates = new Map<string, ToyState>(); // toyId -> state (toy ids are unique across scenes)
   private toySceneOf = new Map<string, string>(); // toyId -> scene id
+  /** STUN/TURN servers handed to clients for voice chat. */
+  ice: IceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 
   constructor(
     private now: () => number = Date.now,
@@ -134,6 +136,18 @@ export class World {
       case 'postNote': return this.postNote(p, msg.text);
       case 'deleteNote': return this.deleteNote(p, msg.id);
       case 'brew': return this.brew(p, msg.drink, msg.stars);
+      case 'setVoice': {
+        const on = msg.on && !p.dnd;
+        if (p.voice === on) return;
+        p.voice = on;
+        return this.updated(p);
+      }
+      case 'rtc': {
+        const q = this.players.get(msg.to);
+        if (!q || q.scene !== p.scene || !p.voice || !q.voice) return;
+        q.conn?.send({ t: 'rtc', from: p.id, data: msg.data });
+        return;
+      }
       case 'setDnd':
         if (p.dnd === msg.on) return;
         p.dnd = msg.on;
@@ -531,6 +545,7 @@ export class World {
       toys: this.sceneToys(p.scene),
       wallet: this.publicWallet(p),
       treeMinutes: this.store.dailyMinutes(dayOf(this.now())),
+      ice: this.ice,
     });
   }
 

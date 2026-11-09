@@ -7,6 +7,9 @@ import { DRINKS, type Anim, type Drink, type EmoteKind, type Look } from '../../
 const ANIMS: Anim[] = ['idle', 'walk', 'sit'];
 const EMOTES: EmoteKind[] = ['wave', 'clap', 'flex', 'coffee'];
 
+/** Largest WebRTC signalling payload we relay (an SDP offer with candidates fits comfortably). */
+export const RTC_MAX = 12_000;
+
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isStr = (v: unknown, max: number): v is string => typeof v === 'string' && v.length > 0 && v.length <= max;
 
@@ -93,6 +96,10 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'brew':
       if (!DRINKS.includes(m.drink as Drink) || !Number.isInteger(m.stars)) return null;
       return { t: 'brew', drink: m.drink as Drink, stars: Math.max(1, Math.min(3, m.stars as number)) };
+    case 'setVoice':
+      return typeof m.on === 'boolean' ? { t: 'setVoice', on: m.on } : null;
+    case 'rtc':
+      return isStr(m.to, 64) && isStr(m.data, RTC_MAX) ? { t: 'rtc', to: m.to, data: m.data } : null;
     case 'buy':
       return isStr(m.itemId, 40) ? { t: 'buy', itemId: m.itemId } : null;
     case 'updateLook':

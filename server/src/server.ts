@@ -1,5 +1,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { createServer as createHttpsServer } from 'node:https';
+import type { IceServer } from '../../shared/protocol';
 import type { AddressInfo } from 'node:net';
 import { extname, join, normalize } from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -18,6 +20,9 @@ export interface ServerOptions {
   tickMs?: number;
   heartbeatMs?: number;
   helloTimeoutMs?: number;
+  /** Serve HTTPS + WSS (browsers only allow microphones on secure pages). */
+  tls?: { cert: Buffer; key: Buffer } | null;
+  iceServers?: IceServer[];
 }
 
 export const HEARTBEAT_MS = 20_000;
@@ -75,8 +80,9 @@ async function serveStatic(dir: string, req: IncomingMessage, res: ServerRespons
 export async function startServer(opts: ServerOptions): Promise<RunningServer> {
   const store = new ProfileStore(opts.dbPath);
   const world = new World(opts.now, Math.random, undefined, store);
+  if (opts.iceServers?.length) world.ice = opts.iceServers;
 
-  const http = createServer((req, res) => {
+  const handler = (req: IncomingMessage, res: ServerResponse) => {
     if (req.url === '/health') {
       res.writeHead(200).end('ok');
       return;
@@ -88,9 +94,10 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
         else res.destroy();
       });
     } else res.writeHead(404).end('not found');
-  });
+  };
+  const http = opts.tls ? createHttpsServer({ cert: opts.tls.cert, key: opts.tls.key }, handler) : createServer(handler);
 
-  const wss = new WebSocketServer({ server: http, path: '/ws', maxPayload: 8 * 1024 });
+  const wss = new WebSocketServer({ server: http, path: '/ws', maxPayload: 16 * 1024 });
 
   wss.on('connection', (ws: WebSocket) => {
     let playerId: string | null = null;

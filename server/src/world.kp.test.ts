@@ -210,3 +210,36 @@ describe('trucks', () => {
     expect(a.c.of('error').at(-1)!.code).toBe('not_seated');
   });
 });
+
+describe('voice signalling', () => {
+  it('relays only between voice users in the same scene', () => {
+    const a = joinNew('Sam');
+    const b = joinNew('Jo');
+    w.handle(a.id, { t: 'rtc', to: b.id, data: 'offer' });
+    expect(b.c.of('rtc')).toEqual([]); // nobody has voice on yet
+    w.handle(a.id, { t: 'setVoice', on: true });
+    w.handle(b.id, { t: 'setVoice', on: true });
+    expect(a.c.of('playerUpdated').at(-1)!.player).toMatchObject({ id: b.id, voice: true });
+    w.handle(a.id, { t: 'rtc', to: b.id, data: 'offer' });
+    expect(b.c.of('rtc')).toEqual([{ t: 'rtc', from: a.id, data: 'offer' }]);
+    t += 10_000;
+    w.handle(b.id, { t: 'move', x: 12, z: -2.35, facing: 0, anim: 'idle' });
+    w.handle(b.id, { t: 'enterScene', doorId: 'to-cafe' });
+    w.handle(a.id, { t: 'rtc', to: b.id, data: 'again' });
+    expect(b.c.of('rtc')).toHaveLength(1);
+  });
+
+  it('do not disturb turns voice off and keeps it off', () => {
+    const a = joinNew('Sam');
+    w.handle(a.id, { t: 'setVoice', on: true });
+    w.handle(a.id, { t: 'setDnd', on: true });
+    expect(w.view(a.id)).toMatchObject({ dnd: true, voice: false });
+    w.handle(a.id, { t: 'setVoice', on: true });
+    expect(w.view(a.id)!.voice).toBe(false);
+  });
+
+  it('hands out ICE servers', () => {
+    const { c } = joinNew('Sam');
+    expect(c.of('welcome')[0].ice[0].urls).toContain('stun:');
+  });
+});

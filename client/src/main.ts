@@ -9,6 +9,7 @@ import { showJoin } from './hud/joinScreen';
 import { openCoffee } from './hud/coffee';
 import { NotesBoard } from './hud/notes';
 import { Wardrobe } from './hud/wardrobe';
+import { Voice } from './voice/voice';
 import type { Wallet } from '../../shared/types';
 import { Connection } from './net/connection';
 
@@ -28,10 +29,39 @@ const wardrobe = new Wardrobe({
   save: (look) => conn.send({ t: 'updateLook', look }),
 });
 
+const voice = new Voice(() => game?.myView()?.id ?? null, (to, data) => conn.send({ t: 'rtc', to, data }));
+const refreshVoiceHud = () => {
+  hud.voiceState = !voice.on ? 'off' : voice.muted ? 'muted' : 'on';
+};
+hud.onToggleVoice = async () => {
+  if (voice.on) {
+    voice.disable();
+    conn.send({ t: 'setVoice', on: false });
+  } else {
+    if (game?.myView()?.dnd) {
+      hud.toast('🔕 Turn off do-not-disturb to join voice.');
+      return;
+    }
+    try {
+      await voice.enable();
+      conn.send({ t: 'setVoice', on: true });
+      hud.toast('🎙️ You are on voice. People nearby can hear you. V mutes.', 5000);
+    } catch (err) {
+      hud.toast(`🎙️ ${err instanceof Error ? err.message : 'Could not use the microphone.'}`, 7000);
+    }
+  }
+  refreshVoiceHud();
+};
+
 const board = new NotesBoard(hud, () => game?.myView()?.id ?? null, (m) => conn.send(m));
 const toggleDnd = () => {
   const me = game?.myView();
-  if (me) conn.send({ t: 'setDnd', on: !me.dnd });
+  if (!me) return;
+  if (!me.dnd && voice.on) {
+    voice.disable();
+    refreshVoiceHud();
+  }
+  conn.send({ t: 'setDnd', on: !me.dnd });
 };
 hud.onToggleDnd = toggleDnd;
 
@@ -62,8 +92,11 @@ conn.onStatus = (s) => hud.setConnection(s);
 conn.onMessage = (m) => {
   if (m.t === 'wallet') setWallet(m.wallet);
   if (m.t === 'notes') board.set(m.list);
+  if (m.t === 'rtc') void voice.onSignal(m.from, m.data);
   if (m.t === 'welcome') {
     setWallet(m.wallet);
+    voice.ice = m.ice;
+    if (voice.on) conn.send({ t: 'setVoice', on: true }); // after a reconnect
     if (m.token) localStorage.setItem(TOKEN_KEY, m.token);
     hello = { t: 'hello', token: localStorage.getItem(TOKEN_KEY)! };
     hud.show();
@@ -82,6 +115,12 @@ conn.onMessage = (m) => {
         if (toy.kind === 'coffee') openCoffee(hud, (drink, stars) => conn.send({ t: 'brew', drink, stars }));
       };
       game.onToggleDnd = toggleDnd;
+      game.voice = voice;
+      game.onVoiceKey = () => {
+        if (!voice.on) return;
+        voice.setMuted(!voice.muted);
+        refreshVoiceHud();
+      };
       if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { game });
     }
   }

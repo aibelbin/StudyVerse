@@ -14,6 +14,9 @@ export class Hud {
   onEndBreak: () => void = () => {};
   onToggleMute: () => void = () => {};
   onToggleDnd: () => void = () => {};
+  onToggleVoice: () => void = () => {};
+  /** 'off' | 'on' | 'muted' */
+  voiceState: 'off' | 'on' | 'muted' = 'off';
   muted = false;
   dnd = false;
   private walletText = '';
@@ -44,13 +47,19 @@ export class Hud {
       ? `${s.phase === 'focus' ? '📖 Focus' : '☕ Break'} · ${formatClock(sessionLeftMs(s, now))}`
       : me.slotId ? '🪑 Sitting' : `🚶 Wandering ${def.where}`;
     this.dnd = me.dnd;
-    const key = `${me.name}|${line}|${def.id}|${this.muted}|${this.walletText}|${me.dnd}`;
+    const key = `${me.name}|${line}|${def.id}|${this.muted}|${this.walletText}|${me.dnd}|${this.voiceState}`;
     if (key === this.statusKey) return;
     this.statusKey = key;
     byId('status').replaceChildren(
       h('div', { className: 'row' },
         h('b', { textContent: me.name }),
         h('span', { className: 'buttons' },
+          h('button', {
+            className: `mini${this.voiceState !== 'off' ? ' on' : ''}`,
+            title: this.voiceState === 'off' ? 'Join voice chat' : this.voiceState === 'muted' ? 'Mic muted (V to unmute) · click to leave voice' : 'On voice (V to mute) · click to leave voice',
+            textContent: this.voiceState === 'muted' ? '🤐' : '🎙️',
+            onclick: () => this.onToggleVoice(),
+          }),
           h('button', { className: `mini${me.dnd ? ' on' : ''}`, title: me.dnd ? 'Do not disturb is on (N)' : 'Do not disturb (N)', textContent: me.dnd ? '🔕' : '🔔', onclick: () => this.onToggleDnd() }),
           h('button', { className: 'mini', title: this.muted ? 'Sound off' : 'Sound on', textContent: this.muted ? '🔇' : '🔊', onclick: () => this.onToggleMute() }),
           h('button', { className: 'mini', title: 'Change your look', textContent: '✏️', onclick: () => this.onEditLook() }))),
