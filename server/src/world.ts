@@ -8,8 +8,10 @@ import type { SceneDef, Slot, Toy } from '../../shared/scenes/types';
 import {
   BOAT_SPEED, boatOnWater, boatPoseAt, slotWorld, spinAt, type BoatPose, type ToyAction, type ToyState,
 } from '../../shared/toys';
-import type { Anim, EmoteKind, FeedKind, Look, OnlineEntry, PlayerView, Session } from '../../shared/types';
-import type { Profile } from './db';
+import type { Anim, EmoteKind, FeedKind, Look, OnlineEntry, PlayerView, Session, Wallet } from '../../shared/types';
+import { isFree, itemById, SLOTS } from '../../shared/wardrobe';
+import { ProfileStore, type Profile, type Store } from './db';
+import { awardFor, dayOf } from './rewards';
 import { Feed, feedText } from './feed';
 import { elapsedMin, newSession, stepSession, validLengths } from './sessions';
 import { COOLDOWN_MS, HANDLERS } from './toys';
@@ -38,6 +40,7 @@ interface Player {
   lastCheerFeedAt: number;
   /** `toyId|action` -> last accepted use, for cooldowns. */
   lastUse: Map<string, number>;
+  wallet: Wallet & { lastDay: string | null };
 }
 
 const EMOJI: Record<EmoteKind, string> = { wave: '👋', clap: '👏', flex: '💪', coffee: '☕' };
@@ -53,6 +56,7 @@ export class World {
     private now: () => number = Date.now,
     private rand: () => number = Math.random,
     private scenes: Record<string, SceneDef> = SCENES,
+    private store: Store = new ProfileStore(':memory:'),
   ) {
     for (const def of Object.values(scenes)) for (const toy of def.toys) this.toySceneOf.set(toy.id, def.id);
   }
@@ -85,6 +89,7 @@ export class World {
       x: spawn.x, z: spawn.z, facing: spawn.facing, anim: 'idle',
       slotId: null, session: null, rainUntil: 0,
       conn, disconnectedAt: null, lastMoveAt: this.now(), lastCheerFeedAt: 0, lastUse: new Map(),
+      wallet: this.store.wallet(profile.id),
     };
     this.players.set(p.id, p);
     this.sendWelcome(p, newToken);
@@ -114,9 +119,8 @@ export class World {
       case 'cancelSession': return this.cancelSession(p);
       case 'emote': return this.emote(p, msg.kind, msg.targetId);
       case 'use': return this.use(p, msg.toyId, msg.action, msg.arg);
-      case 'updateLook':
-        p.look = msg.look;
-        return this.updated(p);
+      case 'updateLook': return this.updateLook(p, msg.look);
+      case 'buy': return this.buy(p, msg.itemId);
       case 'hello':
         return;
     }
@@ -129,7 +133,7 @@ export class World {
       if (p.session) {
         const { session, event } = stepSession(p.session, t);
         p.session = session;
-        if (event === 'focusDone') this.pushFeed('finish', feedText.finish(p.name, session!.focusMin));
+        if (event === 'focusDone') this.finishFocus(p, session!.focusMin);
         if (event) this.updated(p);
       }
       if (!p.conn && p.disconnectedAt !== null && t - p.disconnectedAt >= GRACE_MS) this.remove(p);
@@ -266,6 +270,47 @@ export class World {
     this.players.delete(p.id);
     this.toScene(p.scene, { t: 'playerLeft', id: p.id });
     this.broadcastOnline();
+  }
+
+  // ---------- knowledge points & wardrobe ----------
+
+  private finishFocus(p: Player, focusMin: number): void {
+    const today = dayOf(this.now());
+    const a = awardFor(p.wallet, today, focusMin);
+    this.store.award(p.id, a.kp, a.streak, today);
+    p.wallet = this.store.wallet(p.id);
+    p.conn?.send({ t: 'wallet', wallet: this.publicWallet(p) });
+    this.pushFeed('finish', feedText.finish(p.name, focusMin, a.kp, a.streak));
+    this.toAll({ t: 'tree', minutes: this.store.addDailyMinutes(today, focusMin) });
+  }
+
+  private publicWallet(p: Player): Wallet {
+    const { kp, streak, owned, pets, pet } = p.wallet;
+    return { kp, streak, owned, pets, pet };
+  }
+
+  private buy(p: Player, itemId: string): void {
+    const item = itemById(itemId);
+    if (!item || isFree(itemId)) return this.error(p, 'bad_item', "That isn't for sale.");
+    if (p.wallet.owned.includes(itemId)) return;
+    if (p.wallet.kp < item.price || !this.store.buy(p.id, itemId, item.price)) {
+      return this.error(p, 'no_kp', `You need ${item.price} ✨ KP for that. Study a little more!`);
+    }
+    p.wallet = this.store.wallet(p.id);
+    p.conn?.send({ t: 'wallet', wallet: this.publicWallet(p) });
+  }
+
+  /** Wear only what you own (or got for free, or already had on). */
+  private updateLook(p: Player, look: Look): void {
+    for (const slot of SLOTS) {
+      const id = look[slot];
+      if (!isFree(id) && !p.wallet.owned.includes(id) && p.look[slot] !== id) {
+        return this.error(p, 'bad_look', `You don't own the ${itemById(id)?.name ?? id} yet.`);
+      }
+    }
+    p.look = look;
+    this.store.updateLook(p.id, look);
+    this.updated(p);
   }
 
   // ---------- toys ----------
@@ -412,6 +457,8 @@ export class World {
       online: this.online(),
       feed: this.feed.recent(FEED_ON_WELCOME),
       toys: this.sceneToys(p.scene),
+      wallet: this.publicWallet(p),
+      treeMinutes: this.store.dailyMinutes(dayOf(this.now())),
     });
   }
 

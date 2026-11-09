@@ -23,7 +23,8 @@ describe('feedText', () => {
     expect(feedText.arrive('Sam')).toBe('🌷 Sam arrived');
     expect(feedText.leave('Sam')).toBe('👋 Sam headed home');
     expect(feedText.start('Sam', 50, 'in the Library')).toBe('📚 Sam started a 50 min session in the Library');
-    expect(feedText.finish('Sam', 50)).toBe('✨ Sam finished a 50 min session!');
+    expect(feedText.finish('Sam', 50, 55, 1)).toBe('✨ Sam finished a 50 min session! (+55 KP)');
+    expect(feedText.finish('Sam', 25, 40, 3)).toBe('✨ Sam finished a 25 min session! (+40 KP, 🔥3-day streak)');
     expect(feedText.quit('Sam', 12, 25)).toBe('🥀 Sam left 12 min into a 25 min session');
     expect(feedText.quitDisconnect('Sam', 12, 25)).toBe("🥀 Sam disconnected and didn't come back, 12 min into a 25 min session");
     expect(feedText.cheer('Sam', 'Alex', '💪')).toBe('Sam cheered Alex 💪');

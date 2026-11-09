@@ -6,6 +6,8 @@ import { Game } from './game/game';
 import { byId } from './hud/dom';
 import { Hud } from './hud/hud';
 import { showJoin } from './hud/joinScreen';
+import { Wardrobe } from './hud/wardrobe';
+import type { Wallet } from '../../shared/types';
 import { Connection } from './net/connection';
 
 const TOKEN_KEY = 'vsw-token';
@@ -13,6 +15,22 @@ const hud = new Hud();
 const conn = new Connection(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
 let game: Game | null = null;
 let hello: ClientMsg | null = null;
+let wallet: Wallet | null = null;
+
+const wardrobe = new Wardrobe({
+  hud,
+  name: () => game?.myView()?.name ?? '',
+  look: () => game?.myView()?.look ?? DEFAULT_LOOK,
+  wallet: () => wallet,
+  buy: (itemId) => conn.send({ t: 'buy', itemId }),
+  save: (look) => conn.send({ t: 'updateLook', look }),
+});
+
+function setWallet(w: Wallet): void {
+  wallet = w;
+  hud.setWallet(w.kp, w.streak);
+  if (wardrobe.isOpen()) wardrobe.refresh();
+}
 
 async function askJoin(error?: string): Promise<void> {
   const r = await showJoin({ mode: 'join', look: DEFAULT_LOOK, error });
@@ -33,7 +51,9 @@ conn.onClose = (code) => {
 };
 conn.onStatus = (s) => hud.setConnection(s);
 conn.onMessage = (m) => {
+  if (m.t === 'wallet') setWallet(m.wallet);
   if (m.t === 'welcome') {
+    setWallet(m.wallet);
     if (m.token) localStorage.setItem(TOKEN_KEY, m.token);
     hello = { t: 'hello', token: localStorage.getItem(TOKEN_KEY)! };
     hud.show();
@@ -45,6 +65,9 @@ conn.onMessage = (m) => {
       hud.onToggleMute = () => {
         extras.audio.setMuted(!extras.audio.muted);
         hud.muted = extras.audio.muted;
+      };
+      game.onLocalToy = (toy) => {
+        if (toy.kind === 'shop') wardrobe.open('hat');
       };
       if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { game });
     }
@@ -67,11 +90,8 @@ conn.onMessage = (m) => {
   game?.onMessage(m);
 };
 
-hud.onEditLook = async () => {
-  const me = game?.myView();
-  if (!me) return;
-  const r = await showJoin({ mode: 'edit', name: me.name, look: me.look });
-  if (JSON.stringify(r.look) !== JSON.stringify(me.look)) conn.send({ t: 'updateLook', look: r.look });
+hud.onEditLook = () => {
+  if (game?.myView()) wardrobe.open('style');
 };
 hud.onEndBreak = () => conn.send({ t: 'cancelSession' });
 

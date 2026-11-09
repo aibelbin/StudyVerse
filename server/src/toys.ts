@@ -24,6 +24,10 @@ export const HANDLERS: Record<ToyKind, ToyHandler> = {
   swing: none,
   seesaw: none,
   telescope: none,
+  shop: none,
+  board: none,
+  quotes: none,
+  coffee: none,
   rowboat: {
     actions: [],
     init: (toy) => ({ kind: 'rowboat', x: toy.x, z: toy.z, heading: toy.rot ?? 0, returnFrom: null }),

@@ -82,6 +82,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       }
       return out;
     }
+    case 'buy':
+      return isStr(m.itemId, 40) ? { t: 'buy', itemId: m.itemId } : null;
     case 'updateLook':
     {
       const look = normalizeLook(m.look);

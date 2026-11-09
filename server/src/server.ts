@@ -74,7 +74,7 @@ async function serveStatic(dir: string, req: IncomingMessage, res: ServerRespons
 
 export async function startServer(opts: ServerOptions): Promise<RunningServer> {
   const store = new ProfileStore(opts.dbPath);
-  const world = new World(opts.now);
+  const world = new World(opts.now, Math.random, undefined, store);
 
   const http = createServer((req, res) => {
     if (req.url === '/health') {
@@ -165,7 +165,6 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
           const cur = world.view(playerId)?.look;
           if (nowMs - lastLookUpdate < LOOK_UPDATE_MIN_MS || JSON.stringify(cur) === JSON.stringify(msg.look)) return;
           lastLookUpdate = nowMs;
-          store.updateLook(playerId, msg.look);
         }
         world.handle(playerId, msg);
         return;

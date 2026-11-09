@@ -14,6 +14,7 @@ export class Hud {
   onEndBreak: () => void = () => {};
   onToggleMute: () => void = () => {};
   muted = false;
+  private walletText = '';
   private statusKey = '';
   private modal: HTMLElement | null = null;
   private modalClose: (() => void) | null = null;
@@ -40,7 +41,7 @@ export class Hud {
     const line = s
       ? `${s.phase === 'focus' ? '📖 Focus' : '☕ Break'} · ${formatClock(sessionLeftMs(s, now))}`
       : me.slotId ? '🪑 Sitting' : `🚶 Wandering ${def.where}`;
-    const key = `${me.name}|${line}|${def.id}|${this.muted}`;
+    const key = `${me.name}|${line}|${def.id}|${this.muted}|${this.walletText}`;
     if (key === this.statusKey) return;
     this.statusKey = key;
     byId('status').replaceChildren(
@@ -52,7 +53,12 @@ export class Hud {
       h('div', { className: s ? `timer ${s.phase}` : 'sub', textContent: line }),
       ...(s?.phase === 'break' ? [h('button', { className: 'mini', textContent: 'End break', onclick: () => this.onEndBreak() })] : []),
       h('div', { className: 'sub', textContent: `📍 ${def.name}` }),
+      ...(this.walletText ? [h('div', { className: 'sub kp', textContent: this.walletText })] : []),
     );
+  }
+
+  setWallet(kp: number, streak: number): void {
+    this.walletText = `✨ ${kp} KP${streak > 1 ? ` · 🔥 ${streak}-day streak` : ''}`;
   }
 
   setOnline(list: OnlineEntry[]): void {
@@ -106,9 +112,9 @@ export class Hud {
     f?.();
   }
 
-  private openModal(content: HTMLElement, onDismiss?: () => void): void {
+  openModal(content: HTMLElement, onDismiss?: () => void, wide = false): void {
     this.closeModals();
-    const back = h('div', { className: 'modal-back' }, h('div', { className: 'glass modal' }, content));
+    const back = h('div', { className: 'modal-back' }, h('div', { className: `glass modal${wide ? ' wide' : ''}` }, content));
     back.addEventListener('mousedown', (e) => {
       if (e.target === back) this.closeModals();
     });
@@ -118,7 +124,7 @@ export class Hud {
   }
 
   /** Closes the modal without running its dismissed callback (the user chose an action). */
-  private finishModal(): void {
+  finishModal(): void {
     this.modalClose = null;
     this.closeModals();
   }

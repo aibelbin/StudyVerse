@@ -4,6 +4,7 @@ import type { BoatPose, ToyAction, ToyKind, ToyState } from '../../../shared/toy
 import type { SoundKind } from '../audio/kinds';
 import { bellView, chimesView, jukeboxView, pianoView } from './music';
 import { merryGoRoundView, seesawView, slideView, swingView } from './playground';
+import { boardView, coffeeView, quotesView, shopView } from './local';
 import { campfireView, telescopeView } from './misc';
 import { ducksView, fountainView, rowboatView, stonesView } from './water';
 
@@ -62,6 +63,10 @@ export function toyPrompt(toy: Toy, state?: ToyState): string | null {
     case 'stones': return '[E] skip a stone';
     case 'campfire': return state?.kind === 'campfire' && state.lit ? '[E] put out the fire' : '[E] light the fire';
     case 'telescope': return '[E] look at the sky';
+    case 'shop': return '[E] browse the Boutique';
+    case 'board': return '[E] read the notice board';
+    case 'quotes': return '[E] pull a book off the shelf';
+    case 'coffee': return '[E] make a coffee';
     default: return null;
   }
 }
@@ -89,5 +94,9 @@ function build(toy: Toy, def: SceneDef, fx: ToyFx): ToyView {
     case 'rowboat': return rowboatView(toy);
     case 'campfire': return campfireView();
     case 'telescope': return telescopeView();
+    case 'shop': return shopView();
+    case 'board': return boardView();
+    case 'quotes': return quotesView();
+    case 'coffee': return coffeeView();
   }
 }

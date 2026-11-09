@@ -15,6 +15,7 @@ describe('toy handlers', () => {
     ['merryGoRound', ['push']], ['slide', ['slide']], ['piano', ['note']], ['jukebox', ['next']],
     ['ducks', ['feed']], ['fountain', ['coin']], ['bell', ['ring']], ['chimes', ['ring']],
     ['stones', ['skip']], ['campfire', ['toggle']], ['swing', []], ['seesaw', []], ['telescope', []], ['rowboat', []],
+    ['shop', []], ['board', []], ['quotes', []], ['coffee', []],
   ] as [ToyKind, string[]][])('%s accepts %j', (kind, actions) => {
     expect(HANDLERS[kind].actions).toEqual(actions);
   });

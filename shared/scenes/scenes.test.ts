@@ -73,10 +73,9 @@ describe('scene data', () => {
     }
   });
 
-  it('the town is 120 x 90 with every kind of toy', () => {
-    const town = SCENES.town;
-    expect(town.size).toEqual({ w: 120, d: 90 });
-    for (const k of TOY_KINDS) expect(town.toys.some((t) => t.kind === k), k).toBe(true);
+  it('the town is 120 x 90 and every kind of toy is somewhere', () => {
+    expect(SCENES.town.size).toEqual({ w: 120, d: 90 });
+    for (const k of TOY_KINDS) expect(scenes.some((s) => s.toys.some((t) => t.kind === k)), k).toBe(true);
   });
 
   it('boats moor on the water, sailboats sail on it, landings are on shore', () => {

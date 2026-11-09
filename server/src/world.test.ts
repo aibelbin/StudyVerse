@@ -107,7 +107,7 @@ describe('sessions', () => {
     expect(a.feed()).toContain('📚 Sam started a 25 min session in town');
     t += 25 * MIN; w.tick();
     expect(w.view('a')!.session!.phase).toBe('break');
-    expect(a.feed()).toContain('✨ Sam finished a 25 min session!');
+    expect(a.feed()).toContain('✨ Sam finished a 25 min session! (+30 KP)');
     t += 5 * MIN; w.tick();
     expect(w.view('a')!.session).toBeNull();
   });

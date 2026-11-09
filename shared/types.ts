@@ -55,3 +55,27 @@ export interface FeedEvent {
 }
 
 export type EmoteKind = 'wave' | 'clap' | 'flex' | 'coffee';
+
+export type PetKind = 'duckling' | 'kitten' | 'bunny' | 'frog';
+
+export interface PetInfo {
+  kind: PetKind;
+  name: string;
+}
+
+/** Private to its owner: Knowledge Points, streak, wardrobe items and pets owned. */
+export interface Wallet {
+  kp: number;
+  streak: number;
+  owned: string[];
+  pets: PetKind[];
+  pet: PetInfo | null;
+}
+
+export interface Note {
+  id: number;
+  authorId: string;
+  name: string;
+  text: string;
+  at: number;
+}

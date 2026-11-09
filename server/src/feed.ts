@@ -20,7 +20,8 @@ export const feedText = {
   arrive: (name: string) => `🌷 ${name} arrived`,
   leave: (name: string) => `👋 ${name} headed home`,
   start: (name: string, min: number, where: string) => `📚 ${name} started a ${min} min session ${where}`,
-  finish: (name: string, min: number) => `✨ ${name} finished a ${min} min session!`,
+  finish: (name: string, min: number, kp: number, streak: number) =>
+    `✨ ${name} finished a ${min} min session! (+${kp} KP${streak > 1 ? `, 🔥${streak}-day streak` : ''})`,
   quit: (name: string, elapsed: number, total: number) => `🥀 ${name} left ${elapsed} min into a ${total} min session`,
   quitDisconnect: (name: string, elapsed: number, total: number) =>
     `🥀 ${name} disconnected and didn't come back, ${elapsed} min into a ${total} min session`,

@@ -1,5 +1,5 @@
 import type { ToyAction, ToyState } from './toys';
-import type { Anim, EmoteKind, FeedEvent, Look, OnlineEntry, PlayerView } from './types';
+import type { Anim, EmoteKind, FeedEvent, Look, OnlineEntry, PlayerView, Wallet } from './types';
 
 export type ClientMsg =
   | { t: 'hello'; token?: string; inviteCode?: string; name?: string; look?: Look }
@@ -11,7 +11,8 @@ export type ClientMsg =
   | { t: 'cancelSession' }
   | { t: 'emote'; kind: EmoteKind; targetId?: string }
   | { t: 'updateLook'; look: Look }
-  | { t: 'use'; toyId: string; action: ToyAction; arg?: number };
+  | { t: 'use'; toyId: string; action: ToyAction; arg?: number }
+  | { t: 'buy'; itemId: string };
 
 export type ErrorCode =
   | 'bad_invite'
@@ -23,7 +24,10 @@ export type ErrorCode =
   | 'bad_session'
   | 'bad_door'
   | 'connected_elsewhere'
-  | 'bad_toy';
+  | 'bad_toy'
+  | 'bad_look'
+  | 'bad_item'
+  | 'no_kp';
 
 export type ServerMsg =
   | {
@@ -35,6 +39,9 @@ export type ServerMsg =
       online: OnlineEntry[];
       feed: FeedEvent[];
       toys: Record<string, ToyState>;
+      wallet: Wallet;
+      /** The whole town's focus minutes today (the knowledge tree). */
+      treeMinutes: number;
     }
   | { t: 'error'; code: ErrorCode; message: string }
   | { t: 'sceneSnapshot'; scene: string; you: PlayerView; players: PlayerView[]; toys: Record<string, ToyState> }
@@ -46,4 +53,6 @@ export type ServerMsg =
   | { t: 'online'; list: OnlineEntry[] }
   | { t: 'feed'; event: FeedEvent }
   | { t: 'toyEvent'; toyId: string; by: string; action: ToyAction; arg?: number; at: number }
-  | { t: 'toyState'; toyId: string; state: ToyState };
+  | { t: 'toyState'; toyId: string; state: ToyState }
+  | { t: 'wallet'; wallet: Wallet }
+  | { t: 'tree'; minutes: number };

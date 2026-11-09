@@ -1,10 +1,12 @@
 import { cafeTable, merge, plant } from './kit';
+import { simpleToy } from './kitToys';
 import type { SceneDef } from './types';
 
 const parts = merge(
   cafeTable('cafe-1', -4.5, -0.5), cafeTable('cafe-2', -1.5, -0.5), cafeTable('cafe-3', 1.5, -0.5), cafeTable('cafe-4', 4.5, -0.5),
   cafeTable('cafe-5', -4.5, 2.6), cafeTable('cafe-6', 4.5, 2.6),
   plant(-6.4, -4.4), plant(6.4, -4.4), plant(6.4, 4.4), plant(-6.4, 4.4),
+  simpleToy('coffee', 'coffee', -2.8, -2.6, 1.5),
   {
     decor: [
       { kind: 'counter', x: -1, z: -3.6, w: 6, d: 0.9 },

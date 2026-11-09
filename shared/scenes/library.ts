@@ -1,4 +1,5 @@
 import { bookshelf, merge, plant, studyDesk } from './kit';
+import { simpleToy } from './kitToys';
 import type { SceneDef } from './types';
 
 const parts = merge(
@@ -7,6 +8,7 @@ const parts = merge(
   bookshelf(-6, -5.6), bookshelf(-3, -5.6), bookshelf(3, -5.6), bookshelf(6, -5.6),
   bookshelf(-7.6, 0, 3, Math.PI / 2), bookshelf(7.6, 0, 3, -Math.PI / 2),
   plant(-7.3, -4.3), plant(7.3, -4.3), plant(-7.3, 4.6), plant(7.3, 4.6),
+  simpleToy('quotes', 'quotes', -6, -4.9, 1.4),
   {
     decor: [
       { kind: 'window', x: 0, z: -5.95, w: 2.2, y: 0 },

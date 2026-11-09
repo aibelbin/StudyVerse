@@ -6,7 +6,7 @@ import { getScene } from '../../../shared/scenes';
 import { SLIDE_RUN } from '../../../shared/scenes/kitToys';
 import type { SceneDef, Slot, Toy } from '../../../shared/scenes/types';
 import {
-  angleDelta, BOAT_SPEED, boatOnWater, boatPoseAt, slotWorld, type BoatPose, type ToyAction, type ToyState,
+  angleDelta, BOAT_SPEED, boatOnWater, boatPoseAt, LOCAL_TOYS, slotWorld, type BoatPose, type ToyAction, type ToyState,
 } from '../../../shared/toys';
 import type { EmoteKind, PlayerView } from '../../../shared/types';
 import type { SoundKind } from '../audio/kinds';
@@ -24,6 +24,7 @@ import { CameraRig } from './cameraRig';
 import { serverNow, syncClock } from './clock';
 import { Input } from './input';
 import { pickTarget, type PlacedSlot, type Target } from './interaction';
+import { QUOTES } from './quotes';
 import { Fade } from './transition';
 
 interface Remote {
@@ -64,6 +65,8 @@ const ROW_TURN = 2.5; // rad/s
 
 export class Game {
   hooks: GameHooks = { sound() {}, feedDucks() {}, frame() {}, enterScene() {} };
+  /** E on a toy that opens something on this screen only (Boutique, notice board, coffee machine). */
+  onLocalToy: (toy: Toy) => void = () => {};
 
   private renderer: THREE.WebGLRenderer;
   private rig = new CameraRig();
@@ -494,6 +497,11 @@ export class Game {
     }
     if (t.kind === 'toy') {
       if (t.toy.kind === 'telescope') return this.setTelescope(true);
+      if (t.toy.kind === 'quotes') {
+        this.fx.say(this.me.id, QUOTES[Math.floor(Math.random() * QUOTES.length)]);
+        return;
+      }
+      if (LOCAL_TOYS.includes(t.toy.kind)) return this.onLocalToy(t.toy);
       const action = TOY_DEFAULT_ACTION[t.toy.kind];
       if (!action) return;
       this.sendMove(performance.now());
