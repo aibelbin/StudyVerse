@@ -10,7 +10,7 @@ export function worldToMap(x: number, z: number, size: Bounds, w: number, h: num
 const ICONS: Partial<Record<ToyKind, string>> = {
   piano: '🎹', jukebox: '🎵', fountain: '⛲', bell: '🔔', chimes: '🎐', campfire: '🔥', telescope: '🔭',
   ducks: '🦆', swing: '🛝', merryGoRound: '🎠', stones: '🪨', slide: '🛝', seesaw: '⚖️',
-  shop: '👕', board: '📌', quotes: '📖', coffee: '☕',
+  shop: '👕', board: '📌', quotes: '📖', coffee: '☕', koi: '🎏', cushions: '🧘', drums: '🎤',
 };
 
 export interface MapDot {
@@ -91,6 +91,15 @@ export class Minimap {
     }
     for (const d of def.decor) {
       if (d.kind === 'dock') rect(d.x, d.z, d.w ?? 2, d.d ?? 8, '#c99a6e');
+      else if (d.kind === 'stage') rect(d.x, d.z, d.w ?? 8, d.d ?? 5, '#c99a6e');
+      else if (d.kind === 'gravel') rect(d.x, d.z, d.w ?? 2, d.d ?? 2, '#ece4d4');
+      else if (d.kind === 'pond') {
+        const p = m(d.x, d.z);
+        g.fillStyle = '#8fd0e8';
+        g.beginPath();
+        g.ellipse(p.u, p.v, ((d.w ?? 4) / 2) * k, ((d.d ?? 3) / 2) * k, 0, 0, Math.PI * 2);
+        g.fill();
+      }
       else if (d.kind === 'hedge') rect(d.x, d.z, d.w ?? 1, d.d ?? 1, '#4f9e6a');
       else if (d.kind === 'building') rect(d.x, d.z, d.w ?? 6, d.d ?? 5, d.accent ?? '#9c6f4c');
       else if (d.kind === 'desk' || d.kind === 'counter') rect(d.x, d.z, d.w ?? 1.4, d.d ?? 0.8, '#b58860');

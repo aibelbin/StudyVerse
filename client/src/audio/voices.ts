@@ -4,6 +4,18 @@ type Voice = (c: AudioContext, out: AudioNode, arg?: number, at?: number) => voi
 
 const SCALE = [261.63, 293.66, 329.63, 349.23, 392.0, 440.0, 493.88, 523.25]; // C4..C5
 
+/** The guitar's eight chords (C G Am F Dm Em D E) as frequencies, low to high. */
+export const CHORDS: number[][] = [
+  [130.81, 164.81, 196.0, 261.63, 329.63],
+  [98.0, 123.47, 146.83, 196.0, 246.94],
+  [110.0, 164.81, 220.0, 261.63, 329.63],
+  [87.31, 130.81, 174.61, 220.0, 261.63],
+  [146.83, 220.0, 293.66, 349.23],
+  [82.41, 123.47, 164.81, 196.0, 246.94],
+  [146.83, 220.0, 293.66, 369.99],
+  [82.41, 123.47, 164.81, 207.65, 246.94],
+];
+
 function env(c: AudioContext, out: AudioNode, at: number, peak: number, attack: number, decay: number): GainNode {
   const g = c.createGain();
   g.gain.setValueAtTime(0, at);
@@ -100,6 +112,67 @@ export const VOICES: Record<SoundKind, Voice> = {
         o.start(at + d);
         o.stop(at + d + 0.2);
       }
+    }
+  },
+  /** Kit pieces 0..7: kick, snare, closed hat, open hat, high tom, low tom, crash, clap. */
+  drum(c, out, arg = 0, at = c.currentTime) {
+    switch (arg) {
+      case 0: chirp(c, out, 150, 45, at, 0.55, 0.32); break;
+      case 1: chirp(c, out, 220, 120, at, 0.2, 0.1, 'triangle'); burst(c, out, at, 2500, 0.8, 0.35, 0.18); break;
+      case 2: burst(c, out, at, 8000, 1.5, 0.16, 0.05); break;
+      case 3: burst(c, out, at, 7500, 1.2, 0.14, 0.35); break;
+      case 4: chirp(c, out, 260, 160, at, 0.35, 0.25); break;
+      case 5: chirp(c, out, 160, 90, at, 0.4, 0.35); break;
+      case 6: burst(c, out, at, 5500, 0.6, 0.2, 1.4); burst(c, out, at, 9000, 0.9, 0.08, 1.1); break;
+      default: for (const d of [0, 0.012, 0.024]) burst(c, out, at + d, 1400, 1.4, 0.22, 0.09);
+    }
+  },
+  /** A downstrum of one of eight chords: plucked saw strings, slightly staggered. */
+  strum(c, out, arg = 0, at = c.currentTime) {
+    CHORDS[Math.max(0, Math.min(7, arg))].forEach((f, i) => {
+      const o = c.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = f;
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(2600, at + i * 0.018);
+      lp.frequency.exponentialRampToValueAtTime(500, at + i * 0.018 + 0.9);
+      o.connect(lp).connect(env(c, out, at + i * 0.018, 0.07, 0.004, 1.6));
+      o.start(at + i * 0.018);
+      o.stop(at + i * 0.018 + 1.7);
+    });
+  },
+  /** A soft synth pad note: detuned saws through a gentle lowpass, slow attack. */
+  pad(c, out, arg = 0, at = c.currentTime) {
+    const f = SCALE[Math.max(0, Math.min(7, arg))];
+    for (const d of [-8, 0, 8]) {
+      const o = c.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = f;
+      o.detune.value = d;
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 900;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0, at);
+      g.gain.linearRampToValueAtTime(0.05, at + 0.12);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 1.8);
+      o.connect(lp).connect(g).connect(out);
+      o.start(at);
+      o.stop(at + 1.9);
+    }
+  },
+  /** A short ripple of hand claps. */
+  applause(c, out, _arg, at = c.currentTime) {
+    for (let i = 0; i < 14; i++) burst(c, out, at + i * 0.07 + Math.random() * 0.05, 1100 + Math.random() * 900, 1.2, 0.12, 0.06);
+  },
+  /** Stone on stone: one click (arg 0), or a whole cairn coming down (arg 1). */
+  clatter(c, out, arg = 0, at = c.currentTime) {
+    const n = arg ? 10 : 1;
+    for (let i = 0; i < n; i++) {
+      const d = arg ? i * 0.06 + Math.random() * 0.08 : 0;
+      burst(c, out, at + d, 1800 + Math.random() * 1500, 3, arg ? 0.18 : 0.22, 0.05);
+      chirp(c, out, 900 + Math.random() * 600, 500, at + d, 0.05, 0.04, 'triangle');
     }
   },
   quack(c, out, _arg, at = c.currentTime) {

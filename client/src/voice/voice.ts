@@ -1,5 +1,7 @@
 import type { IceServer } from '../../../shared/protocol';
+import type { SceneDef } from '../../../shared/scenes/types';
 import { audioCtx, gainForDistance, panFor } from '../audio/engine';
+import { stageGain } from '../toys/parkMath';
 
 /** Someone who could be on the call: where they are and whether they've opted in. */
 export interface VoicePeerInfo {
@@ -35,6 +37,8 @@ export function wantsLink(me: { voice: boolean; dnd: boolean }, other: { voice: 
 export class Voice {
   stream: MediaStream | null = null;
   muted = false;
+  /** The current scene's stage, if any (set by the game on entering a scene). */
+  stage: SceneDef['stage'];
   private peers = new Map<string, Peer>();
   private speaking = new Set<string>();
   private localAnalyser: AnalyserNode | null = null;
@@ -91,8 +95,10 @@ export class Voice {
     for (const o of others) {
       const p = this.peers.get(o.id);
       if (!p?.gain || !p.pan) continue;
-      p.gain.gain.setTargetAtTime(gainForDistance(Math.hypot(o.x - me.x, o.z - me.z)), c.currentTime, 0.1);
-      p.pan.pan.setTargetAtTime(panFor(o.x - me.x), c.currentTime, 0.1);
+      const normal = gainForDistance(Math.hypot(o.x - me.x, o.z - me.z));
+      const g = stageGain(this.stage, o, me, normal); // the stage carries to every seat
+      p.gain.gain.setTargetAtTime(g, c.currentTime, 0.1);
+      p.pan.pan.setTargetAtTime(g !== normal ? 0 : panFor(o.x - me.x), c.currentTime, 0.1);
       if (p.analyser && rms(p.analyser, this.buf) > SPEAK_RMS) this.speaking.add(o.id);
     }
   }

@@ -35,7 +35,7 @@ One process serves the page and the WebSocket (`/ws`). Profiles are stored in `d
 | W/S, A/D | in a truck: throttle and brake/reverse, steer |
 | E | sit / stand / use a toy / say hi to someone nearby |
 | Space | start a study session (at a desk, café table or bench) |
-| 1–8 | play notes while sitting at the piano |
+| 1–8 | play the piano, or the stage drums, guitar and keyboard, from their seats |
 | H | honk (in a truck) |
 | C | sip your drink (four sips per cup) |
 | G | offer your drink to someone nearby (they get Accept / No thanks, or Y / N) |
@@ -71,8 +71,8 @@ TURN server for friends behind strict networks.
 
 ## The town
 
-A 150×100 town with a square (Library, Café, bandstand piano, fountain, bell, jukebox, Boutique, notice board,
-knowledge tree), car parks by the Library and the Café with four trucks, cones and crates to knock over, a lake with a dock and two rowboats, woods with a campfire, a park with wind chimes and a telescope, and a playground (swings, seesaw,
+A 150×130 town with a square (Library, Café, bandstand piano, fountain, bell, jukebox, Boutique, notice board,
+knowledge tree), car parks by the Library and the Café with four trucks, cones and crates to knock over, a lake with a dock and two rowboats, woods with a campfire, a park with wind chimes, a telescope and a zen corner, an open-air stage in the south, and a playground (swings, seesaw,
 merry-go-round, slide). Toys are shared: friends see and hear them. Ducks, fish, frogs, birds, insects, sailboats
 and clouds wander around on their own, and the sky follows your local clock (stars and fireflies at night).
 All art is procedural and all sound is synthesized in the browser; 🔊 in the status panel mutes it.
@@ -81,6 +81,17 @@ Trucks drive on real physics: [Rapier](https://rapier.rs)'s ray-cast vehicle wit
 [folio-2025](https://github.com/brunosimon/folio-2025) (springy suspension, grip and drift, idle and reverse
 braking). Only the driver's browser simulates; the engine loads the first time you take the wheel. A truck stays
 where you leave it, and one left outside a bay for 10 minutes parks itself.
+
+The **zen corner** has a koi pond with a red bridge (E at the edge tosses food and the koi race over), cherry
+trees, lanterns and picnic blankets. Sit on one of the five cushions for a five-minute breather: everyone on the
+ring breathes to the same circle, and finishing earns 3 ✨ KP plus 1 per companion (up to 3 more), once an hour.
+The shared cairn takes one stone per person every five seconds, wobbles as it grows and topples more often the
+taller it is. Its record and who placed the top stone are saved.
+
+The **open-air stage** carries the voice of anyone standing on it to everyone in its 18 seats at full volume.
+Sit at the drums, guitar (chords) or keyboard and play with 1–8. Spotlights come on when someone's on stage,
+claps and cheers from the seats sound like applause, and E at the board behind the stage puts up a line for
+everyone (it stays two hours).
 
 The Café's coffee machine is a little barista game: grind, tamp, pull the shot, steam the milk, pour to the line
 and trace latte art. Your score sets the stars on the cup you carry.

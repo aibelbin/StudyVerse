@@ -208,10 +208,9 @@ export function fireflies(zone: LifeZone): LifeSystem {
 }
 
 /** Leaves drifting down under the trees, on a loop. */
-export function leaves(zone: LifeZone): LifeSystem {
+export function leaves(zone: LifeZone, colors = ['#f2a65a', '#e8c35a', '#d9774a', '#9bd48a']): LifeSystem {
   const n = zone.count;
   const inst = new Instances(new THREE.PlaneGeometry(0.16, 0.12), new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }), n);
-  const colors = ['#f2a65a', '#e8c35a', '#d9774a', '#9bd48a'];
   for (let i = 0; i < n; i++) inst.color(i, colors[i % colors.length]);
   return {
     root: inst.mesh,

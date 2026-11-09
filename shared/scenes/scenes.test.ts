@@ -177,6 +177,11 @@ describe('car parks', () => {
       expect(inBox(st.stage, st.audience.x, st.audience.z)).toBe(false);
     });
 
+    it('scatters no rocks or grass on the stage or in the zen corner', () => {
+      const tidy = [{ x: -30, z: 50, w: 22, d: 18 }, { x: -32, z: 25, w: 14, d: 12 }];
+      expect(town.decor.filter((d) => (d.kind === 'rock' || d.kind === 'grass') && inBoxes(tidy, d.x, d.z))).toHaveLength(0);
+    });
+
     it('keeps the zen corner and stage off the paths and inside the map', () => {
       for (const t of town.toys.filter((x) => /^(zen|stage)-/.test(x.id))) {
         expect(inBoxes(PATHS, t.x, t.z), t.id).toBe(false);

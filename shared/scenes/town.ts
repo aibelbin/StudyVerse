@@ -6,8 +6,8 @@ import { meadows } from './town/meadows';
 import { park } from './town/park';
 import { parking } from './town/parking';
 import { playground } from './town/playground';
-import { inAny, PATHS, scatter, TOWN_DZ } from './town/scatter';
-import { south } from './town/south';
+import { inAny, PATHS, scatter, TOWN_DZ, ZEN_BOX } from './town/scatter';
+import { south, STAGE_BOX } from './town/south';
 import { STAGE } from './town/stage';
 import { square, squareDoors, squareSpawns } from './town/square';
 import { woods } from './town/woods';
@@ -31,7 +31,8 @@ const MAP = { x: 0, z: 0, w: 144, d: 124 };
 const lots = zones.decor.filter((d) => d.kind === 'parking').map((d) => ({ x: d.x, z: d.z, w: d.w ?? 0, d: d.d ?? 0 }));
 const free = (pad: number) => (x: number, z: number) =>
   !inAny(PATHS, x, z, pad) && !inAny(zones.colliders, x, z, pad) && !inAny(lots, x, z, pad) && !pointInPolygon(townWater.outline, x, z)
-  && !zones.toys.some((t) => Math.hypot(t.x - x, t.z - z) < t.radius + 0.5);
+  && !zones.toys.some((t) => Math.hypot(t.x - x, t.z - z) < t.radius + 0.5)
+  && !inAny([STAGE_BOX, ZEN_BOX], x, z, pad); // keep the stage and the zen corner tidy
 
 const grass: Decor[] = scatter(9001, 1100, MAP, free(0.3)).map(([x, z], i) => ({ kind: 'grass', x, z, seed: i }));
 const rocks: Decor[] = scatter(9002, 110, MAP, free(0.8)).map(([x, z], i) => ({ kind: 'rock', x, z, rot: i * 1.7, seed: 50 + i }));

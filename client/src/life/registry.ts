@@ -25,6 +25,7 @@ export function buildLife(def: SceneDef): { root: THREE.Group; update(ctx: LifeC
       case 'birds': systems.push(birds(z, def)); break;
       case 'fireflies': systems.push(fireflies(z)); break;
       case 'leaves': systems.push(leaves(z)); break;
+      case 'petals': systems.push(leaves(z, ['#f7b7c8', '#fde0e8', '#f2a2b8', '#ffffff'])); break;
       case 'ladybugs': case 'snails': systems.push(crawlers(z, z.kind)); break;
     }
   }

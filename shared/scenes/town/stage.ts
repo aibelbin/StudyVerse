@@ -6,6 +6,8 @@ import type { Decor, Slot } from '../types';
 // The open-air stage, in final town coordinates (inside STAGE_BOX). The stage is north of its
 // seats so performers face south, towards the audience and the camera.
 const CX = -30;
+/** The stage floor height (the client's STAGE_FLOOR), so stage props stand on it. */
+const STAGE_FLOOR_Y = 0.33;
 const CZ = 46;
 export const STAGE: { stage: Box; audience: Box; screen: { x: number; z: number } } = {
   stage: { x: CX, z: CZ, w: 8, d: 5 },
@@ -37,7 +39,7 @@ function instrument(kind: ToyKind, x: number): Partial<Parts> {
   return {
     toys: [{ id, kind, x, z: z + 0.75, rot: 0, radius: 1.6, slotIds: [`${id}-stool`] }],
     slots: [{ id: `${id}-stool`, x, z, facing: 0, pose: 'sit', toyId: id }],
-    decor: [{ kind: 'stool', x, z }],
+    decor: [{ kind: 'stool', x, z, y: STAGE_FLOOR_Y }],
     colliders: [{ x, z: z + 0.8, w: 1.1, d: 0.5 }],
   };
 }

@@ -7,6 +7,7 @@ import { merryGoRoundView, seesawView, slideView, swingView } from './playground
 import { boardView, coffeeView, quotesView, shopView } from './local';
 import { campfireView, telescopeView } from './misc';
 import { truckView } from './truck';
+import { cairnView, cushionsView, drumsView, guitarView, keysView, koiView, stageScreenView } from './park';
 import { ducksView, fountainView, rowboatView, stonesView } from './water';
 
 export interface ToyCtx {
@@ -47,7 +48,7 @@ export interface ToyView {
 /** What pressing E on the toy (not one of its seats) does. */
 export const TOY_DEFAULT_ACTION: Partial<Record<ToyKind, ToyAction>> = {
   merryGoRound: 'push', slide: 'slide', jukebox: 'next', ducks: 'feed', fountain: 'coin',
-  bell: 'ring', chimes: 'ring', stones: 'skip', campfire: 'toggle',
+  bell: 'ring', chimes: 'ring', stones: 'skip', campfire: 'toggle', koi: 'feed', cairn: 'stack',
 };
 
 /** HUD prompt for pressing E on the toy itself, or null if it is only something you sit in. */
@@ -70,6 +71,9 @@ export function toyPrompt(toy: Toy, state?: ToyState): string | null {
     case 'board': return '[E] read the notice board';
     case 'quotes': return '[E] pull a book off the shelf';
     case 'coffee': return '[E] make a coffee';
+    case 'koi': return '[E] feed the koi';
+    case 'cairn': return '[E] add a stone to the cairn';
+    case 'stageScreen': return '[E] change the stage screen';
     default: return null;
   }
 }
@@ -102,5 +106,12 @@ function build(toy: Toy, def: SceneDef, fx: ToyFx): ToyView {
     case 'quotes': return quotesView();
     case 'coffee': return coffeeView();
     case 'truck': return truckView(toy, fx);
+    case 'koi': return koiView(toy, fx);
+    case 'cairn': return cairnView(toy, fx);
+    case 'cushions': return cushionsView();
+    case 'drums': return drumsView(toy, fx);
+    case 'guitar': return guitarView(toy, fx);
+    case 'keys': return keysView(toy, fx);
+    case 'stageScreen': return stageScreenView();
   }
 }

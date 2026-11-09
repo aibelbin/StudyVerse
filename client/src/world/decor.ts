@@ -496,6 +496,142 @@ const builders: Record<DecorKind, Builder> = {
     const o = mesh(sph(r, 2), mat(P.leaf3, 1), 0, -r * 0.88, 0, false);
     return group(o);
   },
+
+  cherry(d, r) {
+    const s = d.h ?? 1;
+    const g = group(mesh(cyl(0.11 * s, 0.17 * s, 1.4 * s, 8), mat('#7a5446'), 0, 0.7 * s, 0));
+    const pinks = ['#f7b7c8', '#f9c9d6', '#f2a2b8', '#fde0e8'];
+    for (let i = 0; i < 5; i++) {
+      g.add(mesh(sph((0.5 + r() * 0.3) * s), mat(pinks[i % 4]), (r() - 0.5) * 1.1 * s, (1.6 + r() * 0.6) * s, (r() - 0.5) * 1.1 * s));
+    }
+    return g;
+  },
+
+  /** A low red arched bridge running along z: deck, side rails with an arch, and posts. */
+  bridge(d) {
+    const len = d.d ?? 7;
+    const w = d.w ?? 1.7;
+    const red = mat('#c8503f');
+    const g = group(mesh(box(w, 0.1, len), mat('#9a6a4f'), 0, 0.14, 0));
+    for (const x of [-w / 2, w / 2]) {
+      const n = 9;
+      for (let i = 0; i < n; i++) {
+        const u = i / (n - 1);
+        const z = -len / 2 + u * len;
+        const arch = Math.sin(u * Math.PI) * 0.35;
+        g.add(mesh(box(0.08, 0.55 + arch, 0.08), red, x, (0.55 + arch) / 2 + 0.1, z));
+      }
+      const rail = mesh(box(0.1, 0.08, len), red, x, 0.75, 0);
+      g.add(rail);
+      const top = new THREE.Mesh(new THREE.TorusGeometry(len / 2, 0.05, 6, 24, Math.PI), red);
+      top.rotation.y = Math.PI / 2;
+      top.scale.set(1, 0.1, 1);
+      top.position.set(x, 0.75, 0);
+      g.add(top);
+    }
+    return g;
+  },
+
+  /** Raked gravel: pale stone with combed lines. */
+  gravel(d) {
+    const w = d.w ?? 2;
+    const dd = d.d ?? 2;
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g2 = c.getContext('2d')!;
+    g2.fillStyle = '#e9e3d6';
+    g2.fillRect(0, 0, 64, 64);
+    g2.strokeStyle = '#d4ccbb';
+    g2.lineWidth = 2;
+    for (let y = 4; y < 64; y += 8) {
+      g2.beginPath();
+      g2.moveTo(0, y);
+      g2.lineTo(64, y);
+      g2.stroke();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(w / 1.2, dd / 1.2);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, dd), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.y = 0.02;
+    m.receiveShadow = true;
+    return group(m);
+  },
+
+  /** A checked picnic blanket. */
+  blanket(d, r) {
+    const w = d.w ?? 1.6;
+    const dd = d.d ?? 2.2;
+    const colors = ['#e46b6b', '#6b9be4', '#e4b86b', '#7cc47a'];
+    const col = pick(colors, r);
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g2 = c.getContext('2d')!;
+    g2.fillStyle = '#fffaf0';
+    g2.fillRect(0, 0, 64, 64);
+    g2.fillStyle = col;
+    g2.globalAlpha = 0.8;
+    for (let i = 0; i < 64; i += 16) {
+      g2.fillRect(i, 0, 8, 64);
+      g2.fillRect(0, i, 64, 8);
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(w / 0.8, dd / 0.8);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.03, dd), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }));
+    m.position.y = 0.02;
+    m.receiveShadow = true;
+    return group(m);
+  },
+
+  /** A stone lantern that glows at night like the street lamps. */
+  lantern() {
+    const stone = mat('#b9b2a6');
+    return group(
+      mesh(cyl(0.22, 0.26, 0.12, 6), stone, 0, 0.06, 0),
+      mesh(cyl(0.08, 0.1, 0.55, 6), stone, 0, 0.4, 0),
+      mesh(box(0.34, 0.26, 0.34), stone, 0, 0.8, 0),
+      mesh(box(0.2, 0.16, 0.36), glow(P.lampGlow, 1.6, 'street'), 0, 0.8, 0, false),
+      mesh(new THREE.ConeGeometry(0.34, 0.22, 4), stone, 0, 1.04, 0),
+    );
+  },
+
+  cushion(_d, r) {
+    const colors = ['#8fb8a8', '#c9a6d8', '#e8b48a', '#a7c4e8', '#e8a7b8'];
+    const m = mesh(sph(0.32, 2), mat(pick(colors, r)), 0, 0.1, 0);
+    m.scale.set(1, 0.32, 1);
+    return group(m);
+  },
+
+  /** The raised wooden stage with a darker front skirt and two steps. */
+  stage(d) {
+    const w = d.w ?? 8;
+    const dd = d.d ?? 5;
+    const g = group(mesh(box(w, 0.3, dd), mat('#b98a5e'), 0, 0.15, 0));
+    g.add(mesh(box(w + 0.1, 0.06, dd + 0.1), mat('#8a6040'), 0, 0.31, 0, false));
+    for (let i = -w / 2 + 0.5; i < w / 2; i += 1) g.add(mesh(box(0.02, 0.005, dd), mat('#a37650'), i, 0.345, 0, false));
+    g.add(mesh(box(2, 0.15, 0.5), mat('#a37650'), 0, 0.075, dd / 2 + 0.25));
+    return g;
+  },
+
+  /** One amphitheatre seat: a wooden block bench with a low back, facing rot. */
+  amphiSeat() {
+    return group(
+      mesh(box(0.9, 0.12, 0.45), mat(P.wood), 0, 0.42, 0),
+      mesh(box(0.8, 0.36, 0.3), mat('#a37650'), 0, 0.18, 0),
+      mesh(box(0.9, 0.3, 0.06), mat(P.wood), 0, 0.68, -0.2),
+    );
+  },
+
+  /** A spotlight on a pole; its beam is drawn by the stage effects, which switch it on and off. */
+  spotlight() {
+    const head = mesh(cyl(0.16, 0.24, 0.4, 10), mat(P.dark), 0, 3, 0.1);
+    head.rotation.x = 0.9;
+    return group(mesh(cyl(0.05, 0.07, 3, 8), mat(P.dark), 0, 1.5, 0), head);
+  },
 };
 
 /** The decor object at the origin, unrotated (used as an instancing template). */

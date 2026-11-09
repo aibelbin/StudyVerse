@@ -1,6 +1,6 @@
 import type { SceneDef } from '../../../shared/scenes/types';
 import type { AudioEngine, Emitter } from './engine';
-import { burst, chirp } from './voices';
+import { burst, chirp, tone } from './voices';
 
 /** Birdsong by day, crickets at night, water near the lake and crackle by a lit fire. */
 export class Ambience {
@@ -11,10 +11,16 @@ export class Ambience {
   private nextCrackle = 0;
   private nextLap = 0;
   private fireSpot: { x: number; z: number } | null;
+  private pond: Emitter | null = null;
+  private pondSpot: { x: number; z: number } | null;
+  private nextTrickle = 0;
+  private nextChime = 0;
 
   constructor(private engine: AudioEngine, private def: SceneDef) {
     const f = def.toys.find((t) => t.kind === 'campfire');
     this.fireSpot = f ? { x: f.x, z: f.z } : null;
+    const k = def.toys.find((t) => t.kind === 'koi');
+    this.pondSpot = k ? { x: k.x, z: k.z } : null;
   }
 
   update(night: number, fireLit: boolean, me: { x: number; z: number }): void {
@@ -47,6 +53,22 @@ export class Ambience {
         if (now > this.nextLap) {
           this.nextLap = now + 0.7 + Math.random() * 0.8;
           burst(c, this.water.input, now, 500 + Math.random() * 300, 0.6, 0.05, 0.9);
+        }
+      }
+    }
+
+    if (this.pondSpot) {
+      // The koi pond: a soft trickle and, now and then, a few quiet chime notes.
+      this.pond ??= this.engine.emitter(this.pondSpot.x, this.pondSpot.z);
+      if (this.pond) {
+        if (now > this.nextTrickle) {
+          this.nextTrickle = now + 0.12 + Math.random() * 0.2;
+          burst(c, this.pond.input, now, 2400 + Math.random() * 2400, 3, 0.025, 0.12);
+        }
+        if (now > this.nextChime) {
+          this.nextChime = now + 6 + Math.random() * 8;
+          const penta = [1046.5, 1174.7, 1318.5, 1568, 1760];
+          for (let i = 0; i < 3; i++) tone(c, this.pond.input, 'sine', penta[Math.floor(Math.random() * penta.length)], now + i * 0.25, 0.03, 2.2);
         }
       }
     }

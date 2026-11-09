@@ -17,13 +17,13 @@ export class Floaters {
     });
   }
 
-  ring(x: number, z: number, now: number, delay = 0, size = 0.9): void {
+  ring(x: number, z: number, now: number, delay = 0, size = 0.9, y = 0.06): void {
     const m = new THREE.Mesh(
       new THREE.RingGeometry(0.85, 1, 24),
       new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.8, depthWrite: false }),
     );
     m.rotation.x = -Math.PI / 2;
-    m.position.set(x, 0.06, z);
+    m.position.set(x, y, z);
     m.visible = false;
     this.add(m, now + delay, 900, (o, k) => {
       const s = 0.1 + k * size;

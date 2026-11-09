@@ -35,6 +35,9 @@ import { QUOTES } from './quotes';
 import { Fade } from './transition';
 import type { Voice } from '../voice/voice';
 import { LocalPet } from '../pets/controller';
+import { BreathOverlay } from '../hud/breath';
+import { floorY } from '../toys/parkMath';
+import { StageFx } from '../world/stageFx';
 import { PetModel } from '../pets/model';
 
 interface Remote {
@@ -48,7 +51,12 @@ interface SceneRuntime {
   built: BuiltScene;
   toys: Map<string, ToyView>;
   props: PropsView | null;
+  stageFx: StageFx | null;
 }
+
+/** Instruments you play from their seat with the number keys. */
+const PLAYABLE = new Set(['piano', 'drums', 'guitar', 'keys']);
+const INSTRUMENT_NAMES: Record<string, string> = { piano: 'piano', drums: 'drums', guitar: 'guitar', keys: 'keyboard' };
 
 /** Hooks later systems (audio, ambient life, sky) plug into. */
 export interface GameHooks {
@@ -116,6 +124,10 @@ export class Game {
   private rapierReady = false;
   /** E was pressed while rolling: brake, then hop out. */
   private exiting = false;
+  private breath = new BreathOverlay();
+  /** Server time you sat on a meditation cushion (null when not on one). */
+  private breathSitAt: number | null = null;
+  private breathDone = false;
   private sippedAt = 0;
   private night = 0;
   private timeOverride = new URLSearchParams(location.search).get('time');
@@ -244,8 +256,21 @@ export class Game {
         if (m.kind === 'coffee') c?.sip(performance.now());
         break;
       }
-      case 'act':
-        this.charOf(m.fromId)?.act(m.kind, performance.now());
+      case 'act': {
+        const ch = this.charOf(m.fromId);
+        ch?.act(m.kind, performance.now());
+        // Clapping or cheering from the stage seats is applause everyone hears.
+        const st = this.def?.stage;
+        if (ch && st && (m.kind === 'clap' || m.kind === 'cheer')) {
+          const p = ch.root.position;
+          if (inBox(st.audience, p.x, p.z)) this.fx.sound('applause', p.x, p.z);
+        }
+        break;
+      }
+      case 'meditated':
+        this.breathDone = true;
+        this.breath.hide();
+        this.hud.toast(m.kp ? `Breather done 🧘 +${m.kp} KP${m.companions ? ` (with ${m.companions})` : ''}` : 'Breather done 🧘 (KP again in a while)', 4000);
         break;
       case 'coffeeOffer':
         showGiftOffer(m.name, m.drink, m.stars, (accept) => this.send({ t: 'answerCoffee', fromId: m.fromId, accept }));
@@ -305,7 +330,9 @@ export class Game {
       if (this.def.toys.some((t) => t.kind === 'truck')) built.scene.add(truckDustRoot);
       const props = this.def.props?.length ? new PropsView(this.def.props) : null;
       if (props) built.scene.add(props.root);
-      rt = { built, toys, props };
+      const stageFx = this.def.stage ? new StageFx(this.def) : null;
+      if (stageFx) built.scene.add(stageFx.root);
+      rt = { built, toys, props, stageFx };
       this.runtimes.set(you.scene, rt);
       built.setTreeStage(treeStage(this.treeMinutes));
     }
@@ -331,6 +358,7 @@ export class Game {
     this.hud.closeCard();
     this.hooks.enterScene(this.def, rt.built);
     this.minimap.setScene(this.def);
+    if (this.voice) this.voice.stage = this.def.stage;
   }
 
   private addRemote(v: PlayerView): void {
@@ -499,10 +527,30 @@ export class Game {
     this.rt?.toys.get(toyId)?.onEvent?.({ action, arg, by }, this.toyCtx(toyId));
   }
 
+  toyState(id: string): ToyState | undefined {
+    return this.toyStates[id];
+  }
+
+  /** Shows the breathing circle while you're on a cushion and your breather isn't done yet. */
+  private updateBreath(slot: Slot | undefined, now: number): void {
+    const toy = slot?.toyId ? this.toyById(slot.toyId) : undefined;
+    if (!toy || toy.kind !== 'cushions') {
+      this.breathSitAt = null;
+      this.breathDone = false;
+      this.breath.hide();
+      return;
+    }
+    this.breathSitAt ??= now;
+    const ring = this.toyStates[toy.id];
+    if (this.breathDone || ring?.kind !== 'meditate' || ring.startedAt === null) return this.breath.hide();
+    const others = (toy.slotIds ?? []).filter((id) => id !== slot!.id && this.occupied.has(id)).length;
+    this.breath.update(now, ring.startedAt, this.breathSitAt, others);
+  }
+
   private playNote(i: number): void {
     const slot = this.me?.slotId ? this.slotById(this.me.slotId) : undefined;
     const toy = slot?.toyId ? this.toyById(slot.toyId) : undefined;
-    if (!toy || toy.kind !== 'piano' || this.hud.modalOpen()) return;
+    if (!toy || !PLAYABLE.has(toy.kind) || this.hud.modalOpen()) return;
     this.send({ t: 'use', toyId: toy.id, action: 'note', arg: i });
     this.rt?.toys.get(toy.id)?.onEvent?.({ action: 'note', arg: i, by: this.me!.id }, this.toyCtx(toy.id));
   }
@@ -804,8 +852,9 @@ export class Game {
       if (slot && !slot.deskId) {
         if (this.driving) return this.driving.kind === 'truck' ? '[W/S] drive · [A/D] steer · [H] honk · [E] hop out' : '[WASD] row · [E] get out';
         const toy = slot.toyId ? this.toyById(slot.toyId) : undefined;
-        if (toy?.kind === 'piano') return '[1–8] play · [E] stand up';
-        return '[E] hop off';
+        if (toy && PLAYABLE.has(toy.kind)) return '[1–8] play · [E] stand up';
+        if (toy?.kind === 'cushions') return this.breathDone ? '🧘 Done for now · [E] stand up' : 'Breathe along… [E] stand up';
+        return toy ? '[E] hop off' : '[E] stand up';
       }
       if (me.session?.phase === 'focus') return 'Focusing… [E] leave early';
       if (me.session?.phase === 'break') return '[Space] start another round · [E] stand up';
@@ -878,6 +927,7 @@ export class Game {
         r.char.pose = 'ride';
         if (s.done) this.sliding.delete(id);
       }
+      if (!slot && !slide) y = floorY(this.def, x, z);
       r.char.root.position.set(x, y, z);
       r.char.facing = facing;
       r.char.setDim(!r.view.connected);
@@ -917,8 +967,16 @@ export class Game {
         this.z = s.z;
         y = s.y;
       }
+    } else if (!mySlot) {
+      y = floorY(this.def, this.x, this.z);
     }
     c.root.position.set(this.x, y, this.z);
+    this.updateBreath(mySlot, sNow);
+    if (this.rt.stageFx && this.def.stage) {
+      const st = this.def.stage.stage;
+      const on = inBox(st, this.x, this.z) || [...this.remotes.values()].some((r) => inBox(st, r.char.root.position.x, r.char.root.position.z));
+      this.rt.stageFx.update(dt, on, this.night);
+    }
     c.facing = this.facing;
     c.overhead.setSession(this.me.session, sNow);
     c.overhead.setRain(this.me.rainUntil > sNow);
@@ -987,6 +1045,8 @@ function slotPrompt(slot: Slot, toy: Toy | undefined): string {
     case 'drive': return '[E] drive the truck';
     default:
       if (toy.kind === 'piano') return '[E] sit at the piano';
+      if (PLAYABLE.has(toy.kind)) return `[E] play the ${INSTRUMENT_NAMES[toy.kind]}`;
+      if (toy.kind === 'cushions') return '[E] sit and breathe (5 min)';
       if (toy.kind === 'campfire') return '[E] sit by the fire';
       if (toy.kind === 'rowboat' || toy.kind === 'truck') return '[E] hop in the back';
       return '[E] sit down';

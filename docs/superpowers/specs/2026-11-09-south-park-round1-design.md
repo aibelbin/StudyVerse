@@ -34,7 +34,7 @@ The park keeps its benches, telescope and chimes:
 
 ### 2.1 Scenery
 
-- **Pond:** an irregular koi pond about 9 × 6 m. It gets a new decor kind, `pond`: a polygon of water with stone edging, drawn on the minimap as water. It's solid for walkers, except where the bridge crosses.
+- **Pond:** an oval koi pond, 8 × 5.5 m. It reuses the existing `pond` decor (water with a stone rim), drawn on the minimap as water. It's solid for walkers, except where the bridge crosses. Food never lands under the bridge, so the koi stay visible.
 - **Bridge:** an arched red stone bridge over the pond, with a walkable deck.
 - **Trees and stones:** three cherry trees (a new tree kind, `cherry`, with pink canopies) and four stone lanterns that glow at night, like the existing lamps. Also rocks and two raked-gravel patches (a flat decor kind with a striped canvas texture).
 - **Picnic blankets:** two blankets with two seats each (`pose: 'sit'`).
@@ -115,8 +115,8 @@ The park keeps its benches, telescope and chimes:
 
 ### 3.1 Scenery
 
-- **Stage:** a raised wooden stage, about 8 × 5 m, with steps at the front. Performers face north.
-- **Seats:** three curved rows of benches north of the stage, 18 seats in a semicircle (`pose: 'sit'`).
+- **Stage:** a raised wooden stage, 8 × 5 m and 0.33 m high, with steps at the front. Performers face south, towards the audience and the fixed camera. This changed during the build: with the stage south of the seats, you'd only have seen performers' backs. People standing on the stage are drawn at its floor height.
+- **Seats:** three curved rows of seats south of the stage, 18 in a semicircle (`pose: 'sit'`).
 - **Scene data:** `SceneDef.stage?` is added:
 
   ```ts
