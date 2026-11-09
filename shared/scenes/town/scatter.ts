@@ -83,5 +83,7 @@ export const PATHS: Box[] = [
     if (i === 8) return { x: -45, z: 14.35, w: 2, d: 53.3 };   // park path, now on to the strip path
     return moved(b);
   }),
-  { x: -29.4, z: 40, w: 61.2, d: 2 },    // strip path: park path to south path, past the stage
+  { x: -26, z: 40, w: 68, d: 2 },        // strip path: park path, past the stage and the south path, to the golf course
+  { x: 39, z: 48, w: 62, d: 1.6 },       // mini-golf walkway between the two rows of holes
+  { x: 8, z: 44, w: 1.6, d: 8 },         // from the strip path to the walkway
 ];

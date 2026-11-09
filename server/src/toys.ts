@@ -33,6 +33,8 @@ export const HANDLERS: Record<ToyKind, ToyHandler> = {
   coffee: none,
   stageScreen: none,
   plot: { actions: [], init: () => emptyPlot(), apply: () => ({}) },
+  golfTee: none,
+  golfBoard: { actions: [], init: () => ({ kind: 'golfBoard', day: '', top: [], paid: [] }), apply: () => ({}) },
   cushions: {
     actions: [],
     init: () => ({ kind: 'meditate', startedAt: null }),

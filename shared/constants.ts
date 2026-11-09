@@ -47,3 +47,12 @@ export const PLOT_SPOTS = 4;                // planting spots per garden plot
 export const WATER_BOOST_MIN = 60;          // focus minutes a watering speeds up
 export const WATER_BOOST = 0.5;             // …by this much extra
 export const PLOT_IDLE_MS = 30 * 24 * 60 * 60_000; // a plot whose owner is away this long can be reclaimed
+
+export const GOLF_MAX_STROKES = 6;          // after this many putts you pick up…
+export const GOLF_PICKUP_SCORE = 7;         // …and score this
+export const GOLF_KP = 3;                   // a full round, once a day
+export const GOLF_PAR_KP = 6;               // …at or under par
+export const GOLF_TEE_RANGE = 3;
+export const GOLF_CUP_CHECK = 0.45;         // the last ball position must be this close to the cup
+export const GOLF_BALL_GAP_MS = 80;
+export const GOLF_MAX_SPEED = 10;           // m/s for a full-power putt

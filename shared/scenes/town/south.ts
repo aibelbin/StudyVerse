@@ -3,6 +3,7 @@ import { merge, type Parts } from '../kit';
 import type { Decor } from '../types';
 import { meadows } from './meadows';
 import { garden } from './garden';
+import { golf } from './golf';
 import { GARDEN_BOX, PATHS } from './scatter';
 import { stage } from './stage';
 import { zen } from './zen';
@@ -10,12 +11,10 @@ import { zen } from './zen';
 /** Ground the stage and its seats need (final town coordinates). */
 export const STAGE_BOX: Box = { x: -30, z: 50, w: 22, d: 18 };
 
-/** Open ground in the south strip, filled lightly like the other meadows. The east part waits for mini-golf. */
+/** Open ground in the south strip, filled lightly like the other meadows. The east part is the mini-golf course. */
 const STRIP_GAPS: Box[] = [
   { x: -58, z: 50, w: 28, d: 24 },
   { x: -10, z: 50, w: 16, d: 24 },
-  { x: 20, z: 49, w: 36, d: 26 },
-  { x: 55, z: 49, w: 34, d: 26 },
 ];
 
 /** A low ring of bushes marking the garden-plot ground, open on the side facing the park path. */
@@ -37,7 +36,7 @@ function gardenRing(): Decor[] {
 
 /** Everything added for the south strip and the park reserve, in final town coordinates. */
 export function south(placed: Parts, lake: [number, number][]): Parts {
-  const own = merge({ decor: gardenRing() }, garden, zen, stage);
+  const own = merge({ decor: gardenRing() }, garden, golf, zen, stage);
   const taken = merge(placed, own, { colliders: [STAGE_BOX] }); // keeps the meadow off the stage ground
   return merge(own, meadows(taken, lake, STRIP_GAPS, PATHS, 1500));
 }

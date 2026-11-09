@@ -30,6 +30,12 @@ export type ClientMsg =
   | { t: 'stageText'; text: string }
   | { t: 'garden'; toyId: string; action: GardenAction; spot?: number; flower?: Flower }
   | { t: 'buySeed'; flower: Flower }
+  | { t: 'golfTee'; hole: number }
+  | { t: 'golfShot'; hole: number; penalty?: boolean }
+  | { t: 'golfBall'; x: number; y: number; z: number }
+  | { t: 'golfHoled'; hole: number }
+  | { t: 'golfPickUp'; hole: number }
+  | { t: 'golfQuit' }
   | { t: 'offerCoffee'; to: string }
   | { t: 'answerCoffee'; fromId: string; accept: boolean }
   | { t: 'setVoice'; on: boolean }
@@ -58,7 +64,8 @@ export type ErrorCode =
   | 'chat_slow'
   | 'bad_chat'
   | 'bad_stage'
-  | 'bad_garden';
+  | 'bad_garden'
+  | 'bad_golf';
 
 export type ServerMsg =
   | { t: 'chat'; msg: ChatMsg }
@@ -69,6 +76,12 @@ export type ServerMsg =
   | { t: 'bloomed'; flower: Flower }
   /** Something happened in your garden while you were away from it (e.g. a friend watered it). */
   | { t: 'gardenNote'; text: string }
+  | { t: 'golfBall'; id: string; hole: number; x: number; y: number; z: number }
+  /** Someone finished a hole (strokes 7 = picked up). */
+  | { t: 'golfDone'; id: string; hole: number; strokes: number; holeInOne: boolean }
+  | { t: 'golfGone'; id: string }
+  /** Your scorecard: strokes per hole (null = not played yet this round). */
+  | { t: 'golfCard'; card: (number | null)[]; hole: number | null; strokes: number }
   | { t: 'coffeeAnswer'; name: string; accepted: boolean }
   /** Your breather on the cushions is done; kp is 0 if you already had one this hour. */
   | { t: 'meditated'; kp: number; companions: number }

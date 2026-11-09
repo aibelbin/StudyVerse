@@ -6,6 +6,7 @@ import { meadows } from './town/meadows';
 import { park } from './town/park';
 import { parking } from './town/parking';
 import { playground } from './town/playground';
+import { GOLF_BOX } from '../golf';
 import { inAny, PATHS, scatter, TOWN_DZ, ZEN_BOX } from './town/scatter';
 import { south, STAGE_BOX } from './town/south';
 import { STAGE } from './town/stage';
@@ -32,7 +33,7 @@ const lots = zones.decor.filter((d) => d.kind === 'parking').map((d) => ({ x: d.
 const free = (pad: number) => (x: number, z: number) =>
   !inAny(PATHS, x, z, pad) && !inAny(zones.colliders, x, z, pad) && !inAny(lots, x, z, pad) && !pointInPolygon(townWater.outline, x, z)
   && !zones.toys.some((t) => Math.hypot(t.x - x, t.z - z) < t.radius + 0.5)
-  && !inAny([STAGE_BOX, ZEN_BOX], x, z, pad); // keep the stage and the zen corner tidy
+  && !inAny([STAGE_BOX, ZEN_BOX, GOLF_BOX], x, z, pad); // keep the stage, the zen corner and the golf course tidy
 
 const grass: Decor[] = scatter(9001, 1100, MAP, free(0.3)).map(([x, z], i) => ({ kind: 'grass', x, z, seed: i }));
 const rocks: Decor[] = scatter(9002, 110, MAP, free(0.8)).map(([x, z], i) => ({ kind: 'rock', x, z, rot: i * 1.7, seed: 50 + i }));
