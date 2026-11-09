@@ -121,7 +121,8 @@ export class Character {
     }
     this.root.add(this.rig);
 
-    const tag = textSprite(name, 0.28, { bg: isMe ? '#fff4d6ee' : '#ffffffd9', font: 40, pad: 14 });
+    // A floating name with a soft dark outline, no bubble (your own is a touch warmer so you can spot yourself).
+    const tag = textSprite(name, 0.32, { bg: null, fg: isMe ? '#fff1c4' : '#ffffff', outline: '#3a2f44cc', font: 44, pad: 10 });
     tag.position.y = 1.5;
     this.root.add(tag);
     this.overhead.group.position.y = 1.95;
