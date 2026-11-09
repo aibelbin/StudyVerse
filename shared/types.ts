@@ -15,6 +15,14 @@ export interface Look {
 }
 
 export type Anim = 'idle' | 'walk' | 'sit';
+
+/** What a pet is doing (everyone sees the same moves). */
+export type PetAnim =
+  | 'idle' | 'walk' | 'run' | 'sit' | 'sleep' | 'sniff' | 'play' | 'pounce' | 'zoom'
+  | 'hop' | 'binky' | 'flop' | 'swim' | 'quack' | 'leap' | 'tongue' | 'croak';
+export const PET_ANIMS: PetAnim[] = [
+  'idle', 'walk', 'run', 'sit', 'sleep', 'sniff', 'play', 'pounce', 'zoom', 'hop', 'binky', 'flop', 'swim', 'quack', 'leap', 'tongue', 'croak',
+];
 export type Phase = 'focus' | 'break';
 
 export interface Session {
@@ -79,7 +87,7 @@ export interface PetView {
   x: number;
   z: number;
   facing: number;
-  anim: 'idle' | 'walk' | 'sit';
+  anim: PetAnim;
 }
 
 export interface OnlineEntry {

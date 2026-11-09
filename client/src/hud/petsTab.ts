@@ -18,6 +18,19 @@ export function petsTab(d: PetsTabDeps) {
     render(refresh: () => void): HTMLElement {
       const w = d.wallet();
       const name = h('input', { maxLength: NAME_MAX, placeholder: 'Name your pet', value: w?.pet?.name ?? '' });
+      // The name saves as soon as you press Enter or click away (not only via Adopt / Rename).
+      const saveName = () => {
+        const n = name.value.replace(/\s+/g, ' ').trim();
+        if (w?.pet && n && n !== w.pet.name) {
+          d.adopt(w.pet.kind, n);
+          setTimeout(refresh, 300);
+        }
+      };
+      name.addEventListener('change', saveName);
+      name.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') name.blur();
+      });
       const cells = PET_KINDS.map((p) => {
         const owned = !!w?.pets.includes(p.kind);
         const active = w?.pet?.kind === p.kind;
@@ -36,8 +49,9 @@ export function petsTab(d: PetsTabDeps) {
             : h('button', { type: 'button', className: 'mini buy', disabled: !owned && !afford, textContent: owned ? 'Switch' : afford ? 'Adopt' : 'Need KP', onclick: go }));
       });
       return h('div', {},
-        h('p', { className: 'sub', textContent: 'Pets follow you around town. Their little brains were trained with reinforcement learning 🧠' }),
-        h('label', { className: 'field' }, 'Name', name),
+        h('p', { className: 'sub', textContent: 'Pets follow you around town, wander off to sniff things, make friends and nap while you study. Each kind has its own personality 🐾' }),
+        ...(w?.pet ? [h('p', { className: 'sub', textContent: `Your pet: ${w.pet.name} the ${PET_KINDS.find((k) => k.kind === w.pet!.kind)?.label.toLowerCase() ?? 'pet'}` })] : []),
+        h('label', { className: 'field' }, w?.pet ? 'Name (press Enter to save)' : 'Name', name),
         h('div', { className: 'wardrobe-grid' }, ...cells),
         w?.pet
           ? h('div', { className: 'actions' }, h('button', { type: 'button', textContent: d.petOut() ? 'Put away (P)' : 'Bring out (P)', onclick: () => { d.setOut(!d.petOut()); setTimeout(refresh, 300); } }))

@@ -6,7 +6,7 @@ import { GARDEN_ACTIONS, type AdminAction, type ClientMsg, type GardenAction } f
 import { FEATURE_KINDS, isGift, STATUS_MINUTES, STATUS_TEXT_MAX, type Feature } from '../../shared/gifts';
 import { ANNOUNCE_MAX } from '../../shared/constants';
 import { TOY_ACTIONS, type ToyAction } from '../../shared/toys';
-import { ACTS, DRINKS, REACTIONS, type Act, type Anim, type Drink, type EmoteKind, type Look } from '../../shared/types';
+import { ACTS, DRINKS, PET_ANIMS, REACTIONS, type Act, type Anim, type Drink, type EmoteKind, type Look, type PetAnim } from '../../shared/types';
 
 const ANIMS: Anim[] = ['idle', 'walk', 'sit'];
 const EMOTES: EmoteKind[] = ['wave', 'clap', 'flex', 'coffee'];
@@ -180,8 +180,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'setPetOut':
       return typeof m.on === 'boolean' ? { t: 'setPetOut', on: m.on } : null;
     case 'pet':
-      if (!isNum(m.x) || !isNum(m.z) || !isNum(m.facing) || !['idle', 'walk', 'sit'].includes(m.anim as string)) return null;
-      return { t: 'pet', x: m.x, z: m.z, facing: m.facing, anim: m.anim as 'idle' | 'walk' | 'sit' };
+      if (!isNum(m.x) || !isNum(m.z) || !isNum(m.facing) || !PET_ANIMS.includes(m.anim as PetAnim)) return null;
+      return { t: 'pet', x: m.x, z: m.z, facing: m.facing, anim: m.anim as PetAnim };
     case 'buy':
       return isStr(m.itemId, 40) ? { t: 'buy', itemId: m.itemId } : null;
     case 'updateLook':

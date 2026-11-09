@@ -6,6 +6,8 @@ export interface LabelOpts {
   bg?: string | null;
   pad?: number;
   weight?: number;
+  /** Draw the text with a dark outline (and no background), like game name tags. */
+  outline?: string;
 }
 
 const FONT_FAMILY = 'ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif';
@@ -28,9 +30,15 @@ export function labelTexture(text: string, o: LabelOpts = {}): { tex: THREE.Canv
     g.roundRect(0, 0, w, h, h / 2);
     g.fill();
   }
-  g.fillStyle = o.fg ?? '#4a4058';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
+  if (o.outline) {
+    g.lineJoin = 'round';
+    g.lineWidth = font * 0.2;
+    g.strokeStyle = o.outline;
+    g.strokeText(text, w / 2, h / 2 + font * 0.05);
+  }
+  g.fillStyle = o.fg ?? '#4a4058';
   g.fillText(text, w / 2, h / 2 + font * 0.05);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;

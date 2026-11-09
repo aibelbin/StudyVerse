@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GIFT_RANGE, INTERACT_RADIUS, MOVE_SPEED, PLAYER_RADIUS } from '../../../shared/constants';
 import { showGiftOffer } from '../hud/giftCard';
 import { EmoteWheel } from '../hud/emoteWheel';
-import { inBox, moveWithCollision } from '../../../shared/geometry';
+import { inBox, moveWithCollision, pointInPolygon } from '../../../shared/geometry';
 import type { ClientMsg, ErrorCode, ServerMsg } from '../../../shared/protocol';
 import { getScene } from '../../../shared/scenes';
 import { SLIDE_RUN } from '../../../shared/scenes/kitToys';
@@ -10,7 +10,7 @@ import type { SceneDef, Slot, Toy } from '../../../shared/scenes/types';
 import {
   angleDelta, BOAT_SPEED, boatOnWater, boatPoseAt, LOCAL_TOYS, slotWorld, type BoatPose, type Tilt, type ToyAction, type ToyState,
 } from '../../../shared/toys';
-import { holdName, type EmoteKind, type PlayerView } from '../../../shared/types';
+import { holdName, type EmoteKind, type PetView, type PlayerView } from '../../../shared/types';
 import { moodText } from '../hud/gifts';
 import { aGift, GIFTS } from '../../../shared/gifts';
 import { mesh, toonMat } from '../world/materials';
@@ -38,6 +38,8 @@ import { QUOTES } from './quotes';
 import { Fade } from './transition';
 import type { Voice } from '../voice/voice';
 import { LocalPet } from '../pets/controller';
+import type { Poi } from '../pets/mind';
+import { KOI_POND } from '../../../shared/scenes/town/zen';
 import { BreathOverlay } from '../hud/breath';
 import { floorY } from '../toys/parkMath';
 import { toggleFullscreen } from '../touch/fullscreen';
@@ -114,7 +116,7 @@ export class Game {
   voice: Voice | null = null;
   onPetKey: () => void = () => {};
   onChatKey: () => void = () => {};
-  private pets = new Map<string, { model: PetModel; key: string; x: number; z: number; facing: number; anim: 'idle' | 'walk' | 'sit'; tx: number; tz: number }>();
+  private pets = new Map<string, { model: PetModel; key: string; x: number; z: number; facing: number; anim: PetView['anim']; tx: number; tz: number }>();
   private localPet: LocalPet | null = null;
   private treeMinutes = 0;
 
@@ -703,10 +705,23 @@ export class Game {
         this.scene!.add(model.root);
         pet = { model, key, x: v.pet.x, z: v.pet.z, facing: v.pet.facing, anim: v.pet.anim, tx: v.pet.x, tz: v.pet.z };
         this.pets.set(v.id, pet);
-        if (v.id === this.me!.id) this.localPet = new LocalPet(v.pet.x, v.pet.z, (p) => this.send({ t: 'pet', ...p }));
+        if (v.id === this.me!.id) this.localPet = new LocalPet(v.pet.kind, v.pet.x, v.pet.z, (p) => this.send({ t: 'pet', ...p }));
       }
       if (v.id === this.me!.id && this.localPet) {
-        this.localPet.update(nowP, dt, { x: this.x, z: this.z, sitting: !!this.me!.slotId }, [...this.def!.colliders, ...this.vehicleBoxes()], this.def!.size);
+        const pois: Poi[] = [...this.scenePois()];
+        for (const [id, r] of this.remotes) {
+          pois.push({ kind: 'person', id, x: r.char.root.position.x, z: r.char.root.position.z });
+          const op = this.pets.get(id);
+          if (op) pois.push({ kind: 'pet', id: `pet:${id}`, x: op.x, z: op.z });
+        }
+        this.localPet.update(nowP, dt, {
+          owner: { x: this.x, z: this.z, sitting: !!this.me!.slotId, studying: this.me!.session?.phase === 'focus' },
+          colliders: [...this.def!.colliders, ...this.vehicleBoxes()],
+          bounds: this.def!.size,
+          pois,
+          water: this.waterNear(this.x, this.z),
+          isWater: (x, z) => this.isWater(x, z),
+        });
         Object.assign(pet, { x: this.localPet.x, z: this.localPet.z, facing: this.localPet.facing, anim: this.localPet.anim });
       } else {
         const k = 1 - Math.exp(-dt * 10);
@@ -722,6 +737,53 @@ export class Game {
       this.pets.delete(id);
       if (id === this.me!.id) this.localPet = null;
     }
+  }
+
+  private poiCache: { def: SceneDef; list: Poi[] } | null = null;
+
+  /** The scene's things a pet might find interesting (flowers, plants, toys, benches, rocks, water edges). */
+  private scenePois(): Poi[] {
+    const def = this.def!;
+    if (this.poiCache?.def === def) return this.poiCache.list;
+    const list: Poi[] = [];
+    const kinds: Partial<Record<string, Poi['kind']>> = {
+      flowers: 'flower', bush: 'plant', plant: 'plant', tree: 'plant', cherry: 'plant', pine: 'plant', bench: 'bench', rock: 'rock', soil: 'garden', lilyPad: 'water',
+    };
+    for (const d of def.decor) {
+      const k = kinds[d.kind];
+      if (k) list.push({ kind: k, x: d.x, z: d.z });
+    }
+    for (const t of def.toys) if (t.kind !== 'golfTee' && t.kind !== 'truck') list.push({ kind: 'toy', x: t.x, z: t.z + t.radius * 0.6 });
+    const lake = def.water?.outline ?? [];
+    for (let i = 0; i < lake.length; i += 2) list.push({ kind: 'water', x: lake[i][0], z: lake[i][1] });
+    if (def.toys.some((t) => t.kind === 'koi')) list.push({ kind: 'water', x: KOI_POND.x, z: KOI_POND.z + KOI_POND.d / 2 + 0.3 });
+    this.poiCache = { def, list };
+    return list;
+  }
+
+  /** In the lake or the koi pond. */
+  private isWater(x: number, z: number): boolean {
+    const def = this.def!;
+    if (def.water && pointInPolygon(def.water.outline, x, z)) return true;
+    if (!def.toys.some((t) => t.kind === 'koi')) return false;
+    const u = (x - KOI_POND.x) / (KOI_POND.w / 2);
+    const v = (z - KOI_POND.z) / (KOI_POND.d / 2);
+    return u * u + v * v < 1;
+  }
+
+  /** A spot a little way into the water near (x, z), for swimming pets (null if no water close by). */
+  private waterNear(x: number, z: number): { x: number; z: number } | null {
+    const def = this.def!;
+    if (def.toys.some((t) => t.kind === 'koi') && Math.hypot(x - KOI_POND.x, z - KOI_POND.z) < 9) return { x: KOI_POND.x + 2, z: KOI_POND.z + 0.6 };
+    const lake = def.water?.outline;
+    if (!lake?.length) return null;
+    let best = lake[0];
+    for (const p of lake) if (Math.hypot(p[0] - x, p[1] - z) < Math.hypot(best[0] - x, best[1] - z)) best = p;
+    if (Math.hypot(best[0] - x, best[1] - z) > 8) return null;
+    const cx = lake.reduce((s, p) => s + p[0], 0) / lake.length;
+    const cz = lake.reduce((s, p) => s + p[1], 0) / lake.length;
+    const d = Math.hypot(cx - best[0], cz - best[1]) || 1;
+    return { x: best[0] + ((cx - best[0]) / d) * 2.2, z: best[1] + ((cz - best[1]) / d) * 2.2 };
   }
 
   private badgeFor(v: PlayerView): string {

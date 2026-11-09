@@ -17,7 +17,7 @@ export const FEEL = 1.5; // how far the obstacle sense reaches, m
 const clip = (v: number, m: number) => Math.max(-m, Math.min(m, v));
 
 /** Push away from boxes within FEEL metres, stronger when closer. */
-function obstaclePush(x: number, z: number, boxes: Box[]): [number, number] {
+export function obstaclePush(x: number, z: number, boxes: Box[]): [number, number] {
   let px = 0;
   let pz = 0;
   for (const b of boxes) {

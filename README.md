@@ -61,8 +61,11 @@ address bar) on your first tap; on iPhone, add the page to your home screen for 
 
 Finishing a focus session earns ✨ Knowledge Points: 1 per focus minute, plus a daily-streak bonus. Leaving early
 earns nothing. Spend them in the Boutique (✏️ or the stall in the square) on hats, tops, glasses, backpacks and
-more, or adopt a pet. Pets are driven by a tiny neural network trained with evolution strategies
-(`pets/train.ts`, run it on a remote machine: `npm run train:pets -- 300 shared/pets/policy.json`).
+more, or adopt a pet. Pets have little minds of their own: they keep up when you walk (that part is a tiny neural
+network trained with evolution strategies, `pets/train.ts`, run on a remote machine), and when you stop they wander
+up to about 8 m, sniff flowers, toys and benches, greet people, chase other pets and nap while you study. Kittens
+pounce and get the zoomies, bunnies hop, binky and flop, ducklings stay close, quack and swim, frogs sit, leap,
+catch flies and croak.
 
 ## Chat and emotes
 
