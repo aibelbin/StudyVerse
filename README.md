@@ -31,11 +31,14 @@ One process serves the page and the WebSocket (`/ws`). Profiles are stored in `d
 
 | Key | Action |
 |---|---|
-| WASD / arrows | walk (or row a boat / drive a truck) |
+| WASD / arrows | walk (or row a boat) |
+| W/S, A/D | in a truck: throttle and brake/reverse, steer |
 | E | sit / stand / use a toy / say hi to someone nearby |
 | Space | start a study session (at a desk, café table or bench) |
 | 1–8 | play notes while sitting at the piano |
 | H | honk (in a truck) |
+| C | sip your drink (four sips per cup) |
+| G | offer your drink to someone nearby (they get Accept / No thanks, or Y / N) |
 | M | big map |
 | N | do not disturb |
 | V | mute / unmute your mic (when on voice) |
@@ -58,11 +61,19 @@ TURN server for friends behind strict networks.
 
 ## The town
 
-A 120×90 town with a square (Library, Café, bandstand piano, fountain, bell, jukebox, Boutique, notice board,
-knowledge tree), two trucks to drive around, a lake with a dock and two rowboats, woods with a campfire, a park with wind chimes and a telescope, and a playground (swings, seesaw,
+A 150×100 town with a square (Library, Café, bandstand piano, fountain, bell, jukebox, Boutique, notice board,
+knowledge tree), car parks by the Library and the Café with four trucks, cones and crates to knock over, a lake with a dock and two rowboats, woods with a campfire, a park with wind chimes and a telescope, and a playground (swings, seesaw,
 merry-go-round, slide). Toys are shared: friends see and hear them. Ducks, fish, frogs, birds, insects, sailboats
 and clouds wander around on their own, and the sky follows your local clock (stars and fireflies at night).
 All art is procedural and all sound is synthesized in the browser; 🔊 in the status panel mutes it.
+
+Trucks drive on real physics: [Rapier](https://rapier.rs)'s ray-cast vehicle with the tuning from Bruno Simon's
+[folio-2025](https://github.com/brunosimon/folio-2025) (springy suspension, grip and drift, idle and reverse
+braking). Only the driver's browser simulates; the engine loads the first time you take the wheel. A truck stays
+where you leave it, and one left outside a bay for 10 minutes parks itself.
+
+The Café's coffee machine is a little barista game: grind, tamp, pull the shot, steam the milk, pour to the line
+and trace latte art. Your score sets the stars on the cup you carry.
 
 URL helpers: `?time=21:30` pretends it is that time of day, `?fps` shows a frame counter, `?debug` exposes `window.game`.
 
