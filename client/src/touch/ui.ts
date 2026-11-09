@@ -77,7 +77,11 @@ export class TouchUI {
           item(hud.voiceState === 'off' ? '🎙️ Voice' : hud.voiceState === 'muted' ? '🤐 Unmute' : '🎙️ Leave voice', () => hud.onToggleVoice()),
           item(hud.muted ? '🔇 Sound off' : '🔊 Sound on', () => hud.onToggleMute()),
           item(hud.quality === 'high' ? '✨ Graphics: High' : '🍃 Graphics: Lite', () => hud.onToggleQuality()),
-          ...(canFullscreen() ? [item(isFullscreen() ? '⛶ Exit full screen' : '⛶ Full screen', () => toggleFullscreen())] : []),
+          ...(canFullscreen() && !this.iphoneNoFs ? [item(isFullscreen() ? '⛶ Exit full screen' : '⛶ Full screen', () => toggleFullscreen())] : []),
+          ...(this.iphoneNoFs ? [item('⛶ Full screen', () => {
+            this.toggleMenu(false);
+            this.showHomeScreenCard();
+          })] : []),
           item('✏️ Look', () => {
             this.toggleMenu(false);
             hud.onEditLook();
@@ -88,13 +92,15 @@ export class TouchUI {
     this.renderMenu();
     // Hide the browser's address bar: full screen on the first tap (and again after swiping out of it).
     host.canvas.addEventListener('pointerdown', () => {
-      if (!isFullscreen() && !isStandalone()) void enterFullscreen();
+      if (!this.iphoneNoFs && !isFullscreen() && !isStandalone()) void enterFullscreen();
     });
-    if (!canFullscreen() && !isStandalone() && isIPhone(navigator.userAgent, navigator.platform, navigator.maxTouchPoints)) {
+    // iPhone Safari never hides its bars for a page (whatever fullscreenEnabled says): only the home screen does.
+    this.iphoneNoFs = !isStandalone() && isIPhone(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
+    if (this.iphoneNoFs) {
       const shown = Number(localStorage.getItem('sv-a2hs') ?? 0);
       if (shown < 3) {
         localStorage.setItem('sv-a2hs', String(shown + 1));
-        setTimeout(() => host.hud.toast('📱 For full screen on iPhone: tap Share ⬆️ then "Add to Home Screen"', 8000), 4000);
+        setTimeout(() => this.showHomeScreenCard(), 3000);
       }
     }
     const portrait = h('div', { className: 'touch-portrait' }, h('div', { textContent: '🔄' }), h('p', { textContent: 'Turn your phone sideways to play' }));
@@ -119,6 +125,21 @@ export class TouchUI {
   }
 
   private renderMenu: () => void;
+  private iphoneNoFs = false;
+
+  /** iPhone Safari can't hide its bars from a web page: explain Add to Home Screen. */
+  private showHomeScreenCard(): void {
+    document.querySelector('.a2hs')?.remove();
+    const card = h('div', { className: 'glass a2hs' },
+      h('b', { textContent: '📱 Play full screen on iPhone' }),
+      h('ol', {},
+        h('li', { textContent: 'Tap the Share button ⬆️ in Safari' }),
+        h('li', { textContent: 'Choose "Add to Home Screen", then "Add"' }),
+        h('li', { textContent: 'Open StudyVerse from your home screen: no browser bars, just the town' })),
+      h('p', { textContent: 'Heads-up: the home-screen app keeps its own login, so you\'ll join there as a new player.' }),
+      h('button', { type: 'button' as const, className: 'touch-item', textContent: 'Got it', onclick: () => card.remove() }));
+    document.body.append(card);
+  }
 
   /** Call every frame (cheap: only rebuilds when the hint changes). */
   update(prompt: string | null): void {
