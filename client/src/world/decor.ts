@@ -413,6 +413,40 @@ const builders: Record<DecorKind, Builder> = {
     return group(); // drawn and animated by the leaves life system
   },
 
+  knowledgeTree() {
+    // Grows with the town's study minutes today: setStage(0..4) is called by the game.
+    const g = group(mesh(cyl(0.16, 0.24, 1.6, 8), mat(P.trunk), 0, 0.8, 0));
+    const crown = group();
+    crown.position.y = 1.7;
+    const leaves = [P.leaf1, P.leaf2, P.leaf3];
+    const blobs = Array.from({ length: 7 }, (_, i) => {
+      const a = (i / 7) * Math.PI * 2;
+      const b = mesh(sph(0.55, 1), mat(leaves[i % 3]), Math.cos(a) * 0.55, Math.sin(i * 1.7) * 0.25, Math.sin(a) * 0.55);
+      crown.add(b);
+      return b;
+    });
+    const blossoms = Array.from({ length: 24 }, (_, i) => {
+      const a = (i / 24) * Math.PI * 2 * 3;
+      const r = 0.7 + (i % 3) * 0.15;
+      const o = mesh(sph(0.09, 0), glow(['#f7a1c4', '#ffd36e', '#ffffff', '#c3a6ff'][i % 4], 0.6), Math.cos(a) * r, 0.25 + Math.sin(i) * 0.35, Math.sin(a) * r, false);
+      crown.add(o);
+      return o;
+    });
+    g.add(crown);
+    const plaque = labelPlane('🌳 Knowledge Tree', 0.18);
+    plaque.position.set(0, 0.45, 0.27);
+    g.add(plaque);
+    g.userData.setStage = (stage: number) => {
+      const k = 0.55 + stage * 0.22;
+      crown.scale.setScalar(k);
+      crown.position.y = 1.2 + k * 0.6;
+      blobs.forEach((b, i) => (b.visible = i < 3 + stage));
+      blossoms.forEach((b, i) => (b.visible = i < stage * 6));
+    };
+    g.userData.setStage(0);
+    return g;
+  },
+
   mound(d) {
     const r = d.w ?? 3;
     const o = mesh(sph(r, 2), mat(P.leaf3, 1), 0, -r * 0.88, 0, false);

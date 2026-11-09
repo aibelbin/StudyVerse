@@ -38,6 +38,24 @@ export interface PlayerView {
   connected: boolean;
   /** Server epoch ms until which the rain cloud shows; 0 = none. */
   rainUntil: number;
+  /** Do not disturb: no cheers, no voice. */
+  dnd: boolean;
+  /** Opted in to proximity voice chat. */
+  voice: boolean;
+  /** A drink in hand until the given server time. */
+  holding: { item: Drink; stars: number; until: number } | null;
+  pet: PetView | null;
+}
+
+export type Drink = 'espresso' | 'latte' | 'matcha' | 'cocoa';
+
+export interface PetView {
+  kind: PetKind;
+  name: string;
+  x: number;
+  z: number;
+  facing: number;
+  anim: 'idle' | 'walk' | 'sit';
 }
 
 export interface OnlineEntry {

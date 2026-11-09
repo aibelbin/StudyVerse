@@ -89,6 +89,26 @@ export class Overhead {
     this.cloud.visible = on;
   }
 
+  private badge: THREE.Sprite | null = null;
+  private badgeText = '';
+
+  /** A small steady icon next to the name (🔕 do not disturb, 🎙️ on voice). Empty string hides it. */
+  setBadge(text: string): void {
+    if (text === this.badgeText) return;
+    this.badgeText = text;
+    if (this.badge) {
+      this.badge.removeFromParent();
+      this.badge.material.map?.dispose();
+      this.badge.material.dispose();
+      this.badge = null;
+    }
+    if (!text) return;
+    this.badge = textSprite(text, 0.3, { bg: '#ffffffdd', font: 44, pad: 8 });
+    this.badge.position.set(0, -0.12, 0);
+    this.badge.renderOrder = 12;
+    this.group.add(this.badge);
+  }
+
   emote(kind: EmoteKind, now: number): void {
     this.float(textSprite(EMOJI[kind], 0.5, { bg: null, font: 64, pad: 6 }), now);
   }

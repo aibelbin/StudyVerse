@@ -13,7 +13,9 @@ export class Hud {
   onEditLook: () => void = () => {};
   onEndBreak: () => void = () => {};
   onToggleMute: () => void = () => {};
+  onToggleDnd: () => void = () => {};
   muted = false;
+  dnd = false;
   private walletText = '';
   private statusKey = '';
   private modal: HTMLElement | null = null;
@@ -41,13 +43,15 @@ export class Hud {
     const line = s
       ? `${s.phase === 'focus' ? '📖 Focus' : '☕ Break'} · ${formatClock(sessionLeftMs(s, now))}`
       : me.slotId ? '🪑 Sitting' : `🚶 Wandering ${def.where}`;
-    const key = `${me.name}|${line}|${def.id}|${this.muted}|${this.walletText}`;
+    this.dnd = me.dnd;
+    const key = `${me.name}|${line}|${def.id}|${this.muted}|${this.walletText}|${me.dnd}`;
     if (key === this.statusKey) return;
     this.statusKey = key;
     byId('status').replaceChildren(
       h('div', { className: 'row' },
         h('b', { textContent: me.name }),
         h('span', { className: 'buttons' },
+          h('button', { className: `mini${me.dnd ? ' on' : ''}`, title: me.dnd ? 'Do not disturb is on (N)' : 'Do not disturb (N)', textContent: me.dnd ? '🔕' : '🔔', onclick: () => this.onToggleDnd() }),
           h('button', { className: 'mini', title: this.muted ? 'Sound off' : 'Sound on', textContent: this.muted ? '🔇' : '🔊', onclick: () => this.onToggleMute() }),
           h('button', { className: 'mini', title: 'Change your look', textContent: '✏️', onclick: () => this.onEditLook() }))),
       h('div', { className: s ? `timer ${s.phase}` : 'sub', textContent: line }),
@@ -178,7 +182,9 @@ export class Hud {
     el.replaceChildren(
       h('div', { className: 'row' }, h('b', { textContent: v.name }), h('button', { className: 'mini', textContent: '✕', onclick: () => this.closeCard() })),
       h('div', { className: 'sub', id: 'card-status' }),
-      h('div', { className: 'actions' }, ...EMOTE_BUTTONS.map(([k, label]) => h('button', { textContent: label, onclick: () => onEmote(k) }))),
+      v.dnd
+        ? h('div', { className: 'sub', textContent: '🔕 Do not disturb: they are focusing' })
+        : h('div', { className: 'actions' }, ...EMOTE_BUTTONS.map(([k, label]) => h('button', { textContent: label, onclick: () => onEmote(k) }))),
     );
   }
 

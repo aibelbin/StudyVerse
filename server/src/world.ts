@@ -1,5 +1,6 @@
 import {
-  CHEER_FEED_COOLDOWN_MS, DOOR_PAD, FEED_ON_WELCOME, GRACE_MS, MAX_SPEED, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS,
+  CHEER_FEED_COOLDOWN_MS, DOOR_PAD, FEED_ON_WELCOME, GRACE_MS, MAX_SPEED, NOTE_COOLDOWN_MS, NOTE_MAX, NOTES_PER_AUTHOR,
+  NOTES_SHOWN, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS,
 } from '../../shared/constants';
 import { clampToBounds, dist, inBox } from '../../shared/geometry';
 import type { ClientMsg, ErrorCode, ServerMsg } from '../../shared/protocol';
@@ -8,7 +9,7 @@ import type { SceneDef, Slot, Toy } from '../../shared/scenes/types';
 import {
   BOAT_SPEED, boatOnWater, boatPoseAt, slotWorld, spinAt, type BoatPose, type ToyAction, type ToyState,
 } from '../../shared/toys';
-import type { Anim, EmoteKind, FeedKind, Look, OnlineEntry, PlayerView, Session, Wallet } from '../../shared/types';
+import type { Anim, Drink, EmoteKind, FeedKind, Look, OnlineEntry, PetView, PlayerView, Session, Wallet } from '../../shared/types';
 import { isFree, itemById, SLOTS } from '../../shared/wardrobe';
 import { ProfileStore, type Profile, type Store } from './db';
 import { awardFor, dayOf } from './rewards';
@@ -41,6 +42,11 @@ interface Player {
   /** `toyId|action` -> last accepted use, for cooldowns. */
   lastUse: Map<string, number>;
   wallet: Wallet & { lastDay: string | null };
+  dnd: boolean;
+  voice: boolean;
+  holding: { item: Drink; stars: number; until: number } | null;
+  pet: PetView | null;
+  lastNoteAt: number;
 }
 
 const EMOJI: Record<EmoteKind, string> = { wave: '👋', clap: '👏', flex: '💪', coffee: '☕' };
@@ -90,6 +96,7 @@ export class World {
       slotId: null, session: null, rainUntil: 0,
       conn, disconnectedAt: null, lastMoveAt: this.now(), lastCheerFeedAt: 0, lastUse: new Map(),
       wallet: this.store.wallet(profile.id),
+      dnd: false, voice: false, holding: null, pet: null, lastNoteAt: 0,
     };
     this.players.set(p.id, p);
     this.sendWelcome(p, newToken);
@@ -121,6 +128,14 @@ export class World {
       case 'use': return this.use(p, msg.toyId, msg.action, msg.arg);
       case 'updateLook': return this.updateLook(p, msg.look);
       case 'buy': return this.buy(p, msg.itemId);
+      case 'getNotes': return p.conn!.send({ t: 'notes', list: this.store.notes(NOTES_SHOWN) });
+      case 'postNote': return this.postNote(p, msg.text);
+      case 'deleteNote': return this.deleteNote(p, msg.id);
+      case 'setDnd':
+        if (p.dnd === msg.on) return;
+        p.dnd = msg.on;
+        if (p.dnd) p.voice = false;
+        return this.updated(p);
       case 'hello':
         return;
     }
@@ -251,7 +266,7 @@ export class World {
 
   private emote(p: Player, kind: EmoteKind, targetId?: string): void {
     const target = targetId ? this.players.get(targetId) : undefined;
-    if (targetId && (!target || target.scene !== p.scene)) return;
+    if (targetId && (!target || target.scene !== p.scene || target.dnd)) return;
     this.toScene(p.scene, { t: 'emote', fromId: p.id, kind, ...(targetId ? { targetId } : {}) });
     const t = this.now();
     if (target && kind !== 'wave' && t - p.lastCheerFeedAt >= CHEER_FEED_COOLDOWN_MS) {
@@ -311,6 +326,23 @@ export class World {
     p.look = look;
     this.store.updateLook(p.id, look);
     this.updated(p);
+  }
+
+  // ---------- notice board ----------
+
+  private postNote(p: Player, raw: string): void {
+    const text = raw.replace(/\s+/g, ' ').trim();
+    const t = this.now();
+    if (!text || [...text].length > NOTE_MAX) return this.error(p, 'bad_note', `Notes are 1–${NOTE_MAX} characters.`);
+    if (t - p.lastNoteAt < NOTE_COOLDOWN_MS) return this.error(p, 'bad_note', 'Give it a few seconds before posting again.');
+    if (this.store.noteCount(p.id) >= NOTES_PER_AUTHOR) return this.error(p, 'bad_note', `You can have ${NOTES_PER_AUTHOR} notes up at once. Take one down first.`);
+    p.lastNoteAt = t;
+    this.store.addNote(p.id, p.name, text, t);
+    this.toAll({ t: 'notes', list: this.store.notes(NOTES_SHOWN) });
+  }
+
+  private deleteNote(p: Player, id: number): void {
+    if (this.store.deleteNote(id, p.id)) this.toAll({ t: 'notes', list: this.store.notes(NOTES_SHOWN) });
   }
 
   // ---------- toys ----------
@@ -500,6 +532,7 @@ export class World {
       id: p.id, name: p.name, look: p.look, scene: p.scene,
       x: p.x, z: p.z, facing: p.facing, anim: p.anim,
       slotId: p.slotId, session: p.session, connected: p.conn !== null, rainUntil: p.rainUntil,
+      dnd: p.dnd, voice: p.voice, holding: p.holding, pet: p.pet,
     };
   }
 }

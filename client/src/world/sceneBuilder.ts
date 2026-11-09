@@ -108,6 +108,8 @@ export interface BuiltScene {
   outdoor: boolean;
   /** Roofs that turn see-through while the player is under them. */
   fades: { obj: THREE.Object3D; x: number; z: number; r: number }[];
+  /** Knowledge trees: call with a growth stage 0..4. */
+  setTreeStage(stage: number): void;
 }
 
 const SHADOW_EXTENT = 22;
@@ -158,7 +160,11 @@ export function buildScene(def: SceneDef): BuiltScene {
     const p = new THREE.Vector3().setFromMatrixPosition(o.matrixWorld);
     fades.push({ obj: o, x: p.x, z: p.z, r: o.userData.fadeRadius });
   });
-  return { scene, sun, hemi, sunOffset, sway, outdoor: !th.indoor, fades };
+  const trees: ((n: number) => void)[] = [];
+  scene.traverse((o) => {
+    if (typeof o.userData.setStage === 'function') trees.push(o.userData.setStage);
+  });
+  return { scene, sun, hemi, sunOffset, sway, outdoor: !th.indoor, fades, setTreeStage: (n) => trees.forEach((f) => f(n)) };
 }
 
 /** Fades roofs the player is standing under. */

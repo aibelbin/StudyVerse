@@ -24,6 +24,7 @@ import { CameraRig } from './cameraRig';
 import { serverNow, syncClock } from './clock';
 import { Input } from './input';
 import { pickTarget, type PlacedSlot, type Target } from './interaction';
+import { treeStage } from '../../../shared/tree';
 import { QUOTES } from './quotes';
 import { Fade } from './transition';
 
@@ -67,6 +68,8 @@ export class Game {
   hooks: GameHooks = { sound() {}, feedDucks() {}, frame() {}, enterScene() {} };
   /** E on a toy that opens something on this screen only (Boutique, notice board, coffee machine). */
   onLocalToy: (toy: Toy) => void = () => {};
+  onToggleDnd: () => void = () => {};
+  private treeMinutes = 0;
 
   private renderer: THREE.WebGLRenderer;
   private rig = new CameraRig();
@@ -119,6 +122,9 @@ export class Game {
       if (this.telescope) this.setTelescope(false);
     });
     for (let i = 1; i <= 8; i++) this.input.on(String(i), () => this.playNote(i - 1));
+    this.input.on('n', () => {
+      if (!this.hud.modalOpen()) this.onToggleDnd();
+    });
     if (new URLSearchParams(location.search).has('fps')) {
       const el = document.createElement('div');
       el.className = 'fps glass';
@@ -141,6 +147,7 @@ export class Game {
       case 'welcome':
         syncClock(m.serverTime);
         this.toyStates = { ...m.toys };
+        this.treeMinutes = m.treeMinutes;
         this.enter(m.you, m.players);
         this.hud.setOnline(m.online);
         this.hud.resetFeed(m.feed);
@@ -182,6 +189,10 @@ export class Game {
       case 'toyEvent':
         this.onToyEvent(m.toyId, m.by, m.action, m.arg);
         break;
+      case 'tree':
+        this.treeMinutes = m.minutes;
+        for (const rt of this.runtimes.values()) rt.built.setTreeStage(treeStage(m.minutes));
+        break;
       case 'online':
         this.hud.setOnline(m.list);
         break;
@@ -210,6 +221,7 @@ export class Game {
       }
       rt = { built, toys };
       this.runtimes.set(you.scene, rt);
+      built.setTreeStage(treeStage(this.treeMinutes));
     }
     this.rt = rt;
     this.scene = rt.built.scene;
@@ -617,6 +629,7 @@ export class Game {
       r.char.root.position.set(x, y, z);
       r.char.facing = facing;
       r.char.setDim(!r.view.connected);
+      r.char.overhead.setBadge(r.view.dnd ? '🔕' : r.view.voice ? '🎙️' : '');
       r.char.overhead.setSession(r.view.session, sNow);
       r.char.overhead.setRain(r.view.rainUntil > sNow);
       r.char.update(dt, nowP);
@@ -656,6 +669,7 @@ export class Game {
     c.facing = this.facing;
     c.overhead.setSession(this.me.session, sNow);
     c.overhead.setRain(this.me.rainUntil > sNow);
+    c.overhead.setBadge(this.me.dnd ? '🔕' : this.me.voice ? '🎙️' : '');
     c.update(dt, nowP);
 
     if (this.transitioning || this.me.slotId || mySlide || this.telescope) {

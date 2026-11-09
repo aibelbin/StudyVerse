@@ -34,7 +34,7 @@ export type DecorKind =
   | 'tree' | 'pine' | 'bush' | 'flowers' | 'lampPost' | 'bench' | 'path' | 'building' | 'pond'
   | 'desk' | 'chair' | 'deskLamp' | 'bookshelf' | 'rug' | 'plant' | 'window' | 'sign'
   | 'cafeTable' | 'stool' | 'counter' | 'coffeeMachine' | 'cup'
-  | 'lake' | 'dock' | 'lilyPad' | 'rock' | 'grass' | 'hedge' | 'bandstand' | 'swingSet' | 'log' | 'leafPile' | 'mound';
+  | 'lake' | 'dock' | 'lilyPad' | 'rock' | 'grass' | 'hedge' | 'bandstand' | 'swingSet' | 'log' | 'leafPile' | 'mound' | 'knowledgeTree';
 
 /** Visual-only object. Size fields mean different things per kind (see client/src/world/decor.ts). */
 export interface Decor {

@@ -82,6 +82,14 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       }
       return out;
     }
+    case 'getNotes':
+      return { t: 'getNotes' };
+    case 'postNote':
+      return typeof m.text === 'string' && m.text.length <= 400 ? { t: 'postNote', text: m.text } : null;
+    case 'deleteNote':
+      return Number.isInteger(m.id) ? { t: 'deleteNote', id: m.id as number } : null;
+    case 'setDnd':
+      return typeof m.on === 'boolean' ? { t: 'setDnd', on: m.on } : null;
     case 'buy':
       return isStr(m.itemId, 40) ? { t: 'buy', itemId: m.itemId } : null;
     case 'updateLook':

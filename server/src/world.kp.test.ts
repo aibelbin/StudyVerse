@@ -95,3 +95,45 @@ describe('wardrobe', () => {
     expect(w.view(a.id)!.look).toMatchObject({ top: 'tee', hat: 'cap' });
   });
 });
+
+describe('notice board', () => {
+  it('posts, lists, enforces the cooldown and lets authors take notes down', () => {
+    const a = joinNew('Sam');
+    const b = joinNew('Jo');
+    w.handle(a.id, { t: 'postNote', text: '  study group at 8?  ' });
+    expect(b.c.of('notes').at(-1)!.list.map((n) => [n.name, n.text])).toEqual([['Sam', 'study group at 8?']]);
+    w.handle(a.id, { t: 'postNote', text: 'again' });
+    expect(a.c.of('error').at(-1)!.code).toBe('bad_note');
+    t += 31_000;
+    w.handle(a.id, { t: 'postNote', text: 'x'.repeat(141) });
+    expect(a.c.of('error').at(-1)!.code).toBe('bad_note');
+    const id = b.c.of('notes').at(-1)!.list[0].id;
+    w.handle(b.id, { t: 'deleteNote', id });
+    expect(store.notes(10)).toHaveLength(1);
+    w.handle(a.id, { t: 'deleteNote', id });
+    expect(store.notes(10)).toHaveLength(0);
+    w.handle(b.id, { t: 'getNotes' });
+    expect(b.c.of('notes').at(-1)!.list).toEqual([]);
+  });
+
+  it('caps notes per author', () => {
+    const a = joinNew('Sam');
+    for (let i = 0; i < 6; i++) {
+      t += 31_000;
+      w.handle(a.id, { t: 'postNote', text: `note ${i}` });
+    }
+    expect(store.noteCount(a.id)).toBe(5);
+    expect(a.c.of('error').at(-1)!.code).toBe('bad_note');
+  });
+});
+
+describe('do not disturb', () => {
+  it('shows on the player and blocks cheers aimed at them', () => {
+    const a = joinNew('Sam');
+    const b = joinNew('Jo');
+    w.handle(b.id, { t: 'setDnd', on: true });
+    expect(a.c.of('playerUpdated').at(-1)!.player).toMatchObject({ id: b.id, dnd: true, voice: false });
+    w.handle(a.id, { t: 'emote', kind: 'clap', targetId: b.id });
+    expect(b.c.of('emote')).toEqual([]);
+  });
+});

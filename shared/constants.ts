@@ -12,3 +12,7 @@ export const SEAT_RADIUS = 1.2;            // how close you must be to sit
 export const INTERACT_RADIUS = 1.5;        // how close you must be to open a player card
 export const DOOR_PAD = 1.0;               // server-side slack when checking door proximity
 export const CHEER_FEED_COOLDOWN_MS = 5_000;
+export const NOTE_MAX = 140;               // characters per notice-board note
+export const NOTE_COOLDOWN_MS = 30_000;
+export const NOTES_PER_AUTHOR = 5;
+export const NOTES_SHOWN = 30;

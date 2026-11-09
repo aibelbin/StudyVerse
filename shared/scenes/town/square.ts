@@ -29,11 +29,12 @@ export const square: Parts = merge(
   {
     decor: [
       { kind: 'bandstand', x: BANDSTAND.x, z: BANDSTAND.z, w: BANDSTAND.r },
+      { kind: 'knowledgeTree', x: 7.5, z: 5.5 },
       { kind: 'flowers', x: -9, z: 3.6, seed: 1 }, { kind: 'flowers', x: 9, z: 3.6, seed: 2 },
       { kind: 'flowers', x: -15.5, z: -2, seed: 3 }, { kind: 'flowers', x: 15.5, z: -2.3, seed: 4 },
       { kind: 'bush', x: -17.5, z: -2.4, seed: 7 }, { kind: 'bush', x: 7.6, z: -2.4, seed: 8 },
     ],
-    colliders: pillars,
+    colliders: [...pillars, { x: 7.5, z: 5.5, w: 0.7, d: 0.7 }],
     life: [{ kind: 'birds', x: 0, z: 0, r: 9, count: 6, seed: 21 }],
   },
 );

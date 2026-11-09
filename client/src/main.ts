@@ -6,6 +6,7 @@ import { Game } from './game/game';
 import { byId } from './hud/dom';
 import { Hud } from './hud/hud';
 import { showJoin } from './hud/joinScreen';
+import { NotesBoard } from './hud/notes';
 import { Wardrobe } from './hud/wardrobe';
 import type { Wallet } from '../../shared/types';
 import { Connection } from './net/connection';
@@ -25,6 +26,13 @@ const wardrobe = new Wardrobe({
   buy: (itemId) => conn.send({ t: 'buy', itemId }),
   save: (look) => conn.send({ t: 'updateLook', look }),
 });
+
+const board = new NotesBoard(hud, () => game?.myView()?.id ?? null, (m) => conn.send(m));
+const toggleDnd = () => {
+  const me = game?.myView();
+  if (me) conn.send({ t: 'setDnd', on: !me.dnd });
+};
+hud.onToggleDnd = toggleDnd;
 
 function setWallet(w: Wallet): void {
   wallet = w;
@@ -52,6 +60,7 @@ conn.onClose = (code) => {
 conn.onStatus = (s) => hud.setConnection(s);
 conn.onMessage = (m) => {
   if (m.t === 'wallet') setWallet(m.wallet);
+  if (m.t === 'notes') board.set(m.list);
   if (m.t === 'welcome') {
     setWallet(m.wallet);
     if (m.token) localStorage.setItem(TOKEN_KEY, m.token);
@@ -68,7 +77,9 @@ conn.onMessage = (m) => {
       };
       game.onLocalToy = (toy) => {
         if (toy.kind === 'shop') wardrobe.open('hat');
+        if (toy.kind === 'board') board.show();
       };
+      game.onToggleDnd = toggleDnd;
       if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { game });
     }
   }

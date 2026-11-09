@@ -11,8 +11,8 @@ export class Input {
 
   constructor() {
     addEventListener('keydown', (e) => {
-      if (isTyping(e.target)) return;
       const k = e.key.toLowerCase();
+      if (isTyping(e.target) && k !== 'escape') return; // Escape still closes dialogs while typing
       if (GAME_KEYS.has(k) && e.target === document.body) e.preventDefault(); // no page scroll on Space/arrows
       this.down.add(k);
       if (!e.repeat) this.handlers.get(k)?.();

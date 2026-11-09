@@ -1,5 +1,5 @@
 import type { ToyAction, ToyState } from './toys';
-import type { Anim, EmoteKind, FeedEvent, Look, OnlineEntry, PlayerView, Wallet } from './types';
+import type { Anim, EmoteKind, FeedEvent, Look, Note, OnlineEntry, PlayerView, Wallet } from './types';
 
 export type ClientMsg =
   | { t: 'hello'; token?: string; inviteCode?: string; name?: string; look?: Look }
@@ -12,7 +12,11 @@ export type ClientMsg =
   | { t: 'emote'; kind: EmoteKind; targetId?: string }
   | { t: 'updateLook'; look: Look }
   | { t: 'use'; toyId: string; action: ToyAction; arg?: number }
-  | { t: 'buy'; itemId: string };
+  | { t: 'buy'; itemId: string }
+  | { t: 'getNotes' }
+  | { t: 'postNote'; text: string }
+  | { t: 'deleteNote'; id: number }
+  | { t: 'setDnd'; on: boolean };
 
 export type ErrorCode =
   | 'bad_invite'
@@ -27,7 +31,8 @@ export type ErrorCode =
   | 'bad_toy'
   | 'bad_look'
   | 'bad_item'
-  | 'no_kp';
+  | 'no_kp'
+  | 'bad_note';
 
 export type ServerMsg =
   | {
@@ -55,4 +60,5 @@ export type ServerMsg =
   | { t: 'toyEvent'; toyId: string; by: string; action: ToyAction; arg?: number; at: number }
   | { t: 'toyState'; toyId: string; state: ToyState }
   | { t: 'wallet'; wallet: Wallet }
-  | { t: 'tree'; minutes: number };
+  | { t: 'tree'; minutes: number }
+  | { t: 'notes'; list: Note[] };
