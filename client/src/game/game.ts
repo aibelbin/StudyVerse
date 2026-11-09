@@ -30,6 +30,8 @@ import { treeStage } from '../../../shared/tree';
 import { QUOTES } from './quotes';
 import { Fade } from './transition';
 import type { Voice } from '../voice/voice';
+import { LocalPet } from '../pets/controller';
+import { PetModel } from '../pets/model';
 
 interface Remote {
   view: PlayerView;
@@ -77,6 +79,9 @@ export class Game {
   onToggleDnd: () => void = () => {};
   onVoiceKey: () => void = () => {};
   voice: Voice | null = null;
+  onPetKey: () => void = () => {};
+  private pets = new Map<string, { model: PetModel; key: string; x: number; z: number; facing: number; anim: 'idle' | 'walk' | 'sit'; tx: number; tz: number }>();
+  private localPet: LocalPet | null = null;
   private treeMinutes = 0;
 
   private renderer: THREE.WebGLRenderer;
@@ -137,6 +142,9 @@ export class Game {
     });
     this.input.on('v', () => {
       if (!this.hud.modalOpen()) this.onVoiceKey();
+    });
+    this.input.on('p', () => {
+      if (!this.hud.modalOpen()) this.onPetKey();
     });
     this.input.on('n', () => {
       if (!this.hud.modalOpen()) this.onToggleDnd();
@@ -204,6 +212,11 @@ export class Game {
           this.driving.speed = 0;
         }
         break;
+      case 'petMoved': {
+        const pet = this.pets.get(m.id);
+        if (pet) Object.assign(pet, { tx: m.x, tz: m.z, facing: m.facing, anim: m.anim });
+        break;
+      }
       case 'toyEvent':
         this.onToyEvent(m.toyId, m.by, m.action, m.arg);
         break;
@@ -227,6 +240,9 @@ export class Game {
 
   private enter(you: PlayerView, players: PlayerView[]): void {
     for (const id of [...this.remotes.keys()]) this.removeRemote(id);
+    for (const pet of this.pets.values()) pet.model.dispose();
+    this.pets.clear();
+    this.localPet = null;
     this.def = getScene(you.scene)!;
     let rt = this.runtimes.get(you.scene);
     if (!rt) {
@@ -291,6 +307,8 @@ export class Game {
     r.char.dispose();
     this.remotes.delete(id);
     this.sliding.delete(id);
+    this.pets.get(id)?.model.dispose();
+    this.pets.delete(id);
     if (this.hud.cardTarget() === id) this.hud.closeCard();
   }
 
@@ -408,6 +426,45 @@ export class Game {
     if (!toy || toy.kind !== 'piano' || this.hud.modalOpen()) return;
     this.send({ t: 'use', toyId: toy.id, action: 'note', arg: i });
     this.rt?.toys.get(toy.id)?.onEvent?.({ action: 'note', arg: i, by: this.me!.id }, this.toyCtx(toy.id));
+  }
+
+  /** Creates, removes and moves pets to match everyone's PlayerView; your own runs its brain locally. */
+  private updatePets(dt: number, nowP: number): void {
+    const views: PlayerView[] = [this.me!, ...[...this.remotes.values()].map((r) => r.view)];
+    const seen = new Set<string>();
+    for (const v of views) {
+      if (!v.pet) continue;
+      seen.add(v.id);
+      const key = `${v.pet.kind}|${v.pet.name}`;
+      let pet = this.pets.get(v.id);
+      if (pet && pet.key !== key) {
+        pet.model.dispose();
+        pet = undefined;
+      }
+      if (!pet) {
+        const model = new PetModel(v.pet.kind, v.pet.name);
+        this.scene!.add(model.root);
+        pet = { model, key, x: v.pet.x, z: v.pet.z, facing: v.pet.facing, anim: v.pet.anim, tx: v.pet.x, tz: v.pet.z };
+        this.pets.set(v.id, pet);
+        if (v.id === this.me!.id) this.localPet = new LocalPet(v.pet.x, v.pet.z, (p) => this.send({ t: 'pet', ...p }));
+      }
+      if (v.id === this.me!.id && this.localPet) {
+        this.localPet.update(nowP, dt, { x: this.x, z: this.z, sitting: !!this.me!.slotId }, [...this.def!.colliders, ...this.vehicleBoxes()], this.def!.size);
+        Object.assign(pet, { x: this.localPet.x, z: this.localPet.z, facing: this.localPet.facing, anim: this.localPet.anim });
+      } else {
+        const k = 1 - Math.exp(-dt * 10);
+        pet.x += (pet.tx - pet.x) * k;
+        pet.z += (pet.tz - pet.z) * k;
+      }
+      pet.model.root.position.set(pet.x, 0, pet.z);
+      pet.model.update(dt, nowP, pet.anim, pet.facing);
+    }
+    for (const [id, pet] of this.pets) {
+      if (seen.has(id)) continue;
+      pet.model.dispose();
+      this.pets.delete(id);
+      if (id === this.me!.id) this.localPet = null;
+    }
   }
 
   private badgeFor(v: PlayerView): string {
@@ -785,6 +842,7 @@ export class Game {
     built.sway.value = nowP / 1000;
     followSun(built, this.x, this.z);
     updateFades(built, this.x, this.z, dt);
+    this.updatePets(dt, nowP);
     const vehicles: MapVehicle[] = [];
     for (const toy of this.def.toys) {
       if (toy.kind !== 'rowboat' && toy.kind !== 'truck') continue;

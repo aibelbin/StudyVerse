@@ -1,5 +1,6 @@
 import { NAME_MAX } from '../../shared/constants';
 import { normalizeLook } from '../../shared/wardrobe';
+import { isPetKind } from '../../shared/pets/kinds';
 import type { ClientMsg } from '../../shared/protocol';
 import { TOY_ACTIONS, type ToyAction } from '../../shared/toys';
 import { DRINKS, type Anim, type Drink, type EmoteKind, type Look } from '../../shared/types';
@@ -100,6 +101,15 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return typeof m.on === 'boolean' ? { t: 'setVoice', on: m.on } : null;
     case 'rtc':
       return isStr(m.to, 64) && isStr(m.data, RTC_MAX) ? { t: 'rtc', to: m.to, data: m.data } : null;
+    case 'adoptPet': {
+      const name = cleanName(m.name);
+      return isPetKind(m.kind) && name ? { t: 'adoptPet', kind: m.kind, name } : null;
+    }
+    case 'setPetOut':
+      return typeof m.on === 'boolean' ? { t: 'setPetOut', on: m.on } : null;
+    case 'pet':
+      if (!isNum(m.x) || !isNum(m.z) || !isNum(m.facing) || !['idle', 'walk', 'sit'].includes(m.anim as string)) return null;
+      return { t: 'pet', x: m.x, z: m.z, facing: m.facing, anim: m.anim as 'idle' | 'walk' | 'sit' };
     case 'buy':
       return isStr(m.itemId, 40) ? { t: 'buy', itemId: m.itemId } : null;
     case 'updateLook':

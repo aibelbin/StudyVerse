@@ -10,6 +10,7 @@ import { openCoffee } from './hud/coffee';
 import { NotesBoard } from './hud/notes';
 import { Wardrobe } from './hud/wardrobe';
 import { Voice } from './voice/voice';
+import { petsTab } from './hud/petsTab';
 import type { Wallet } from '../../shared/types';
 import { Connection } from './net/connection';
 
@@ -27,6 +28,12 @@ const wardrobe = new Wardrobe({
   wallet: () => wallet,
   buy: (itemId) => conn.send({ t: 'buy', itemId }),
   save: (look) => conn.send({ t: 'updateLook', look }),
+  extraTabs: [petsTab({
+    wallet: () => wallet,
+    petOut: () => !!game?.myView()?.pet,
+    adopt: (kind, name) => conn.send({ t: 'adoptPet', kind, name }),
+    setOut: (on) => conn.send({ t: 'setPetOut', on }),
+  })],
 });
 
 const voice = new Voice(() => game?.myView()?.id ?? null, (to, data) => conn.send({ t: 'rtc', to, data }));
@@ -116,6 +123,13 @@ conn.onMessage = (m) => {
       };
       game.onToggleDnd = toggleDnd;
       game.voice = voice;
+      game.onPetKey = () => {
+        if (!wallet?.pet) {
+          hud.toast('🐾 Adopt a pet in the Boutique first (✏️ → Pets).');
+          return;
+        }
+        conn.send({ t: 'setPetOut', on: !game?.myView()?.pet });
+      };
       game.onVoiceKey = () => {
         if (!voice.on) return;
         voice.setMuted(!voice.muted);

@@ -12,6 +12,8 @@ import {
 import { CONTROLLER_POSES, VEHICLES, vehicleOk } from '../../shared/vehicles';
 import type { Anim, Drink, EmoteKind, FeedKind, Look, OnlineEntry, PetView, PlayerView, Session, Wallet } from '../../shared/types';
 import { isFree, itemById, SLOTS } from '../../shared/wardrobe';
+import { petPrice } from '../../shared/pets/kinds';
+import type { PetKind } from '../../shared/types';
 import { ProfileStore, type Profile, type Store } from './db';
 import { awardFor, dayOf } from './rewards';
 import { Feed, feedText } from './feed';
@@ -49,6 +51,7 @@ interface Player {
   pet: PetView | null;
   lastNoteAt: number;
   lastBrewAt: number;
+  lastPetAt: number;
 }
 
 const EMOJI: Record<EmoteKind, string> = { wave: '👋', clap: '👏', flex: '💪', coffee: '☕' };
@@ -88,6 +91,7 @@ export class World {
       existing.disconnectedAt = null;
       existing.name = profile.name;
       existing.look = profile.look;
+      existing.wallet = this.store.wallet(profile.id);
       if (old) old.close('connected_elsewhere');
       this.sendWelcome(existing, newToken);
       this.toScene(existing.scene, { t: 'playerUpdated', player: this.toView(existing) }, existing.id);
@@ -100,9 +104,10 @@ export class World {
       slotId: null, session: null, rainUntil: 0,
       conn, disconnectedAt: null, lastMoveAt: this.now(), lastCheerFeedAt: 0, lastUse: new Map(),
       wallet: this.store.wallet(profile.id),
-      dnd: false, voice: false, holding: null, pet: null, lastNoteAt: 0, lastBrewAt: 0,
+      dnd: false, voice: false, holding: null, pet: null, lastNoteAt: 0, lastBrewAt: 0, lastPetAt: 0,
     };
     this.players.set(p.id, p);
+    this.spawnPet(p);
     this.sendWelcome(p, newToken);
     this.toScene(p.scene, { t: 'playerJoined', player: this.toView(p) }, p.id);
     this.pushFeed('arrive', feedText.arrive(p.name));
@@ -148,6 +153,12 @@ export class World {
         q.conn?.send({ t: 'rtc', from: p.id, data: msg.data });
         return;
       }
+      case 'adoptPet': return this.adoptPet(p, msg.kind, msg.name);
+      case 'setPetOut':
+        if (msg.on) this.spawnPet(p);
+        else p.pet = null;
+        return this.updated(p);
+      case 'pet': return this.movePet(p, msg.x, msg.z, msg.facing, msg.anim);
       case 'setDnd':
         if (p.dnd === msg.on) return;
         p.dnd = msg.on;
@@ -210,6 +221,7 @@ export class World {
     p.facing = spawn.facing;
     p.anim = 'idle';
     p.lastMoveAt = this.now();
+    if (p.pet) this.spawnPet(p);
     p.conn!.send({ t: 'sceneSnapshot', scene: target.id, you: this.toView(p), players: this.scenePlayers(target.id, p.id), toys: this.sceneToys(target.id) });
     this.toScene(target.id, { t: 'playerJoined', player: this.toView(p) }, p.id);
     this.broadcastOnline();
@@ -347,6 +359,38 @@ export class World {
     p.look = look;
     this.store.updateLook(p.id, look);
     this.updated(p);
+  }
+
+  // ---------- pets ----------
+
+  /** Puts the player's active pet (if any) next to them. */
+  private spawnPet(p: Player): void {
+    const info = p.wallet.pet;
+    p.pet = info ? { kind: info.kind, name: info.name, x: p.x + 1, z: p.z + 0.5, facing: 0, anim: 'idle' } : null;
+    p.lastPetAt = this.now();
+  }
+
+  private adoptPet(p: Player, kind: PetKind, name: string): void {
+    const owned = p.wallet.pets.includes(kind);
+    const price = owned ? 0 : petPrice(kind);
+    if (p.wallet.kp < price || !this.store.adoptPet(p.id, { kind, name }, price)) {
+      return this.error(p, 'no_kp', `A ${kind} needs ${price} ✨ KP. Keep studying!`);
+    }
+    p.wallet = this.store.wallet(p.id);
+    p.conn?.send({ t: 'wallet', wallet: this.publicWallet(p) });
+    this.spawnPet(p);
+    this.updated(p);
+  }
+
+  private movePet(p: Player, x: number, z: number, facing: number, anim: PetView['anim']): void {
+    if (!p.pet) return;
+    const t = this.now();
+    const allowed = (8 * Math.max(t - p.lastPetAt, 50)) / 1000 + 0.5;
+    if (dist(p.pet.x, p.pet.z, x, z) > allowed || dist(p.x, p.z, x, z) > 20) return;
+    const c = clampToBounds(x, z, 0.25, this.scene(p.scene).size);
+    Object.assign(p.pet, { x: c.x, z: c.z, facing, anim });
+    p.lastPetAt = t;
+    this.toScene(p.scene, { t: 'petMoved', id: p.id, x: c.x, z: c.z, facing, anim }, p.id);
   }
 
   // ---------- coffee ----------
@@ -587,7 +631,7 @@ export class World {
       id: p.id, name: p.name, look: p.look, scene: p.scene,
       x: p.x, z: p.z, facing: p.facing, anim: p.anim,
       slotId: p.slotId, session: p.session, connected: p.conn !== null, rainUntil: p.rainUntil,
-      dnd: p.dnd, voice: p.voice, holding: p.holding, pet: p.pet,
+      dnd: p.dnd, voice: p.voice, holding: p.holding, pet: p.pet && { ...p.pet },
     };
   }
 }

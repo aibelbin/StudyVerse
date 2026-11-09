@@ -1,5 +1,5 @@
 import type { ToyAction, ToyState } from './toys';
-import type { Anim, Drink, EmoteKind, FeedEvent, Look, Note, OnlineEntry, PlayerView, Wallet } from './types';
+import type { Anim, Drink, EmoteKind, FeedEvent, Look, Note, OnlineEntry, PetKind, PetView, PlayerView, Wallet } from './types';
 
 export type ClientMsg =
   | { t: 'hello'; token?: string; inviteCode?: string; name?: string; look?: Look }
@@ -19,6 +19,9 @@ export type ClientMsg =
   | { t: 'setDnd'; on: boolean }
   | { t: 'brew'; drink: Drink; stars: number }
   | { t: 'setVoice'; on: boolean }
+  | { t: 'adoptPet'; kind: PetKind; name: string }
+  | { t: 'setPetOut'; on: boolean }
+  | { t: 'pet'; x: number; z: number; facing: number; anim: PetView['anim'] }
   /** WebRTC signalling for proximity voice, relayed to one player in the same scene. */
   | { t: 'rtc'; to: string; data: string };
 
@@ -68,7 +71,8 @@ export type ServerMsg =
   | { t: 'wallet'; wallet: Wallet }
   | { t: 'tree'; minutes: number }
   | { t: 'notes'; list: Note[] }
-  | { t: 'rtc'; from: string; data: string };
+  | { t: 'rtc'; from: string; data: string }
+  | { t: 'petMoved'; id: string; x: number; z: number; facing: number; anim: PetView['anim'] };
 
 export interface IceServer {
   urls: string | string[];

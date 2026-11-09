@@ -243,3 +243,50 @@ describe('voice signalling', () => {
     expect(c.of('welcome')[0].ice[0].urls).toContain('stun:');
   });
 });
+
+describe('pets', () => {
+  function rich(name: string) {
+    const j = joinNew(name);
+    store.award(j.id, 500, 1, '2026-11-09');
+    // reload the wallet the way a reconnect would
+    w.disconnect(j.id, j.c);
+    const c2 = new FakeConn();
+    w.join({ id: j.id, name, look: DEFAULT_LOOK }, c2);
+    (w as unknown as { players: Map<string, { wallet: unknown }> }).players.get(j.id)!.wallet = store.wallet(j.id);
+    return { id: j.id, c: c2 };
+  }
+
+  it('adopts with KP, shows the pet to everyone, and switching to an owned kind is free', () => {
+    const a = rich('Sam');
+    const b = joinNew('Jo');
+    w.handle(a.id, { t: 'adoptPet', kind: 'frog', name: 'Hop' });
+    expect(a.c.of('wallet').at(-1)!.wallet).toMatchObject({ kp: 380, pets: ['frog'], pet: { kind: 'frog', name: 'Hop' } });
+    expect(b.c.of('playerUpdated').at(-1)!.player.pet).toMatchObject({ kind: 'frog', name: 'Hop' });
+    w.handle(a.id, { t: 'adoptPet', kind: 'frog', name: 'Hoppy' });
+    expect(a.c.of('wallet').at(-1)!.wallet.kp).toBe(380);
+  });
+
+  it('refuses a pet you cannot afford', () => {
+    const a = joinNew('Sam');
+    w.handle(a.id, { t: 'adoptPet', kind: 'kitten', name: 'Mo' });
+    expect(a.c.of('error').at(-1)!.code).toBe('no_kp');
+    expect(w.view(a.id)!.pet).toBeNull();
+  });
+
+  it('relays sensible pet moves, ignores teleports, and can be put away', () => {
+    const a = rich('Sam');
+    const b = joinNew('Jo');
+    w.handle(a.id, { t: 'adoptPet', kind: 'duckling', name: 'Quack' });
+    const start = w.view(a.id)!.pet!;
+    t += 500;
+    w.handle(a.id, { t: 'pet', x: start.x + 1, z: start.z, facing: 1, anim: 'walk' });
+    expect(b.c.of('petMoved').at(-1)).toMatchObject({ id: a.id, x: start.x + 1, anim: 'walk' });
+    t += 100;
+    w.handle(a.id, { t: 'pet', x: start.x + 30, z: start.z, facing: 1, anim: 'walk' });
+    expect(b.c.of('petMoved')).toHaveLength(1);
+    w.handle(a.id, { t: 'setPetOut', on: false });
+    expect(w.view(a.id)!.pet).toBeNull();
+    w.handle(a.id, { t: 'setPetOut', on: true });
+    expect(w.view(a.id)!.pet).toMatchObject({ kind: 'duckling' });
+  });
+});
