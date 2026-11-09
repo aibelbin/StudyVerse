@@ -1,7 +1,8 @@
-import { CHAT_MAX, NAME_MAX, STAGE_TEXT_MAX } from '../../shared/constants';
+import { CHAT_MAX, NAME_MAX, PLOT_SPOTS, STAGE_TEXT_MAX } from '../../shared/constants';
+import { isFlower, type Flower } from '../../shared/garden';
 import { normalizeLook } from '../../shared/wardrobe';
 import { isPetKind } from '../../shared/pets/kinds';
-import type { ClientMsg } from '../../shared/protocol';
+import { GARDEN_ACTIONS, type ClientMsg, type GardenAction } from '../../shared/protocol';
 import { TOY_ACTIONS, type ToyAction } from '../../shared/toys';
 import { ACTS, DRINKS, REACTIONS, type Act, type Anim, type Drink, type EmoteKind, type Look } from '../../shared/types';
 
@@ -113,6 +114,18 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     }
     case 'react':
       return Number.isInteger(m.id) && (REACTIONS as readonly string[]).includes(m.emoji as string) ? { t: 'react', id: m.id as number, emoji: m.emoji as string } : null;
+    case 'garden': {
+      if (!isStr(m.toyId, 40) || !GARDEN_ACTIONS.includes(m.action as GardenAction)) return null;
+      if (m.spot !== undefined && !(Number.isInteger(m.spot) && (m.spot as number) >= 0 && (m.spot as number) < PLOT_SPOTS)) return null;
+      if (m.flower !== undefined && !isFlower(m.flower)) return null;
+      return {
+        t: 'garden', toyId: m.toyId, action: m.action as GardenAction,
+        ...(m.spot !== undefined ? { spot: m.spot as number } : {}),
+        ...(m.flower !== undefined ? { flower: m.flower as Flower } : {}),
+      };
+    }
+    case 'buySeed':
+      return isFlower(m.flower) ? { t: 'buySeed', flower: m.flower } : null;
     case 'stageText': {
       if (typeof m.text !== 'string') return null;
       const text = m.text.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();

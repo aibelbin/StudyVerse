@@ -1,6 +1,10 @@
 import type { Tilt } from './toys';
+
+export type GardenAction = 'claim' | 'plant' | 'water' | 'harvest' | 'vase';
+export const GARDEN_ACTIONS: GardenAction[] = ['claim', 'plant', 'water', 'harvest', 'vase'];
 import type { ToyAction, ToyState } from './toys';
-import type { Act, Anim, ChatMsg, Drink, EmoteKind, FeedEvent, Look, Note, OnlineEntry, PetKind, PetView, PlayerView, Wallet } from './types';
+import type { Flower } from './garden';
+import type { Act, Anim, ChatMsg, Drink, EmoteKind, HoldItem, FeedEvent, Look, Note, OnlineEntry, PetKind, PetView, PlayerView, Wallet } from './types';
 
 export type ClientMsg =
   | { t: 'hello'; token?: string; inviteCode?: string; name?: string; look?: Look }
@@ -24,6 +28,8 @@ export type ClientMsg =
   | { t: 'react'; id: number; emoji: string }
   | { t: 'act'; kind: Act }
   | { t: 'stageText'; text: string }
+  | { t: 'garden'; toyId: string; action: GardenAction; spot?: number; flower?: Flower }
+  | { t: 'buySeed'; flower: Flower }
   | { t: 'offerCoffee'; to: string }
   | { t: 'answerCoffee'; fromId: string; accept: boolean }
   | { t: 'setVoice'; on: boolean }
@@ -51,13 +57,18 @@ export type ErrorCode =
   | 'bad_gift'
   | 'chat_slow'
   | 'bad_chat'
-  | 'bad_stage';
+  | 'bad_stage'
+  | 'bad_garden';
 
 export type ServerMsg =
   | { t: 'chat'; msg: ChatMsg }
   | { t: 'chatReact'; id: number; reactions: Record<string, string[]> }
   | { t: 'act'; fromId: string; kind: Act }
-  | { t: 'coffeeOffer'; fromId: string; name: string; drink: Drink; stars: number }
+  | { t: 'coffeeOffer'; fromId: string; name: string; drink: HoldItem; stars: number; flower?: Flower }
+  /** One of your garden flowers reached bloom. */
+  | { t: 'bloomed'; flower: Flower }
+  /** Something happened in your garden while you were away from it (e.g. a friend watered it). */
+  | { t: 'gardenNote'; text: string }
   | { t: 'coffeeAnswer'; name: string; accepted: boolean }
   /** Your breather on the cushions is done; kp is 0 if you already had one this hour. */
   | { t: 'meditated'; kp: number; companions: number }

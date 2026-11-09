@@ -234,7 +234,7 @@ describe('coffee', () => {
       t += 30_000;
       w.handle(b.id, { t: 'brew', drink: 'cocoa', stars: 1 });
       w.handle(a.id, { t: 'offerCoffee', to: b.id });
-      expect(a.c.of('error').at(-1)!.message).toMatch(/already has/);
+      expect(a.c.of('error').at(-1)!.message).toMatch(/hands are full/);
       expect(b.c.of('coffeeOffer')).toHaveLength(0);
     });
   });

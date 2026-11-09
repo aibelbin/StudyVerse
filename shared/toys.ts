@@ -1,17 +1,18 @@
 import { pointInPolygon } from './geometry';
+import type { PlotState } from './garden';
 import type { Slot, Toy } from './scenes/types';
 
 export type ToyKind =
   | 'swing' | 'seesaw' | 'merryGoRound' | 'slide' | 'piano' | 'jukebox' | 'ducks'
   | 'fountain' | 'bell' | 'chimes' | 'stones' | 'campfire' | 'telescope' | 'rowboat'
   | 'shop' | 'board' | 'quotes' | 'coffee' | 'truck'
-  | 'koi' | 'cushions' | 'cairn' | 'drums' | 'guitar' | 'keys' | 'stageScreen';
+  | 'koi' | 'cushions' | 'cairn' | 'drums' | 'guitar' | 'keys' | 'stageScreen' | 'plot';
 
 export const TOY_KINDS: ToyKind[] = [
   'swing', 'seesaw', 'merryGoRound', 'slide', 'piano', 'jukebox', 'ducks',
   'fountain', 'bell', 'chimes', 'stones', 'campfire', 'telescope', 'rowboat',
   'shop', 'board', 'quotes', 'coffee', 'truck',
-  'koi', 'cushions', 'cairn', 'drums', 'guitar', 'keys', 'stageScreen',
+  'koi', 'cushions', 'cairn', 'drums', 'guitar', 'keys', 'stageScreen', 'plot',
 ];
 
 /** Toys whose E opens something on your own screen instead of telling the server. */
@@ -41,7 +42,8 @@ export type ToyState =
   | { kind: 'meditate'; startedAt: number | null }
   /** The shared cairn: stones now, the shape seed, and the tallest it has been. */
   | { kind: 'cairn'; height: number; seed: number; record: number; recordBy: string | null }
-  | { kind: 'stageScreen'; text: string | null; by: string | null; until: number };
+  | { kind: 'stageScreen'; text: string | null; by: string | null; until: number }
+  | PlotState;
 
 /** Chance the stone that makes a cairn h tall topples it: none up to 4, rising to 35% at 15. */
 export function toppleChance(h: number): number {

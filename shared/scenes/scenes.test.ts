@@ -154,9 +154,17 @@ describe('car parks', () => {
       expect(town.spawns.find((s) => s.id === 'start')).toMatchObject({ x: 0, z: -13.5 });
     });
 
-    it('keeps the garden ground empty for round 2', () => {
-      expect(town.colliders.some((c) => inBox(GARDEN_BOX, c.x, c.z, -0.5))).toBe(false);
-      expect(town.toys.some((t) => inBox(GARDEN_BOX, t.x, t.z))).toBe(false);
+    it('lays out 20 garden plots inside the garden, clear of paths, colliders and each other', () => {
+      const plots = town.toys.filter((t) => t.kind === 'plot');
+      expect(plots).toHaveLength(20);
+      for (const p of plots) {
+        for (const [dx, dz] of [[-1, -0.9], [1, -0.9], [-1, 0.9], [1, 0.9]]) {
+          expect(inBox(GARDEN_BOX, p.x + dx, p.z + dz), p.id).toBe(true);
+          expect(inBoxes(town.colliders, p.x + dx, p.z + dz), p.id).toBe(false);
+        }
+        expect(inBoxes(PATHS, p.x, p.z, 1), p.id).toBe(false);
+        for (const q of plots) if (q !== p) expect(Math.abs(q.x - p.x) >= 2.8 - 1e-9 || Math.abs(q.z - p.z) >= 2.6 - 1e-9).toBe(true);
+      }
       expect(town.slots.some((s) => inBox(GARDEN_BOX, s.x, s.z))).toBe(false);
     });
 

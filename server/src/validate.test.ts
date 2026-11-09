@@ -83,6 +83,21 @@ describe('parseClientMsg', () => {
   });
 });
 
+describe('garden', () => {
+  const parse = (m: object) => parseClientMsg(JSON.stringify(m));
+  it('accepts garden actions with an optional spot and flower', () => {
+    expect(parse({ t: 'garden', toyId: 'garden-plot-3', action: 'plant', spot: 2, flower: 'rose' })).toEqual({ t: 'garden', toyId: 'garden-plot-3', action: 'plant', spot: 2, flower: 'rose' });
+    expect(parse({ t: 'garden', toyId: 'garden-plot-3', action: 'water' })).toEqual({ t: 'garden', toyId: 'garden-plot-3', action: 'water' });
+  });
+  it('refuses bad actions, spots and flowers', () => {
+    expect(parse({ t: 'garden', toyId: 'garden-plot-3', action: 'dig' })).toBeNull();
+    expect(parse({ t: 'garden', toyId: 'garden-plot-3', action: 'plant', spot: 4, flower: 'rose' })).toBeNull();
+    expect(parse({ t: 'garden', toyId: 'garden-plot-3', action: 'plant', spot: 1, flower: 'cactus' })).toBeNull();
+    expect(parse({ t: 'buySeed', flower: 'lotus' })).toEqual({ t: 'buySeed', flower: 'lotus' });
+    expect(parse({ t: 'buySeed', flower: 'weed' })).toBeNull();
+  });
+});
+
 describe('stageText', () => {
   it('cleans and trims the text, allows empty (clears), and refuses over 60 characters', () => {
     expect(parseClientMsg(JSON.stringify({ t: 'stageText', text: '  Calculus\n7pm ' }))).toEqual({ t: 'stageText', text: 'Calculus 7pm' });

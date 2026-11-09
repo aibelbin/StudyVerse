@@ -3,6 +3,7 @@ import {
   NOTES_SHOWN, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS, BREW_COOLDOWN_MS, CUP_SIPS, GIFT_RANGE, GIFT_TTL_MS, SELF_PARK_MS,
   ACT_GAP_MS, CHAT_BURST, CHAT_DM_HISTORY, CHAT_GAP_MS, CHAT_KEEP, CHAT_WINDOW_MS, REACT_GAP_MS,
   MEDITATE_COMPANION_MAX, MEDITATE_EVERY_MS, MEDITATE_KP, MEDITATE_MS, STAGE_TEXT_GAP_MS, STAGE_TEXT_TTL_MS,
+  PLOT_IDLE_MS, WATER_BOOST_MIN,
 } from '../../shared/constants';
 import { clampToBounds, dist, inBox, pointInPolygon } from '../../shared/geometry';
 import type { ClientMsg, ErrorCode, IceServer, ServerMsg } from '../../shared/protocol';
@@ -13,7 +14,7 @@ import {
   type Tilt,
 } from '../../shared/toys';
 import { CONTROLLER_POSES, VEHICLES, vehicleOk } from '../../shared/vehicles';
-import type { Act, Anim, ChatMsg, Drink, EmoteKind, FeedKind, Look, OnlineEntry, PetView, PlayerView, Session, Wallet } from '../../shared/types';
+import { holdName, type Act, type Anim, type ChatMsg, type Drink, type EmoteKind, type FeedKind, type Holding, type Look, type OnlineEntry, type PetView, type PlayerView, type Session, type Wallet } from '../../shared/types';
 import { isFree, itemById, SLOTS } from '../../shared/wardrobe';
 import { petPrice } from '../../shared/pets/kinds';
 import type { PetKind } from '../../shared/types';
@@ -23,6 +24,8 @@ import { Feed, feedText } from './feed';
 import { elapsedMin, newSession, stepSession, validLengths } from './sessions';
 import { COOLDOWN_MS, HANDLERS } from './toys';
 import { freeBay, inBay } from '../../shared/parking';
+import { emptyPlot, FLOWERS, grow, seedItem, stageOf, type Flower, type PlotState } from '../../shared/garden';
+import type { GardenAction } from '../../shared/protocol';
 
 /** What the World needs from a network connection. */
 export interface Conn {
@@ -51,7 +54,7 @@ interface Player {
   wallet: Wallet & { lastDay: string | null };
   dnd: boolean;
   voice: boolean;
-  holding: { item: Drink; stars: number; sips: number } | null;
+  holding: Holding | null;
   pet: PetView | null;
   lastNoteAt: number;
   lastBrewAt: number;
@@ -66,7 +69,7 @@ interface Player {
 }
 
 /** World state that survives restarts, saved in the store's kv table under the toy kind. */
-const SAVED_KINDS = ['cairn', 'stageScreen'] as const;
+const SAVED_KINDS = ['cairn', 'stageScreen', 'plot'] as const;
 
 const EMOJI: Record<EmoteKind, string> = { wave: '👋', clap: '👏', flex: '💪', coffee: '☕' };
 
@@ -79,6 +82,7 @@ export class World {
   private lastDrivenAt = new Map<string, number>(); // truck toyId -> when someone last drove it (absent = never)
   private toySceneOf = new Map<string, string>(); // toyId -> scene id
   private meditatedAt = new Map<string, number>(); // profile id -> last breather award (survives reconnects)
+  private wateredOn = new Map<string, string>(); // `plotId|profileId` -> the day they last watered it
   /** STUN/TURN servers handed to clients for voice chat. */
   ice: IceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 
@@ -175,6 +179,8 @@ export class World {
       case 'react': return this.react(p, msg.id, msg.emoji);
       case 'act': return this.act(p, msg.kind);
       case 'stageText': return this.stageText(p, msg.text);
+      case 'garden': return this.garden(p, msg.toyId, msg.action, msg.spot, msg.flower);
+      case 'buySeed': return this.buySeed(p, msg.flower);
       case 'offerCoffee': return this.offerCoffee(p, msg.to);
       case 'answerCoffee': return this.answerCoffee(p, msg.fromId, msg.accept);
       case 'setVoice': {
@@ -462,6 +468,104 @@ export class World {
     p.conn?.send({ t: 'wallet', wallet: this.publicWallet(p) });
     this.pushFeed('finish', feedText.finish(p.name, focusMin, a.kp, a.streak));
     this.toAll({ t: 'tree', minutes: this.store.addDailyMinutes(today, focusMin) });
+    const mine = this.plotOf(p.id);
+    if (mine) {
+      const r = grow(mine.s, focusMin);
+      this.saveToyState(mine.toy.id, { ...r.state, lastActive: this.now() });
+      for (const flower of r.bloomed) p.conn?.send({ t: 'bloomed', flower });
+    }
+  }
+
+  // ---------- garden ----------
+
+  private plots(): { toy: Toy; s: PlotState }[] {
+    const out: { toy: Toy; s: PlotState }[] = [];
+    for (const def of Object.values(this.scenes)) {
+      for (const toy of def.toys) {
+        if (toy.kind !== 'plot') continue;
+        const s = this.stateOf(toy);
+        if (s?.kind === 'plot') out.push({ toy, s });
+      }
+    }
+    return out;
+  }
+
+  private plotOf(profileId: string): { toy: Toy; s: PlotState } | undefined {
+    return this.plots().find((x) => x.s.owner === profileId);
+  }
+
+  private garden(p: Player, toyId: string, action: GardenAction, spot?: number, flower?: Flower): void {
+    const toy = this.scene(p.scene).toys.find((x) => x.id === toyId && x.kind === 'plot');
+    const s = toy && this.stateOf(toy);
+    if (!toy || s?.kind !== 'plot') return this.error(p, 'bad_garden', "That isn't here.");
+    if (p.slotId || dist(p.x, p.z, toy.x, toy.z) > toy.radius + 0.3) return this.error(p, 'bad_garden', 'Get a little closer to the plot.');
+    const t = this.now();
+    const mine = s.owner === p.id;
+    const save = (next: PlotState) => this.saveToyState(toy.id, next);
+    switch (action) {
+      case 'claim': {
+        if (this.plotOf(p.id)) return this.error(p, 'bad_garden', 'You already have a plot.');
+        if (s.owner) {
+          // A full garden frees up plots whose owners have been away for a month.
+          const anyFree = this.plots().some((x) => !x.s.owner);
+          if (anyFree) return this.error(p, 'bad_garden', `This is ${s.ownerName}'s plot. There are free ones nearby.`);
+          if (t - s.lastActive <= PLOT_IDLE_MS) return this.error(p, 'bad_garden', 'The garden is full right now.');
+        }
+        return save({ ...emptyPlot(), owner: p.id, ownerName: p.name, lastActive: t });
+      }
+      case 'plant': {
+        if (!mine) return this.error(p, 'bad_garden', 'You can only plant in your own plot.');
+        if (spot === undefined || !flower || s.spots[spot]) return this.error(p, 'bad_garden', 'Pick an empty spot and a seed.');
+        if (FLOWERS[flower].price && !p.wallet.owned.includes(seedItem(flower))) return this.error(p, 'bad_garden', `Unlock ${FLOWERS[flower].plural} first.`);
+        const spots = s.spots.slice();
+        spots[spot] = { flower, progress: 0 };
+        return save({ ...s, spots, ownerName: p.name, lastActive: t });
+      }
+      case 'water': {
+        if (!s.owner) return this.error(p, 'bad_garden', 'Nobody has planted here yet.');
+        const key = `${toy.id}|${p.id}`;
+        const today = dayOf(t);
+        if (this.wateredOn.get(key) === today) return this.error(p, 'bad_garden', 'You already watered this plot today 💧');
+        this.wateredOn.set(key, today);
+        save({ ...s, boostMin: WATER_BOOST_MIN });
+        if (!mine) this.players.get(s.owner)?.conn?.send({ t: 'gardenNote', text: `💧 ${p.name} watered your garden` });
+        return;
+      }
+      case 'harvest': {
+        if (!mine) return this.error(p, 'bad_garden', 'Only the owner can pick these.');
+        const sp = spot === undefined ? null : s.spots[spot];
+        if (!sp || stageOf(sp.progress, FLOWERS[sp.flower].growMin) !== 'bloom') return this.error(p, 'bad_garden', "That one isn't in bloom yet.");
+        if (p.holding) return this.error(p, 'bad_garden', 'Your hands are full.');
+        const spots = s.spots.slice();
+        spots[spot!] = null;
+        save({ ...s, spots, lastActive: t });
+        p.holding = { item: 'bouquet', flower: sp.flower, stars: 0, sips: 0 };
+        this.store.addKp(p.id, FLOWERS[sp.flower].harvestKp);
+        p.wallet = this.store.wallet(p.id);
+        p.conn?.send({ t: 'wallet', wallet: this.publicWallet(p) });
+        this.updated(p);
+        this.pushFeed('garden', feedText.harvest(p.name, holdName(p.holding)));
+        return;
+      }
+      case 'vase': {
+        if (!mine) return this.error(p, 'bad_garden', 'That vase belongs to someone else.');
+        if (p.holding?.item !== 'bouquet' || !p.holding.flower) return this.error(p, 'bad_garden', 'Bring a bouquet for the vase.');
+        save({ ...s, vase: p.holding.flower, lastActive: t });
+        p.holding = null;
+        this.updated(p);
+      }
+    }
+  }
+
+  /** Rare seeds are unlocked for good with KP, like wardrobe items. */
+  private buySeed(p: Player, flower: Flower): void {
+    const price = FLOWERS[flower].price;
+    if (!price || p.wallet.owned.includes(seedItem(flower))) return;
+    if (p.wallet.kp < price || !this.store.buy(p.id, seedItem(flower), price)) {
+      return this.error(p, 'no_kp', `You need ${price} ✨ KP for ${FLOWERS[flower].plural}.`);
+    }
+    p.wallet = this.store.wallet(p.id);
+    p.conn?.send({ t: 'wallet', wallet: this.publicWallet(p) });
   }
 
   private publicWallet(p: Player): Wallet {
@@ -575,7 +679,7 @@ export class World {
 
   /** A sip from your cup (the ☕ emote); the fourth one finishes it. */
   private sip(p: Player): void {
-    if (!p.holding) return;
+    if (!p.holding || p.holding.item === 'bouquet') return;
     p.holding = p.holding.sips > 1 ? { ...p.holding, sips: p.holding.sips - 1 } : null;
     this.toScene(p.scene, { t: 'emote', fromId: p.id, kind: 'coffee' });
     this.updated(p);
@@ -587,12 +691,12 @@ export class World {
       : !to || to.id === p.id || to.scene !== p.scene || !to.conn ? 'There is nobody there.'
       : dist(p.x, p.z, to.x, to.z) > GIFT_RANGE ? `Get a little closer to ${to.name}.`
       : to.dnd ? `${to.name} is focusing (do not disturb).`
-      : to.holding ? `${to.name} already has a drink.`
-      : this.offers.has(to.id) ? `${to.name} is already deciding on a drink.`
+      : to.holding ? `${to.name}'s hands are full.`
+      : this.offers.has(to.id) ? `${to.name} is already deciding on a gift.`
       : null;
     if (why || !to || !p.holding) return this.error(p, 'bad_gift', why ?? 'There is nobody there.');
     this.offers.set(to.id, { fromId: p.id, at: this.now() });
-    to.conn!.send({ t: 'coffeeOffer', fromId: p.id, name: p.name, drink: p.holding.item, stars: p.holding.stars });
+    to.conn!.send({ t: 'coffeeOffer', fromId: p.id, name: p.name, drink: p.holding.item, stars: p.holding.stars, ...(p.holding.flower ? { flower: p.holding.flower } : {}) });
   }
 
   private answerCoffee(p: Player, fromId: string, accept: boolean): void {
@@ -613,7 +717,7 @@ export class World {
     this.updated(p);
     this.updated(from);
     from.conn?.send({ t: 'coffeeAnswer', name: p.name, accepted: true });
-    this.pushFeed('gift', feedText.gift(from.name, p.name, cup.stars, cup.item));
+    this.pushFeed('gift', feedText.gift(from.name, p.name, cup.stars, holdName(cup)));
   }
 
   private brew(p: Player, drink: Drink, stars: number): void {
@@ -621,6 +725,7 @@ export class World {
     if (!machine || p.slotId || dist(p.x, p.z, machine.x, machine.z) > machine.radius + 0.5) {
       return this.error(p, 'bad_toy', 'Stand at the coffee machine to brew.');
     }
+    if (p.holding?.item === 'bouquet') return this.error(p, 'bad_toy', 'Put your bouquet in your vase or give it away first.');
     const t = this.now();
     if (t - p.lastBrewAt < BREW_COOLDOWN_MS) return;
     p.lastBrewAt = t;

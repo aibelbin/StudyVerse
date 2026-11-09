@@ -42,3 +42,8 @@ export const CAIRN_GAP_MS = 5000;           // one stone per player this often
 export const STAGE_TEXT_MAX = 60;
 export const STAGE_TEXT_GAP_MS = 30_000;
 export const STAGE_TEXT_TTL_MS = 2 * 60 * 60_000;
+
+export const PLOT_SPOTS = 4;                // planting spots per garden plot
+export const WATER_BOOST_MIN = 60;          // focus minutes a watering speeds up
+export const WATER_BOOST = 0.5;             // …by this much extra
+export const PLOT_IDLE_MS = 30 * 24 * 60 * 60_000; // a plot whose owner is away this long can be reclaimed

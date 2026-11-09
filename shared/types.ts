@@ -1,3 +1,4 @@
+import { FLOWERS, type Flower } from './garden';
 export type Eyes = 'dot' | 'happy' | 'sleepy';
 export type OutfitSlot = 'hat' | 'top' | 'face' | 'back' | 'neck';
 
@@ -42,12 +43,25 @@ export interface PlayerView {
   dnd: boolean;
   /** Opted in to proximity voice chat. */
   voice: boolean;
-  /** A drink in hand until the given server time. */
-  holding: { item: Drink; stars: number; sips: number } | null;
+  /** A drink (or a bouquet from the garden) in hand. */
+  holding: Holding | null;
   pet: PetView | null;
 }
 
 export type Drink = 'espresso' | 'latte' | 'matcha' | 'cocoa';
+export type HoldItem = Drink | 'bouquet';
+export interface Holding {
+  item: HoldItem;
+  stars: number;
+  sips: number;
+  /** For a bouquet: which flowers. */
+  flower?: Flower;
+}
+
+/** "latte", or "bouquet of roses". */
+export function holdName(h: { item: HoldItem; flower?: Flower }): string {
+  return h.item === 'bouquet' ? `bouquet of ${h.flower ? FLOWERS[h.flower].plural : 'flowers'}` : h.item;
+}
 export const DRINKS: Drink[] = ['espresso', 'latte', 'matcha', 'cocoa'];
 
 export interface PetView {
@@ -65,7 +79,7 @@ export interface OnlineEntry {
   scene: string;
 }
 
-export type FeedKind = 'arrive' | 'leave' | 'start' | 'finish' | 'quit' | 'cheer' | 'coffee' | 'gift' | 'meditate';
+export type FeedKind = 'arrive' | 'leave' | 'start' | 'finish' | 'quit' | 'cheer' | 'coffee' | 'gift' | 'meditate' | 'garden';
 
 export interface FeedEvent {
   kind: FeedKind;

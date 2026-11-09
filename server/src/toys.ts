@@ -1,5 +1,6 @@
 import type { Toy } from '../../shared/scenes/types';
 import { CAIRN_GAP_MS } from '../../shared/constants';
+import { emptyPlot } from '../../shared/garden';
 import { SPIN_MAX, SPIN_PUSH, spinAt, toppleChance, type ToyAction, type ToyKind, type ToyState } from '../../shared/toys';
 
 /** Pure rules for one kind of toy. world.ts handles range, slots, cooldowns and broadcasting. */
@@ -31,6 +32,7 @@ export const HANDLERS: Record<ToyKind, ToyHandler> = {
   quotes: none,
   coffee: none,
   stageScreen: none,
+  plot: { actions: [], init: () => emptyPlot(), apply: () => ({}) },
   cushions: {
     actions: [],
     init: () => ({ kind: 'meditate', startedAt: null }),
