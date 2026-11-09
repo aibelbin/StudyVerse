@@ -3,7 +3,7 @@ import { PLAYER_RADIUS } from '../constants';
 import { inBox, pointInPolygon } from '../geometry';
 import { inBay } from '../parking';
 import { MOVING_TOYS, TOY_KINDS } from '../toys';
-import { PATHS } from './town/scatter';
+import { GARDEN_BOX, PATHS } from './town/scatter';
 import { findSlot, SCENES, START_SCENE, START_SPAWN } from './index';
 
 const scenes = Object.values(SCENES);
@@ -142,5 +142,47 @@ describe('car parks', () => {
   it('every lot touches the main street', () => {
     const street = PATHS[0];
     for (const l of lots) expect(Math.abs(l.z + (l.d ?? 0) / 2 - (street.z - street.d / 2))).toBeLessThan(1);
+  });
+
+  describe('south park', () => {
+    const town = SCENES.town;
+    const inBoxes = (boxes: { x: number; z: number; w: number; d: number }[], x: number, z: number, pad = 0) => boxes.some((b) => inBox(b, x, z, pad));
+
+    it('moved the old town 15 m north', () => {
+      expect(findSlot('town', 'park-b1-a')!.z).toBe(2); // was 17
+      expect(town.parking!.find((b) => b.id.endsWith('1'))!.z).toBeCloseTo(-25.5);
+      expect(town.spawns.find((s) => s.id === 'start')).toMatchObject({ x: 0, z: -13.5 });
+    });
+
+    it('keeps the garden ground empty for round 2', () => {
+      expect(town.colliders.some((c) => inBox(GARDEN_BOX, c.x, c.z, -0.5))).toBe(false);
+      expect(town.toys.some((t) => inBox(GARDEN_BOX, t.x, t.z))).toBe(false);
+      expect(town.slots.some((s) => inBox(GARDEN_BOX, s.x, s.z))).toBe(false);
+    });
+
+    it('puts every new seat where you can stand, clear of paths', () => {
+      const ids = town.slots.filter((s) => /^(zen|stage)-/.test(s.id));
+      expect(ids.length).toBe(5 + 4 + 18 + 3);
+      for (const s of ids) {
+        expect(inBoxes(town.colliders, s.x, s.z, 0.1), s.id).toBe(false);
+        expect(inBoxes(PATHS, s.x, s.z), s.id).toBe(false);
+      }
+    });
+
+    it('lays out the stage: seats in the audience, stools on the stage, screen behind', () => {
+      const st = town.stage!;
+      for (const s of town.slots.filter((x) => x.id.startsWith('stage-seat'))) expect(inBox(st.audience, s.x, s.z), s.id).toBe(true);
+      for (const s of town.slots.filter((x) => x.id.endsWith('-stool'))) expect(inBox(st.stage, s.x, s.z), s.id).toBe(true);
+      expect(st.screen.z).toBeLessThan(st.stage.z - st.stage.d / 2);
+      expect(inBox(st.stage, st.audience.x, st.audience.z)).toBe(false);
+    });
+
+    it('keeps the zen corner and stage off the paths and inside the map', () => {
+      for (const t of town.toys.filter((x) => /^(zen|stage)-/.test(x.id))) {
+        expect(inBoxes(PATHS, t.x, t.z), t.id).toBe(false);
+        expect(inside(150, 130, t.x, t.z, 2), t.id).toBe(true);
+      }
+      expect(inBoxes(PATHS, -30, 46, 3)).toBe(false); // the stage
+    });
   });
 });

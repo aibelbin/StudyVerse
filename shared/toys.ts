@@ -4,23 +4,25 @@ import type { Slot, Toy } from './scenes/types';
 export type ToyKind =
   | 'swing' | 'seesaw' | 'merryGoRound' | 'slide' | 'piano' | 'jukebox' | 'ducks'
   | 'fountain' | 'bell' | 'chimes' | 'stones' | 'campfire' | 'telescope' | 'rowboat'
-  | 'shop' | 'board' | 'quotes' | 'coffee' | 'truck';
+  | 'shop' | 'board' | 'quotes' | 'coffee' | 'truck'
+  | 'koi' | 'cushions' | 'cairn' | 'drums' | 'guitar' | 'keys' | 'stageScreen';
 
 export const TOY_KINDS: ToyKind[] = [
   'swing', 'seesaw', 'merryGoRound', 'slide', 'piano', 'jukebox', 'ducks',
   'fountain', 'bell', 'chimes', 'stones', 'campfire', 'telescope', 'rowboat',
   'shop', 'board', 'quotes', 'coffee', 'truck',
+  'koi', 'cushions', 'cairn', 'drums', 'guitar', 'keys', 'stageScreen',
 ];
 
 /** Toys whose E opens something on your own screen instead of telling the server. */
-export const LOCAL_TOYS: ToyKind[] = ['telescope', 'shop', 'board', 'quotes', 'coffee'];
+export const LOCAL_TOYS: ToyKind[] = ['telescope', 'shop', 'board', 'quotes', 'coffee', 'stageScreen'];
 
-export type ToyAction = 'push' | 'slide' | 'note' | 'next' | 'feed' | 'coin' | 'ring' | 'skip' | 'toggle' | 'honk';
+export type ToyAction = 'push' | 'slide' | 'note' | 'next' | 'feed' | 'coin' | 'ring' | 'skip' | 'toggle' | 'honk' | 'stack';
 
 /** Actions you do from one of the toy's seats rather than standing next to it. */
 export const SEATED_ACTIONS: ToyAction[] = ['note', 'honk'];
 
-export const TOY_ACTIONS: ToyAction[] = ['push', 'slide', 'note', 'next', 'feed', 'coin', 'ring', 'skip', 'toggle', 'honk'];
+export const TOY_ACTIONS: ToyAction[] = ['push', 'slide', 'note', 'next', 'feed', 'coin', 'ring', 'skip', 'toggle', 'honk', 'stack'];
 
 export interface BoatPose {
   x: number;
@@ -34,7 +36,17 @@ export type ToyState =
   | { kind: 'jukebox'; track: number; startedAt: number }
   | { kind: 'campfire'; lit: boolean }
   | { kind: 'rowboat'; x: number; z: number; heading: number; returnFrom: (BoatPose & { at: number }) | null }
-  | { kind: 'truck'; x: number; z: number; heading: number; returnFrom: null; tilt?: Tilt };
+  | { kind: 'truck'; x: number; z: number; heading: number; returnFrom: null; tilt?: Tilt }
+  /** The meditation ring's shared breathing clock; null while nobody sits there. */
+  | { kind: 'meditate'; startedAt: number | null }
+  /** The shared cairn: stones now, the shape seed, and the tallest it has been. */
+  | { kind: 'cairn'; height: number; seed: number; record: number; recordBy: string | null }
+  | { kind: 'stageScreen'; text: string | null; by: string | null; until: number };
+
+/** Chance the stone that makes a cairn h tall topples it: none up to 4, rising to 35% at 15. */
+export function toppleChance(h: number): number {
+  return h <= 4 ? 0 : Math.min(0.35, (h - 4) * 0.032);
+}
 
 export const BOAT_SPEED = 2.4;        // m/s while rowing
 /** How a truck's body sits on its springs: height above rest, nose-up pitch, right-down roll. */

@@ -1,5 +1,6 @@
 import type { Toy } from '../../shared/scenes/types';
-import { SPIN_MAX, SPIN_PUSH, spinAt, type ToyAction, type ToyKind, type ToyState } from '../../shared/toys';
+import { CAIRN_GAP_MS } from '../../shared/constants';
+import { SPIN_MAX, SPIN_PUSH, spinAt, toppleChance, type ToyAction, type ToyKind, type ToyState } from '../../shared/toys';
 
 /** Pure rules for one kind of toy. world.ts handles range, slots, cooldowns and broadcasting. */
 export interface ToyHandler {
@@ -15,6 +16,7 @@ export interface ToyHandler {
 
 export const COOLDOWN_MS: Record<ToyAction, number> = {
   note: 100, honk: 800, ring: 1500, coin: 1500, feed: 3000, skip: 2000, push: 500, slide: 2000, toggle: 1000, next: 1000,
+  stack: CAIRN_GAP_MS,
 };
 
 const none: ToyHandler = { actions: [], apply: () => ({}) };
@@ -28,6 +30,27 @@ export const HANDLERS: Record<ToyKind, ToyHandler> = {
   board: none,
   quotes: none,
   coffee: none,
+  stageScreen: none,
+  cushions: {
+    actions: [],
+    init: () => ({ kind: 'meditate', startedAt: null }),
+    apply: () => ({}),
+  },
+  koi: event('feed'),
+  drums: { actions: ['note'], apply: (_s, _a, arg) => ({ arg }) },
+  guitar: { actions: ['note'], apply: (_s, _a, arg) => ({ arg }) },
+  keys: { actions: ['note'], apply: (_s, _a, arg) => ({ arg }) },
+  cairn: {
+    actions: ['stack'],
+    init: () => ({ kind: 'cairn', height: 0, seed: 1, record: 0, recordBy: null }),
+    /** One more stone, or a topple (arg 1) back to nothing. The record is kept by world.ts, which knows who stacked. */
+    apply(state, _a, _arg, _now, rand) {
+      const s = state?.kind === 'cairn' ? state : { kind: 'cairn' as const, height: 0, seed: 1, record: 0, recordBy: null };
+      const h = s.height + 1;
+      if (rand() < toppleChance(h)) return { state: { ...s, height: 0, seed: s.seed + 1 + Math.floor(rand() * 997) }, arg: 1 };
+      return { state: { ...s, height: h }, arg: 0 };
+    },
+  },
   truck: {
     actions: ['honk'],
     init: (toy) => ({ kind: 'truck', x: toy.x, z: toy.z, heading: toy.rot ?? 0, returnFrom: null }),

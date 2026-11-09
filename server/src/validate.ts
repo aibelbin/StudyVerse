@@ -1,4 +1,4 @@
-import { CHAT_MAX, NAME_MAX } from '../../shared/constants';
+import { CHAT_MAX, NAME_MAX, STAGE_TEXT_MAX } from '../../shared/constants';
 import { normalizeLook } from '../../shared/wardrobe';
 import { isPetKind } from '../../shared/pets/kinds';
 import type { ClientMsg } from '../../shared/protocol';
@@ -113,6 +113,11 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     }
     case 'react':
       return Number.isInteger(m.id) && (REACTIONS as readonly string[]).includes(m.emoji as string) ? { t: 'react', id: m.id as number, emoji: m.emoji as string } : null;
+    case 'stageText': {
+      if (typeof m.text !== 'string') return null;
+      const text = m.text.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+      return [...text].length > STAGE_TEXT_MAX ? null : { t: 'stageText', text };
+    }
     case 'act':
       return ACTS.includes(m.kind as Act) ? { t: 'act', kind: m.kind as Act } : null;
     case 'sip':

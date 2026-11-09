@@ -1,10 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import type { Toy } from '../../shared/scenes/types';
-import { TOY_ACTIONS, TOY_KINDS, type ToyKind, type ToyState } from '../../shared/toys';
+import { toppleChance, TOY_ACTIONS, TOY_KINDS, type ToyKind, type ToyState } from '../../shared/toys';
 import { COOLDOWN_MS, HANDLERS } from './toys';
 
 const toy = (kind: ToyKind): Toy => ({ id: kind, kind, x: 1, z: 2, rot: 0.5, radius: 1 });
 const r0 = () => 0;
+
+describe('cairn', () => {
+  it('topples more often as it grows: never up to 4 stones, 35% from 15', () => {
+    expect(toppleChance(4)).toBe(0);
+    expect(toppleChance(5)).toBeCloseTo(0.032);
+    expect(toppleChance(15)).toBe(0.35);
+    expect(toppleChance(40)).toBe(0.35);
+  });
+
+  it('adds a stone, or topples back to nothing with a new shape', () => {
+    const s: ToyState = { kind: 'cairn', height: 9, seed: 4, record: 12, recordBy: 'Jo' };
+    expect(HANDLERS.cairn.apply(s, 'stack', undefined, 0, () => 0.9)).toEqual({ state: { ...s, height: 10 }, arg: 0 });
+    const r = HANDLERS.cairn.apply(s, 'stack', undefined, 0, r0);
+    expect(r).toMatchObject({ state: { kind: 'cairn', height: 0, record: 12, recordBy: 'Jo' }, arg: 1 });
+    expect((r.state as { seed: number }).seed).not.toBe(4);
+  });
+});
 
 describe('toy handlers', () => {
   it('every action has a cooldown', () => {
@@ -16,6 +33,7 @@ describe('toy handlers', () => {
     ['ducks', ['feed']], ['fountain', ['coin']], ['bell', ['ring']], ['chimes', ['ring']],
     ['stones', ['skip']], ['campfire', ['toggle']], ['swing', []], ['seesaw', []], ['telescope', []], ['rowboat', []],
     ['shop', []], ['board', []], ['quotes', []], ['coffee', []], ['truck', ['honk']],
+    ['koi', ['feed']], ['cushions', []], ['cairn', ['stack']], ['drums', ['note']], ['guitar', ['note']], ['keys', ['note']], ['stageScreen', []],
   ] as [ToyKind, string[]][])('%s accepts %j', (kind, actions) => {
     expect(HANDLERS[kind].actions).toEqual(actions);
   });

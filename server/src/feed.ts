@@ -28,4 +28,6 @@ export const feedText = {
   cheer: (from: string, to: string, emoji: string) => `${from} cheered ${to} ${emoji}`,
   coffee: (name: string, stars: number, drink: string) => `☕ ${name} made a ${'★'.repeat(stars)} ${drink}`,
   gift: (from: string, to: string, stars: number, drink: string) => `🎁 ${from} gave ${to} a ${'★'.repeat(stars)} ${drink}`,
+  meditate: (name: string, companions: number) =>
+    `🧘 ${name} finished a breather${companions ? ` with ${companions} ${companions === 1 ? 'friend' : 'friends'}` : ''}`,
 };

@@ -3,6 +3,8 @@ import { merge, type Parts } from '../kit';
 import type { Decor } from '../types';
 import { meadows } from './meadows';
 import { GARDEN_BOX, PATHS } from './scatter';
+import { stage } from './stage';
+import { zen } from './zen';
 
 /** Ground the stage and its seats need (final town coordinates). */
 export const STAGE_BOX: Box = { x: -30, z: 50, w: 22, d: 18 };
@@ -34,7 +36,7 @@ function gardenRing(): Decor[] {
 
 /** Everything added for the south strip and the park reserve, in final town coordinates. */
 export function south(placed: Parts, lake: [number, number][]): Parts {
-  const own = merge({ decor: gardenRing() });
+  const own = merge({ decor: gardenRing() }, zen, stage);
   const taken = merge(placed, own, { colliders: [STAGE_BOX] }); // keeps the meadow off the stage ground
   return merge(own, meadows(taken, lake, STRIP_GAPS, PATHS, 1500));
 }

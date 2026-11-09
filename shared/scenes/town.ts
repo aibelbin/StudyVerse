@@ -8,6 +8,7 @@ import { parking } from './town/parking';
 import { playground } from './town/playground';
 import { inAny, PATHS, scatter, TOWN_DZ } from './town/scatter';
 import { south } from './town/south';
+import { STAGE } from './town/stage';
 import { square, squareDoors, squareSpawns } from './town/square';
 import { woods } from './town/woods';
 import type { Decor, Door, SceneDef, Spawn, Water } from './types';
@@ -58,6 +59,7 @@ export const town: SceneDef = {
   life: zones.life,
   water: townWater,
   parking: zones.parking,
+  stage: STAGE,
   props: zones.props,
   doors,
   spawns,

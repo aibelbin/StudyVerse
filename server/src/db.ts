@@ -41,6 +41,11 @@ export interface Store {
   setReactions(id: number, reactions: Record<string, string[]>): void;
   /** A profile's name, or null if there's no such profile. */
   profileName(id: string): string | null;
+  /** Plain KP top-up (no streak), e.g. for a finished breather. */
+  addKp(id: string, kp: number): void;
+  /** Small saved bits of world state (the cairn, the stage screen), as JSON strings. */
+  getKv(key: string): string | null;
+  setKv(key: string, value: string): void;
 }
 
 export class ProfileStore implements Store {
@@ -73,6 +78,7 @@ export class ProfileStore implements Store {
       CREATE INDEX IF NOT EXISTS chat_pair ON chat (pair, id);
       CREATE INDEX IF NOT EXISTS chat_to ON chat (to_id, id);
       CREATE INDEX IF NOT EXISTS chat_from ON chat (from_id, id);
+      CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     `);
   }
 
@@ -191,6 +197,18 @@ export class ProfileStore implements Store {
 
   profileName(id: string): string | null {
     return (this.db.prepare('SELECT name FROM profiles WHERE id = ?').get(id) as { name: string } | undefined)?.name ?? null;
+  }
+
+  addKp(id: string, kp: number): void {
+    this.db.prepare('UPDATE profiles SET kp = kp + ? WHERE id = ?').run(kp, id);
+  }
+
+  getKv(key: string): string | null {
+    return (this.db.prepare('SELECT value FROM kv WHERE key = ?').get(key) as { value: string } | undefined)?.value ?? null;
+  }
+
+  setKv(key: string, value: string): void {
+    this.db.prepare('INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value);
   }
 
   addDailyMinutes(day: string, minutes: number): number {

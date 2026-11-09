@@ -30,3 +30,15 @@ export const CHAT_BURST = 5;                // …and five per window
 export const CHAT_WINDOW_MS = 10_000;
 export const REACT_GAP_MS = 300;
 export const ACT_GAP_MS = 1500;
+
+export const MEDITATE_MS = 5 * 60_000;      // a breather on the cushions
+export const MEDITATE_KP = 3;
+export const MEDITATE_COMPANION_MAX = 3;    // +1 KP per companion, up to this many
+export const MEDITATE_EVERY_MS = 60 * 60_000;
+export const BREATH_IN_MS = 4000;
+export const BREATH_HOLD_MS = 2000;
+export const BREATH_OUT_MS = 6000;
+export const CAIRN_GAP_MS = 5000;           // one stone per player this often
+export const STAGE_TEXT_MAX = 60;
+export const STAGE_TEXT_GAP_MS = 30_000;
+export const STAGE_TEXT_TTL_MS = 2 * 60 * 60_000;

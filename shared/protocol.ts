@@ -23,6 +23,7 @@ export type ClientMsg =
   | { t: 'chat'; text: string; to?: string }
   | { t: 'react'; id: number; emoji: string }
   | { t: 'act'; kind: Act }
+  | { t: 'stageText'; text: string }
   | { t: 'offerCoffee'; to: string }
   | { t: 'answerCoffee'; fromId: string; accept: boolean }
   | { t: 'setVoice'; on: boolean }
@@ -49,7 +50,8 @@ export type ErrorCode =
   | 'bad_note'
   | 'bad_gift'
   | 'chat_slow'
-  | 'bad_chat';
+  | 'bad_chat'
+  | 'bad_stage';
 
 export type ServerMsg =
   | { t: 'chat'; msg: ChatMsg }
@@ -57,6 +59,8 @@ export type ServerMsg =
   | { t: 'act'; fromId: string; kind: Act }
   | { t: 'coffeeOffer'; fromId: string; name: string; drink: Drink; stars: number }
   | { t: 'coffeeAnswer'; name: string; accepted: boolean }
+  /** Your breather on the cushions is done; kp is 0 if you already had one this hour. */
+  | { t: 'meditated'; kp: number; companions: number }
   | {
       t: 'welcome';
       you: PlayerView;

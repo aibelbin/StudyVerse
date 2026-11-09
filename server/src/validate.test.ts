@@ -83,6 +83,15 @@ describe('parseClientMsg', () => {
   });
 });
 
+describe('stageText', () => {
+  it('cleans and trims the text, allows empty (clears), and refuses over 60 characters', () => {
+    expect(parseClientMsg(JSON.stringify({ t: 'stageText', text: '  Calculus\n7pm ' }))).toEqual({ t: 'stageText', text: 'Calculus 7pm' });
+    expect(parseClientMsg(JSON.stringify({ t: 'stageText', text: '' }))).toEqual({ t: 'stageText', text: '' });
+    expect(parseClientMsg(JSON.stringify({ t: 'stageText', text: 'x'.repeat(61) }))).toBeNull();
+    expect(parseClientMsg(JSON.stringify({ t: 'stageText', text: 5 }))).toBeNull();
+  });
+});
+
 describe('cleanName', () => {
   it('trims and collapses whitespace', () => expect(cleanName('  Sam   the  owl ')).toBe('Sam the owl'));
   it('rejects empty and too long names', () => {

@@ -119,4 +119,16 @@ describe('wallet, wardrobe, notes and daily totals', () => {
     expect(s.addDailyMinutes('2026-11-09', 25)).toBe(25);
     expect(s.addDailyMinutes('2026-11-09', 10)).toBe(35);
   });
+
+  it('keeps small saved values and tops up KP without touching the streak', () => {
+    const s = new ProfileStore(':memory:');
+    expect(s.getKv('cairn')).toBeNull();
+    s.setKv('cairn', '{"height":3}');
+    s.setKv('cairn', '{"height":4}');
+    expect(s.getKv('cairn')).toBe('{"height":4}');
+    const { profile } = s.create('Sam', { body: '#aabbcc', eyes: 'dot', hat: 'none', top: 'none', face: 'none', back: 'none', neck: 'none' });
+    s.award(profile.id, 10, 2, '2026-11-09');
+    s.addKp(profile.id, 4);
+    expect(s.wallet(profile.id)).toMatchObject({ kp: 14, streak: 2 });
+  });
 });

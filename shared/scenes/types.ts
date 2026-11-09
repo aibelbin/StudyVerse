@@ -34,7 +34,8 @@ export type DecorKind =
   | 'tree' | 'pine' | 'bush' | 'flowers' | 'lampPost' | 'bench' | 'path' | 'building' | 'pond'
   | 'desk' | 'chair' | 'deskLamp' | 'bookshelf' | 'rug' | 'plant' | 'window' | 'sign'
   | 'cafeTable' | 'stool' | 'counter' | 'coffeeMachine' | 'cup'
-  | 'lake' | 'dock' | 'lilyPad' | 'rock' | 'grass' | 'hedge' | 'bandstand' | 'swingSet' | 'log' | 'leafPile' | 'mound' | 'knowledgeTree' | 'parking';
+  | 'lake' | 'dock' | 'lilyPad' | 'rock' | 'grass' | 'hedge' | 'bandstand' | 'swingSet' | 'log' | 'leafPile' | 'mound' | 'knowledgeTree' | 'parking'
+  | 'cherry' | 'bridge' | 'gravel' | 'blanket' | 'lantern' | 'cushion' | 'stage' | 'amphiSeat' | 'spotlight';
 
 /** Visual-only object. Size fields mean different things per kind (see client/src/world/decor.ts). */
 export interface Decor {
@@ -69,7 +70,7 @@ export interface Toy {
 
 export type LifeKind =
   | 'butterflies' | 'bees' | 'birds' | 'dragonflies' | 'fireflies' | 'ladybugs' | 'snails'
-  | 'leaves' | 'frogs' | 'fish' | 'ducks';
+  | 'leaves' | 'frogs' | 'fish' | 'ducks' | 'petals';
 
 /** Where ambient critters live. Purely visual; the client spawns them. */
 export interface LifeZone {
@@ -140,6 +141,8 @@ export interface SceneDef {
   life: LifeZone[];
   water?: Water;
   parking?: Bay[];
+  /** The open-air stage: who's on it, who's listening, and where the screen is. */
+  stage?: { stage: Box; audience: Box; screen: { x: number; z: number } };
   props?: Prop[];
   doors: Door[];
   spawns: Spawn[];

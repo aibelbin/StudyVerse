@@ -2,6 +2,7 @@ import {
   CHEER_FEED_COOLDOWN_MS, DOOR_PAD, FEED_ON_WELCOME, GRACE_MS, MAX_SPEED, NOTE_COOLDOWN_MS, NOTE_MAX, NOTES_PER_AUTHOR,
   NOTES_SHOWN, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS, BREW_COOLDOWN_MS, CUP_SIPS, GIFT_RANGE, GIFT_TTL_MS, SELF_PARK_MS,
   ACT_GAP_MS, CHAT_BURST, CHAT_DM_HISTORY, CHAT_GAP_MS, CHAT_KEEP, CHAT_WINDOW_MS, REACT_GAP_MS,
+  MEDITATE_COMPANION_MAX, MEDITATE_EVERY_MS, MEDITATE_KP, MEDITATE_MS, STAGE_TEXT_GAP_MS, STAGE_TEXT_TTL_MS,
 } from '../../shared/constants';
 import { clampToBounds, dist, inBox, pointInPolygon } from '../../shared/geometry';
 import type { ClientMsg, ErrorCode, IceServer, ServerMsg } from '../../shared/protocol';
@@ -59,7 +60,13 @@ interface Player {
   lastReactAt: number;
   lastActAt: number;
   lastPetAt: number;
+  /** When they sat on a meditation cushion (null when not on one, or once this breather is done). */
+  meditateFrom: number | null;
+  lastStageTextAt: number;
 }
+
+/** World state that survives restarts, saved in the store's kv table under the toy kind. */
+const SAVED_KINDS = ['cairn', 'stageScreen'] as const;
 
 const EMOJI: Record<EmoteKind, string> = { wave: '👋', clap: '👏', flex: '💪', coffee: '☕' };
 
@@ -71,6 +78,7 @@ export class World {
   private offers = new Map<string, { fromId: string; at: number }>(); // target playerId -> pending coffee offer
   private lastDrivenAt = new Map<string, number>(); // truck toyId -> when someone last drove it (absent = never)
   private toySceneOf = new Map<string, string>(); // toyId -> scene id
+  private meditatedAt = new Map<string, number>(); // profile id -> last breather award (survives reconnects)
   /** STUN/TURN servers handed to clients for voice chat. */
   ice: IceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 
@@ -81,6 +89,17 @@ export class World {
     private store: Store = new ProfileStore(':memory:'),
   ) {
     for (const def of Object.values(scenes)) for (const toy of def.toys) this.toySceneOf.set(toy.id, def.id);
+    for (const def of Object.values(scenes)) {
+      for (const toy of def.toys) {
+        if (!(SAVED_KINDS as readonly string[]).includes(toy.kind)) continue;
+        const saved = this.store.getKv(toy.id);
+        if (!saved) continue;
+        try {
+          const s = JSON.parse(saved) as ToyState;
+          if (s.kind === toy.kind) this.toyStates.set(toy.id, s);
+        } catch { /* a damaged row just starts fresh */ }
+      }
+    }
   }
 
   private scene(id: string): SceneDef {
@@ -114,7 +133,7 @@ export class World {
       conn, disconnectedAt: null, lastMoveAt: this.now(), lastCheerFeedAt: 0, lastUse: new Map(),
       wallet: this.store.wallet(profile.id),
       dnd: false, voice: false, holding: null, pet: null, lastNoteAt: 0, lastBrewAt: 0, lastPetAt: 0,
-      chatTimes: [], lastReactAt: 0, lastActAt: 0,
+      chatTimes: [], lastReactAt: 0, lastActAt: 0, meditateFrom: null, lastStageTextAt: 0,
     };
     this.players.set(p.id, p);
     this.spawnPet(p);
@@ -155,6 +174,7 @@ export class World {
       case 'chat': return this.chat(p, msg.text, msg.to);
       case 'react': return this.react(p, msg.id, msg.emoji);
       case 'act': return this.act(p, msg.kind);
+      case 'stageText': return this.stageText(p, msg.text);
       case 'offerCoffee': return this.offerCoffee(p, msg.to);
       case 'answerCoffee': return this.answerCoffee(p, msg.fromId, msg.accept);
       case 'setVoice': {
@@ -204,6 +224,12 @@ export class World {
       this.players.get(o.fromId)?.conn?.send({ t: 'coffeeAnswer', name: to?.name ?? 'They', accepted: false });
     }
     this.selfPark(t);
+    const done = [...this.players.values()].filter((p) => p.meditateFrom !== null && t - p.meditateFrom >= MEDITATE_MS);
+    const companions = done.map((p) => this.companionsOf(p)); // before anyone's breather is marked done
+    done.forEach((p, i) => this.finishBreather(p, t, companions[i]));
+    for (const [toyId, s] of this.toyStates) {
+      if (s.kind === 'stageScreen' && s.text !== null && t >= s.until) this.saveToyState(toyId, { kind: 'stageScreen', text: null, by: null, until: 0 });
+    }
   }
 
   /** Trucks left out of a bay with nobody aboard for SELF_PARK_MS pop back to the nearest free bay. */
@@ -284,6 +310,12 @@ export class World {
     p.anim = 'sit';
     p.lastMoveAt = t;
     if (isController(slot.pose) && slot.toyId) this.freezeVehicle(slot.toyId, t);
+    const ring = slot.toyId ? this.findToy(slot.toyId) : undefined;
+    if (ring?.kind === 'cushions') {
+      p.meditateFrom = t;
+      const s = this.stateOf(ring);
+      if (s?.kind !== 'meditate' || s.startedAt === null) this.setToyState(ring.id, { kind: 'meditate', startedAt: t });
+    }
     this.updated(p);
   }
 
@@ -314,7 +346,59 @@ export class World {
     const slot = this.findSlot(p.scene, p.slotId);
     this.slots.delete(p.slotId);
     p.slotId = null;
+    p.meditateFrom = null;
     if (slot && isController(slot.pose) && slot.toyId) this.sendVehicleHome(slot.toyId);
+    const ring = slot?.toyId ? this.findToy(slot.toyId) : undefined;
+    if (ring?.kind === 'cushions' && !(ring.slotIds ?? []).some((id) => this.slots.has(id))) {
+      this.setToyState(ring.id, { kind: 'meditate', startedAt: null });
+    }
+  }
+
+  /**
+   * Five minutes on the cushions: KP (once an hour), plus one per companion who sat down no later
+   * than you and is still there. You stay seated, but the next breather needs a fresh sit.
+   */
+  private finishBreather(p: Player, t: number, companions: number): void {
+    p.meditateFrom = null;
+    const last = this.meditatedAt.get(p.id);
+    const kp = last !== undefined && t - last < MEDITATE_EVERY_MS ? 0 : MEDITATE_KP + Math.min(MEDITATE_COMPANION_MAX, companions);
+    if (kp > 0) {
+      this.meditatedAt.set(p.id, t);
+      this.store.addKp(p.id, kp);
+      p.wallet = this.store.wallet(p.id);
+      p.conn?.send({ t: 'wallet', wallet: this.publicWallet(p) });
+      this.pushFeed('meditate', feedText.meditate(p.name, companions));
+    }
+    p.conn?.send({ t: 'meditated', kp, companions });
+  }
+
+  /** Others on the same ring who sat down no later than p and are still mid-breather. */
+  private companionsOf(p: Player): number {
+    const ringId = p.slotId ? this.findSlot(p.scene, p.slotId)?.toyId : undefined;
+    const ring = ringId ? this.findToy(ringId) : undefined;
+    let n = 0;
+    for (const id of ring?.slotIds ?? []) {
+      const other = this.players.get(this.slots.get(id) ?? '');
+      if (other && other.id !== p.id && other.meditateFrom !== null && other.meditateFrom <= p.meditateFrom!) n++;
+    }
+    return n;
+  }
+
+  /** Anyone on the stage can put up to a line on the stage screen; it clears itself after two hours. */
+  private stageText(p: Player, text: string): void {
+    const def = this.scene(p.scene);
+    const screen = def.toys.find((toy) => toy.kind === 'stageScreen');
+    if (!def.stage || !screen || !inBox(def.stage.stage, p.x, p.z, 0.3)) return this.error(p, 'bad_stage', 'Hop up on the stage to change the screen.');
+    const t = this.now();
+    if (t - p.lastStageTextAt < STAGE_TEXT_GAP_MS) return this.error(p, 'bad_stage', 'Give the screen a moment before changing it again.');
+    p.lastStageTextAt = t;
+    this.saveToyState(screen.id, text ? { kind: 'stageScreen', text, by: p.name, until: t + STAGE_TEXT_TTL_MS } : { kind: 'stageScreen', text: null, by: null, until: 0 });
+  }
+
+  /** setToyState for the toys whose state is kept across restarts. */
+  private saveToyState(toyId: string, state: ToyState): void {
+    this.setToyState(toyId, state);
+    this.store.setKv(toyId, JSON.stringify(state));
   }
 
   private startSession(p: Player, focusMin: number, breakMin: number): void {
@@ -581,7 +665,10 @@ export class World {
     if (last !== undefined && t - last < COOLDOWN_MS[action]) return;
     p.lastUse.set(key, t);
     const r = handler.apply(this.stateOf(toy), action, arg, t, this.rand);
-    if (r.state) this.setToyState(toy.id, r.state);
+    if (r.state?.kind === 'cairn') {
+      const s = r.state.height > r.state.record ? { ...r.state, record: r.state.height, recordBy: p.name } : r.state;
+      this.saveToyState(toy.id, s);
+    } else if (r.state) this.setToyState(toy.id, r.state);
     this.toScene(p.scene, { t: 'toyEvent', toyId, by: p.id, action, ...(r.arg !== undefined ? { arg: r.arg } : {}), at: t });
   }
 

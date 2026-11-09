@@ -65,7 +65,7 @@ export interface OnlineEntry {
   scene: string;
 }
 
-export type FeedKind = 'arrive' | 'leave' | 'start' | 'finish' | 'quit' | 'cheer' | 'coffee' | 'gift';
+export type FeedKind = 'arrive' | 'leave' | 'start' | 'finish' | 'quit' | 'cheer' | 'coffee' | 'gift' | 'meditate';
 
 export interface FeedEvent {
   kind: FeedKind;
