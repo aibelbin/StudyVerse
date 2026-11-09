@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { LifeZone } from '../../../shared/scenes/types';
 import { LIFE_RADIUS } from './math';
+import { toonMat } from '../world/materials';
 
 export interface LifeCtx {
   /** Server time, ms: shared motion lines up across clients. */
@@ -55,4 +56,4 @@ export class Instances {
   }
 }
 
-export const lambert = (color: string) => new THREE.MeshLambertMaterial({ color, flatShading: true });
+export const lambert = (color: string) => toonMat({ color, flatShading: true });

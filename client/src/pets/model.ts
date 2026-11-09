@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import type { PetKind, PetView } from '../../../shared/types';
 import { textSprite } from '../world/text';
+import { toonMat } from '../world/materials';
 
-const std = (c: string) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.75 });
+const std = (c: string) => toonMat({ color: c, roughness: 0.75 });
 
 const COLORS: Record<PetKind, { body: string; belly: string; extra: string }> = {
   duckling: { body: '#ffd84d', belly: '#fff0a0', extra: '#ff9e3d' },

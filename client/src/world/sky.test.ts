@@ -44,4 +44,15 @@ describe('clockHours', () => {
     expect(clockHours(d, 'late')).toBeCloseTo(14.75);
     expect(clockHours(d, '25:00')).toBeCloseTo(14.75);
   });
+
+  it('has a three-colour sky that blends smoothly between keys', () => {
+    const golden = skyAt(18);
+    const dusk = skyAt(19.5);
+    const mid = skyAt(18.75);
+    expect(golden.horizon).toBe('#ffd08a');
+    expect(dusk.horizon).toBe('#f59a9a');
+    expect(mid.horizon).not.toBe(golden.horizon);
+    expect(mid.horizon).not.toBe(dusk.horizon);
+    expect(skyAt(13)).toMatchObject({ top: '#7cc4f2', horizon: '#cfeaf8', bottom: '#fdf0dc' });
+  });
 });

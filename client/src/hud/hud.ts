@@ -13,6 +13,9 @@ export class Hud {
   onEditLook: () => void = () => {};
   onEndBreak: () => void = () => {};
   onToggleMute: () => void = () => {};
+  onToggleQuality: () => void = () => {};
+  /** 'high' or 'lite' graphics, for the ✨ button. */
+  quality = 'high';
   onToggleDnd: () => void = () => {};
   onToggleVoice: () => void = () => {};
   /** Open a private chat with this player. */
@@ -50,7 +53,7 @@ export class Hud {
       ? `${s.phase === 'focus' ? '📖 Focus' : '☕ Break'} · ${formatClock(sessionLeftMs(s, now))}`
       : me.slotId ? '🪑 Sitting' : `🚶 Wandering ${def.where}`;
     this.dnd = me.dnd;
-    const key = `${me.name}|${line}|${def.id}|${this.muted}|${this.walletText}|${me.dnd}|${this.voiceState}`;
+    const key = `${me.name}|${line}|${def.id}|${this.muted}|${this.walletText}|${me.dnd}|${this.voiceState}|${this.quality}`;
     if (key === this.statusKey) return;
     this.statusKey = key;
     byId('status').replaceChildren(
@@ -65,6 +68,7 @@ export class Hud {
           }),
           h('button', { className: `mini${me.dnd ? ' on' : ''}`, title: me.dnd ? 'Do not disturb is on (N)' : 'Do not disturb (N)', textContent: me.dnd ? '🔕' : '🔔', onclick: () => this.onToggleDnd() }),
           h('button', { className: 'mini', title: this.muted ? 'Sound off' : 'Sound on', textContent: this.muted ? '🔇' : '🔊', onclick: () => this.onToggleMute() }),
+          h('button', { className: 'mini', title: this.quality === 'high' ? 'Graphics: High (click for Lite)' : 'Graphics: Lite (click for High)', textContent: this.quality === 'high' ? '✨' : '🍃', onclick: () => this.onToggleQuality() }),
           h('button', { className: 'mini', title: 'Change your look', textContent: '✏️', onclick: () => this.onEditLook() }))),
       h('div', { className: s ? `timer ${s.phase}` : 'sub', textContent: line }),
       ...(s?.phase === 'break' ? [h('button', { className: 'mini', textContent: 'End break', onclick: () => this.onEndBreak() })] : []),

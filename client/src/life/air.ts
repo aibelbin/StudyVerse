@@ -4,6 +4,7 @@ import type { LifeZone, SceneDef } from '../../../shared/scenes/types';
 import { PALETTE as P } from '../world/palette';
 import { Instances, lambert, nearby, type LifeSystem } from './kit';
 import { hash, noise1 } from './math';
+import { toonMat } from '../world/materials';
 
 /** Butterflies (flapping wing pairs) or bees (buzzing dots) looping over flower beds. */
 export function flyers(zone: LifeZone, def: SceneDef, kind: 'butterflies' | 'bees'): LifeSystem {
@@ -30,8 +31,8 @@ export function flyers(zone: LifeZone, def: SceneDef, kind: 'butterflies' | 'bee
     };
   }
   const wingGeo = new THREE.CircleGeometry(0.11, 6).translate(0.1, 0, 0).rotateX(-Math.PI / 2);
-  const left = new Instances(wingGeo, new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }), n);
-  const right = new Instances(wingGeo, new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }), n);
+  const left = new Instances(wingGeo, toonMat({ side: THREE.DoubleSide }), n);
+  const right = new Instances(wingGeo, toonMat({ side: THREE.DoubleSide }), n);
   for (let i = 0; i < n; i++) {
     const c = P.flowers[Math.floor(hash(zone.seed, i) * P.flowers.length)];
     left.color(i, c);
@@ -70,7 +71,7 @@ const PLUMAGE = [
 export function birds(zone: LifeZone, def: SceneDef): LifeSystem {
   const root = new THREE.Group();
   const n = zone.count;
-  const white = new THREE.MeshLambertMaterial({ color: '#ffffff', flatShading: true });
+  const white = toonMat({ color: '#ffffff', flatShading: true });
   const bodies = new Instances(new THREE.SphereGeometry(0.11, 10, 8).scale(0.9, 0.85, 1.25), white, n, true);
   const breasts = new Instances(new THREE.SphereGeometry(0.075, 8, 6).scale(0.95, 0.9, 0.8), white, n);
   const heads = new Instances(new THREE.SphereGeometry(0.075, 8, 6), white, n);
@@ -210,7 +211,7 @@ export function fireflies(zone: LifeZone): LifeSystem {
 /** Leaves drifting down under the trees, on a loop. */
 export function leaves(zone: LifeZone, colors = ['#f2a65a', '#e8c35a', '#d9774a', '#9bd48a']): LifeSystem {
   const n = zone.count;
-  const inst = new Instances(new THREE.PlaneGeometry(0.16, 0.12), new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }), n);
+  const inst = new Instances(new THREE.PlaneGeometry(0.16, 0.12), toonMat({ side: THREE.DoubleSide }), n);
   for (let i = 0; i < n; i++) inst.color(i, colors[i % colors.length]);
   return {
     root: inst.mesh,
@@ -235,7 +236,7 @@ export function leaves(zone: LifeZone, colors = ['#f2a65a', '#e8c35a', '#d9774a'
 /** Fluffy clouds drifting slowly over the whole town. */
 export function clouds(): LifeSystem {
   const root = new THREE.Group();
-  const mat = new THREE.MeshLambertMaterial({ color: '#ffffff', flatShading: true, transparent: true, opacity: 0.92 });
+  const mat = toonMat({ color: '#ffffff', flatShading: true, transparent: true, opacity: 0.92 });
   const list = Array.from({ length: 8 }, (_, i) => {
     const g = new THREE.Group();
     const puffs = 3 + Math.floor(hash(i, 1) * 3);

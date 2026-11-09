@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { pointInPolygon } from '../../../shared/geometry';
 import type { LifeZone, SceneDef, Water } from '../../../shared/scenes/types';
-import { mesh } from '../world/materials';
+import { mesh, toonMat } from '../world/materials';
 import { Instances, lambert, nearby, type LifeSystem } from './kit';
 import { catmullLoop, hash, noise1 } from './math';
 
@@ -13,7 +13,7 @@ export function sailboats(water: Water): LifeSystem {
     g.add(mesh(new THREE.BoxGeometry(0.7, 0.25, 1.6), lambert('#fff6ea'), 0, 0.1, 0));
     g.add(mesh(new THREE.CylinderGeometry(0.035, 0.035, 2.0, 6), lambert('#9c6f4c'), 0, 1.15, 0.1));
     const sail = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(0, 1.7), new THREE.Vector2(0.9, 0)]);
-    const s = mesh(new THREE.ShapeGeometry(sail), new THREE.MeshLambertMaterial({ color: p.color, side: THREE.DoubleSide }), 0, 0.3, 0.15);
+    const s = mesh(new THREE.ShapeGeometry(sail), toonMat({ color: p.color, side: THREE.DoubleSide }), 0, 0.3, 0.15);
     s.rotation.y = Math.PI / 2;
     g.add(s);
     root.add(g);
@@ -173,7 +173,7 @@ export function dragonflies(zone: LifeZone, water: Water): LifeSystem {
   const geo = new THREE.BoxGeometry(0.03, 0.03, 0.32);
   const wingGeo = new THREE.BoxGeometry(0.4, 0.005, 0.07);
   const bodies = new Instances(geo, lambert('#3f8fd8'), zone.count);
-  const wings = new Instances(wingGeo, new THREE.MeshLambertMaterial({ color: '#dff4ff', transparent: true, opacity: 0.7 }), zone.count);
+  const wings = new Instances(wingGeo, toonMat({ color: '#dff4ff', transparent: true, opacity: 0.7 }), zone.count);
   root.add(bodies.mesh, wings.mesh);
   const point = (i: number, k: number) => {
     const x = zone.x + (hash(zone.seed, i, k, 1) - 0.5) * zone.r * 1.6;

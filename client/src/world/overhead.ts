@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { EmoteKind, Session } from '../../../shared/types';
 import { textSprite } from './text';
+import { toonMat } from './materials';
 
 const EMOJI: Record<EmoteKind, string> = { wave: '👋', clap: '👏', flex: '💪', coffee: '☕' };
 const EMOTE_MS = 1600;
@@ -30,7 +31,7 @@ export class Overhead {
     this.ring.visible = false;
     this.group.add(this.ring);
 
-    const cm = new THREE.MeshStandardMaterial({ color: '#9aa3b5', roughness: 1 });
+    const cm = toonMat({ color: '#9aa3b5', roughness: 1 });
     for (const [x, y, r] of [[0, 0, 0.22], [0.22, -0.03, 0.17], [-0.22, -0.03, 0.17], [0.08, 0.1, 0.16]]) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), cm);
       m.position.set(x, y, 0);

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { itemById } from '../../../shared/wardrobe';
+import { toonMat } from './materials';
 
 /**
  * Wardrobe item meshes, built in the local space of the anchor they hang on:
@@ -8,7 +9,7 @@ import { itemById } from '../../../shared/wardrobe';
  */
 export const BODY = { rx: 0.42, ry: 0.47, rz: 0.4, cy: 0.52 };
 
-const std = (color: string, roughness = 0.8) => new THREE.MeshStandardMaterial({ color, roughness, flatShading: false });
+const std = (color: string, roughness = 0.8) => toonMat({ color, roughness, flatShading: false });
 
 function add(g: THREE.Group, geo: THREE.BufferGeometry, m: THREE.Material, x = 0, y = 0, z = 0): THREE.Mesh {
   const o = new THREE.Mesh(geo, m);
@@ -76,7 +77,7 @@ export function buildItem(id: string): THREE.Group {
       break;
     }
     case 'crown':
-      add(g, new THREE.CylinderGeometry(0.22, 0.22, 0.14, 8, 1, true), new THREE.MeshStandardMaterial({ color: item.color, metalness: 0.6, roughness: 0.3, side: THREE.DoubleSide }), 0, 0.02, 0);
+      add(g, new THREE.CylinderGeometry(0.22, 0.22, 0.14, 8, 1, true), toonMat({ color: item.color, metalness: 0.6, roughness: 0.3, side: THREE.DoubleSide }), 0, 0.02, 0);
       for (let i = 0; i < 8; i++) {
         const t = (i / 8) * Math.PI * 2;
         add(g, new THREE.ConeGeometry(0.04, 0.1, 6), std(item.color, 0.3), Math.cos(t) * 0.21, 0.13, Math.sin(t) * 0.21);
@@ -121,7 +122,7 @@ export function buildItem(id: string): THREE.Group {
       add(g, new THREE.BoxGeometry(0.28, 0.14, 0.06), a, 0, -0.08, -0.17);
       break;
     case 'cape': {
-      const cape = add(g, new THREE.PlaneGeometry(0.62, 0.62), new THREE.MeshStandardMaterial({ color: item.color, side: THREE.DoubleSide }), 0, -0.12, -0.04);
+      const cape = add(g, new THREE.PlaneGeometry(0.62, 0.62), toonMat({ color: item.color, side: THREE.DoubleSide }), 0, -0.12, -0.04);
       cape.rotation.x = 0.18;
       break;
     }

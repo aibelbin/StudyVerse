@@ -8,6 +8,8 @@ import type { BuiltScene } from './sceneBuilder';
 
 export interface SkyState {
   top: string;
+  /** The band just above the horizon (sunrise peach, sunset gold...). */
+  horizon: string;
   bottom: string;
   sunColor: string;
   sunIntensity: number;
@@ -23,11 +25,12 @@ export interface SkyState {
 
 type Key = Omit<SkyState, 'sunDir'>;
 
-const NIGHT: Key = { top: '#1b2445', bottom: '#3a3a6a', sunColor: '#9fb4ff', sunIntensity: 0.6, hemiSky: '#7f8fc8', hemiGround: '#2e3a4a', hemiIntensity: 0.55, fog: '#2a3050', night: 1 };
-const DAWN: Key = { top: '#9fb8e8', bottom: '#ffd2c2', sunColor: '#ffc9a0', sunIntensity: 1.4, hemiSky: '#ffe0d0', hemiGround: '#7a9a6a', hemiIntensity: 1.2, fog: '#f6d6cc', night: 0.25 };
-const DAY: Key = { top: '#9fd0f2', bottom: '#fde9d6', sunColor: '#fff0d6', sunIntensity: 2.4, hemiSky: '#fff3e0', hemiGround: '#7fae6a', hemiIntensity: 1.7, fog: '#fbe7d4', night: 0 };
-const GOLDEN: Key = { top: '#8fc0ea', bottom: '#ffd29a', sunColor: '#ffb870', sunIntensity: 2.0, hemiSky: '#ffe4c0', hemiGround: '#86a868', hemiIntensity: 1.45, fog: '#f9d9b0', night: 0.05 };
-const DUSK: Key = { top: '#4a4a8a', bottom: '#f2a0a0', sunColor: '#ff9a7a', sunIntensity: 0.9, hemiSky: '#c8a8d8', hemiGround: '#5a6a6a', hemiIntensity: 0.95, fog: '#c89aa8', night: 0.6 };
+// Storybook light: a modest sky fill so the toon bands show, a warm sun, and fog in the horizon's colour.
+const NIGHT: Key = { top: '#16204a', horizon: '#2c3270', bottom: '#3a3a6a', sunColor: '#a8b8ff', sunIntensity: 0.75, hemiSky: '#8090d0', hemiGround: '#2e3a4a', hemiIntensity: 0.5, fog: '#2c3264', night: 1 };
+const DAWN: Key = { top: '#8fb0e8', horizon: '#ffc8b0', bottom: '#ffe2c8', sunColor: '#ffc29a', sunIntensity: 1.45, hemiSky: '#ffe0d4', hemiGround: '#7a9a6a', hemiIntensity: 0.8, fog: '#f8d4c4', night: 0.25 };
+const DAY: Key = { top: '#7cc4f2', horizon: '#cfeaf8', bottom: '#fdf0dc', sunColor: '#fff2dc', sunIntensity: 1.75, hemiSky: '#fff6e8', hemiGround: '#86b070', hemiIntensity: 0.9, fog: '#f6ecdc', night: 0 };
+const GOLDEN: Key = { top: '#7fb4e6', horizon: '#ffd08a', bottom: '#ffe6b8', sunColor: '#ffb468', sunIntensity: 2.0, hemiSky: '#ffe4c4', hemiGround: '#8aa868', hemiIntensity: 0.8, fog: '#fad8ac', night: 0.05 };
+const DUSK: Key = { top: '#3e3e86', horizon: '#f59a9a', bottom: '#ffc7a0', sunColor: '#ff9a7a', sunIntensity: 1.1, hemiSky: '#c8a8e0', hemiGround: '#5a6a6a', hemiIntensity: 0.62, fog: '#c898ac', night: 0.6 };
 
 const KEYS: [number, Key][] = [
   [0, NIGHT], [5, NIGHT], [6, DAWN], [8, DAY], [17, DAY], [18, GOLDEN], [19.5, DUSK], [21, NIGHT], [24, NIGHT],
@@ -64,6 +67,7 @@ export function skyAt(hours: number): SkyState {
   const n = (x: number, y: number) => x + (y - x) * k;
   return {
     top: lerpHex(a.top, b.top, k),
+    horizon: lerpHex(a.horizon, b.horizon, k),
     bottom: lerpHex(a.bottom, b.bottom, k),
     sunColor: lerpHex(a.sunColor, b.sunColor, k),
     sunIntensity: n(a.sunIntensity, b.sunIntensity),
@@ -88,13 +92,35 @@ export function clockHours(date: Date, override: string | null): number {
 
 const LIGHTS = 4;
 
+/** A soft round glow (radial gradient) for the sun and the moon. */
+function glowSprite(color: string, size: number): THREE.Sprite {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, color);
+  grad.addColorStop(0.25, color);
+  grad.addColorStop(0.35, `${color}88`);
+  grad.addColorStop(1, `${color}00`);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false }));
+  s.scale.setScalar(size);
+  return s;
+}
+
 /** Applies the time of day to an outdoor scene: sky, sun, stars, moon, glowing lamps and a small light pool. */
 export class SkyRig {
   private canvas = document.createElement('canvas');
   private tex: THREE.CanvasTexture;
   private skyKey = '';
   private stars: THREE.Points;
+  private stars2: THREE.Points;
   private moon: THREE.Mesh;
+  private moonGlow: THREE.Sprite;
+  private sunGlow: THREE.Sprite;
   private lights: THREE.PointLight[] = [];
   private spots: { x: number; z: number; y: number; fire?: string }[];
   private lastPool = -1e9;
@@ -115,11 +141,19 @@ export class SkyRig {
       const s = Math.sqrt(1 - y * y);
       pos.push(Math.cos(a) * s * 150, y * 150, Math.sin(a) * s * 150);
     }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    this.stars = new THREE.Points(g, new THREE.PointsMaterial({ color: '#ffffff', size: 2, sizeAttenuation: false, fog: false, transparent: true, depthWrite: false }));
-    this.moon = new THREE.Mesh(new THREE.SphereGeometry(5, 20, 14), new THREE.MeshBasicMaterial({ color: '#fff6d8', fog: false, transparent: true }));
-    built.scene.add(this.stars, this.moon);
+    // Two star layers that fade in and out of step, so the sky twinkles.
+    const half = pos.length / 2 - ((pos.length / 2) % 3);
+    const layer = (p: number[]) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+      return new THREE.Points(g, new THREE.PointsMaterial({ color: '#ffffff', size: 2, sizeAttenuation: false, fog: false, transparent: true, depthWrite: false }));
+    };
+    this.stars = layer(pos.slice(0, half));
+    this.stars2 = layer(pos.slice(half));
+    this.moon = new THREE.Mesh(new THREE.SphereGeometry(7, 24, 16), new THREE.MeshBasicMaterial({ color: '#fff6d8', fog: false, transparent: true }));
+    this.moonGlow = glowSprite('#fff2c8', 44);
+    this.sunGlow = glowSprite('#fff4d0', 70);
+    built.scene.add(this.stars, this.stars2, this.moon, this.moonGlow, this.sunGlow);
 
     this.spots = def.decor.filter((d) => d.kind === 'lampPost').map((d) => ({ x: d.x, z: d.z, y: 2.4 }));
     for (const t of def.toys) if (t.kind === 'campfire') this.spots.push({ x: t.x, z: t.z, y: 0.8, fire: t.id });
@@ -134,12 +168,13 @@ export class SkyRig {
     const s = skyAt(hours);
     this.night = s.night;
     const b = this.built;
-    const key = `${s.top}${s.bottom}`;
+    const key = `${s.top}${s.horizon}${s.bottom}`;
     if (key !== this.skyKey) {
       this.skyKey = key;
       const c = this.canvas.getContext('2d')!;
       const grad = c.createLinearGradient(0, 0, 0, 256);
       grad.addColorStop(0, s.top);
+      grad.addColorStop(0.62, s.horizon);
       grad.addColorStop(1, s.bottom);
       c.fillStyle = grad;
       c.fillRect(0, 0, 2, 256);
@@ -153,12 +188,24 @@ export class SkyRig {
     b.sun.intensity = s.sunIntensity;
     b.sunOffset.set(...s.sunDir);
 
-    this.stars.position.set(focus.x, 0, focus.z);
-    (this.stars.material as THREE.PointsMaterial).opacity = Math.max(0, s.night * 1.2 - 0.2);
-    this.stars.visible = s.night > 0.2;
-    this.moon.visible = s.night > 0.3;
+    const starA = Math.max(0, s.night * 1.2 - 0.2);
+    const tw = now / 900;
+    for (const [st, ph] of [[this.stars, 0], [this.stars2, Math.PI]] as const) {
+      st.position.set(focus.x, 0, focus.z);
+      (st.material as THREE.PointsMaterial).opacity = starA * (0.7 + 0.3 * Math.sin(tw + ph));
+      st.visible = s.night > 0.2;
+    }
+    const moonA = Math.min(1, Math.max(0, (s.night - 0.3) * 2));
+    this.moon.visible = this.moonGlow.visible = s.night > 0.3;
     this.moon.position.set(focus.x - 60, 85, focus.z - 110);
-    (this.moon.material as THREE.MeshBasicMaterial).opacity = Math.min(1, (s.night - 0.3) * 2);
+    this.moonGlow.position.copy(this.moon.position);
+    (this.moon.material as THREE.MeshBasicMaterial).opacity = moonA;
+    this.moonGlow.material.opacity = moonA * 0.55;
+    // A soft sun disc by day, far off in the sun's direction.
+    const [sx, sy, sz] = s.sunDir;
+    this.sunGlow.visible = s.night < 0.6;
+    this.sunGlow.position.set(focus.x + sx * 6, sy * 6, focus.z + sz * 6 - 60);
+    this.sunGlow.material.opacity = (1 - s.night) * 0.9;
 
     glow(P.lampGlow, 1.6, 'street').emissiveIntensity = 0.3 + s.night * 1.6;
     glow(P.windowGlow, 0.5, 'window').emissiveIntensity = 0.4 + s.night * 1.4;

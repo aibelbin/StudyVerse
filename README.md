@@ -77,7 +77,10 @@ A 150×130 town with a square (Library, Café, bandstand piano, fountain, bell, 
 knowledge tree), car parks by the Library and the Café with four trucks, cones and crates to knock over, a lake with a dock and two rowboats, woods with a campfire, a park with wind chimes, a telescope, a zen corner and a garden, an open-air stage and a mini-golf course in the south, and a playground (swings, seesaw,
 merry-go-round, slide). Toys are shared: friends see and hear them. Ducks, fish, frogs, birds, insects, sailboats
 and clouds wander around on their own, and the sky follows your local clock (stars and fireflies at night).
-All art is procedural and all sound is synthesized in the browser; 🔊 in the status panel mutes it.
+All art is procedural and all sound is synthesized in the browser; 🔊 in the status panel mutes it. The look is a
+storybook one: toon shading, soft outlines, a hand-painted ground with drifting cloud shadows, a sky that follows the
+clock, and a gentle glow on lights at night. ✨ in the status panel switches to Lite graphics (no outlines, glow or cloud
+shadows) on slower machines; `?lite` forces it.
 
 Trucks drive on real physics: [Rapier](https://rapier.rs)'s ray-cast vehicle with the tuning from Bruno Simon's
 [folio-2025](https://github.com/brunosimon/folio-2025) (springy suspension, grip and drift, idle and reverse

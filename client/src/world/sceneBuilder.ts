@@ -3,10 +3,11 @@ import { SCENES } from '../../../shared/scenes';
 import type { Door, SceneDef } from '../../../shared/scenes/types';
 import { makeDecor } from './decor';
 import { buildInstanced, INSTANCED_KINDS, type Sway } from './instanced';
-import { mat, mesh } from './materials';
+import { mat, mesh, toonMat } from './materials';
 import { PALETTE as P } from './palette';
 import { rng } from './rng';
 import { textSprite } from './text';
+import { paintGround, paintPlan, withCloudShadows } from './ground';
 
 function gradient([top, bottom]: [string, string]): THREE.Texture {
   const c = document.createElement('canvas');
@@ -54,7 +55,7 @@ function floorTexture(def: SceneDef): THREE.CanvasTexture {
   return t;
 }
 
-function floor(def: SceneDef): THREE.Mesh {
+function floor(def: SceneDef): THREE.Object3D {
   const indoor = def.theme.indoor;
   const k = indoor ? 1 : 3;
   const w = def.size.w * k;
@@ -62,10 +63,25 @@ function floor(def: SceneDef): THREE.Mesh {
   const tex = floorTexture(def);
   const tile = indoor ? 2 : 4;
   tex.repeat.set(w / tile, d / tile);
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }));
-  m.rotation.x = -Math.PI / 2;
-  m.receiveShadow = true;
-  return m;
+  // Pushed back a little in depth so the painted town layer just above it always wins (and paths win over both).
+  const outer = new THREE.Mesh(new THREE.PlaneGeometry(w, d), toonMat({ map: tex, polygonOffset: !indoor, polygonOffsetFactor: 2, polygonOffsetUnits: 2 }));
+  outer.rotation.x = -Math.PI / 2;
+  outer.receiveShadow = true;
+  if (indoor) return outer;
+  // Outdoors the town itself is hand-painted: patches of greens, flower specks, shade under trees.
+  const painted = new THREE.CanvasTexture(paintGround(paintPlan(def, 31)));
+  painted.colorSpace = THREE.SRGBColorSpace;
+  painted.anisotropy = 4;
+  const townMat = toonMat({ map: painted });
+  const town = new THREE.Mesh(new THREE.PlaneGeometry(def.size.w, def.size.d), townMat);
+  town.rotation.x = -Math.PI / 2;
+  town.position.y = 0.004;
+  town.receiveShadow = true;
+  withCloudShadows(outer.material);
+  withCloudShadows(townMat);
+  const g = new THREE.Group();
+  g.add(outer, town);
+  return g;
 }
 
 /** Back and side walls at full height; the front (camera side) is a low sill with gaps for doors. */

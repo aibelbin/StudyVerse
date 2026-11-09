@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { FLOWERS, stageOf, type Flower, type PlotState, type Stage } from '../../../shared/garden';
 import type { Toy } from '../../../shared/scenes/types';
 import { SPOT_OFFSETS } from '../../../shared/scenes/town/garden';
-import { mat, mesh } from '../world/materials';
+import { mat, mesh, toonMat } from '../world/materials';
 import { PALETTE as P } from '../world/palette';
 import { labelTexture } from '../world/text';
 import { Floaters } from './floaters';
@@ -14,7 +14,7 @@ const PLANT_SCALE = 1.7;
 const STEM = '#5fa64f';
 
 /** Glow-lily blooms share one material so night can light them all at once. */
-const glowLily = new THREE.MeshStandardMaterial({ color: FLOWERS.glowLily.color, emissive: FLOWERS.glowLily.color, emissiveIntensity: 0.1, roughness: 0.4 });
+const glowLily = toonMat({ color: FLOWERS.glowLily.color, emissive: FLOWERS.glowLily.color, emissiveIntensity: 0.1, roughness: 0.4 });
 
 function petalMat(f: Flower): THREE.Material {
   return f === 'glowLily' ? glowLily : mat(FLOWERS[f].color, 0.6);

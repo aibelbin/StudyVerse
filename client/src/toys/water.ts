@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { SceneDef, Toy } from '../../../shared/scenes/types';
 import { angleDelta, boatPoseAt, type BoatPose } from '../../../shared/toys';
-import { mat, mesh } from '../world/materials';
+import { mat, mesh, toonMat } from '../world/materials';
 import { PALETTE as P } from '../world/palette';
 import { Floaters } from './floaters';
 import type { ToyFx, ToyView } from './registry';
@@ -20,11 +20,11 @@ export function fountainView(toy: Toy, fx: ToyFx): ToyView {
   const rim = mesh(new THREE.TorusGeometry(1.42, 0.14, 8, 32), mat('#d8d2e0'), 0, 0.42, 0);
   rim.rotation.x = Math.PI / 2;
   root.add(mesh(new THREE.CylinderGeometry(1.5, 1.6, 0.4, 24), mat('#c9c2d4'), 0, 0.2, 0), rim);
-  root.add(mesh(new THREE.CylinderGeometry(1.36, 1.36, 0.04, 24), new THREE.MeshStandardMaterial({ color: P.water, roughness: 0.1 }), 0, 0.41, 0, false));
+  root.add(mesh(new THREE.CylinderGeometry(1.36, 1.36, 0.04, 24), toonMat({ color: P.water, roughness: 0.1 }), 0, 0.41, 0, false));
   root.add(mesh(new THREE.CylinderGeometry(0.14, 0.2, 1.1, 10), mat('#d8d2e0'), 0, 0.9, 0));
   root.add(mesh(new THREE.CylinderGeometry(0.5, 0.25, 0.18, 14), mat('#d8d2e0'), 0, 1.45, 0));
   const drops: THREE.Mesh[] = [];
-  const dropMat = new THREE.MeshStandardMaterial({ color: '#cfefff', transparent: true, opacity: 0.85, roughness: 0.1 });
+  const dropMat = toonMat({ color: '#cfefff', transparent: true, opacity: 0.85, roughness: 0.1 });
   for (let i = 0; i < 14; i++) {
     const d = mesh(new THREE.SphereGeometry(0.05, 6, 4), dropMat, 0, 0, 0, false);
     d.userData.a = (i / 14) * Math.PI * 2;

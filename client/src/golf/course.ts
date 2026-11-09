@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BALL_R, CUP_R, FELT, HOLES, windmillAngle, type Hole, type Piece } from '../../../shared/golf';
 import type { ToyState } from '../../../shared/toys';
-import { mat, mesh } from '../world/materials';
+import { mat, mesh, toonMat } from '../world/materials';
 import { PALETTE as P } from '../world/palette';
 import { labelTexture } from '../world/text';
 import type { ToyView } from '../toys/registry';
@@ -75,7 +75,7 @@ function piece(p: Piece, root: THREE.Group, blades: THREE.Group[], sailGroups: T
     case 'water': {
       const pit = mesh(new THREE.BoxGeometry(p.w, 0.3, p.d), mat('#3a5a7a'), p.x, -0.13, p.z, false);
       root.add(pit);
-      const water = new THREE.Mesh(new THREE.PlaneGeometry(p.w, p.d), new THREE.MeshStandardMaterial({ color: '#5fb8e8', roughness: 0.1 }));
+      const water = new THREE.Mesh(new THREE.PlaneGeometry(p.w, p.d), toonMat({ color: '#5fb8e8', roughness: 0.1 }));
       water.rotation.x = -Math.PI / 2;
       water.position.set(p.x, 0.02, p.z);
       root.add(water);
@@ -116,7 +116,7 @@ function piece(p: Piece, root: THREE.Group, blades: THREE.Group[], sailGroups: T
       geo.setAttribute('position', new THREE.BufferAttribute(m.vertices, 3));
       geo.setIndex(new THREE.BufferAttribute(m.indices, 1));
       geo.computeVertexNormals();
-      root.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#ff9e7a', side: THREE.DoubleSide, roughness: 0.5 })));
+      root.add(new THREE.Mesh(geo, toonMat({ color: '#ff9e7a', side: THREE.DoubleSide, roughness: 0.5 })));
       for (const dx of [-p.r - 0.1, p.r + 0.1]) root.add(mesh(new THREE.BoxGeometry(0.08, p.r * 2.2, 0.08), mat(P.dark), p.x + dx, p.r * 1.1, p.z + p.offset / 2 + p.width / 2 + 0.15));
       break;
     }
@@ -124,7 +124,7 @@ function piece(p: Piece, root: THREE.Group, blades: THREE.Group[], sailGroups: T
       root.add(mesh(new THREE.CylinderGeometry(p.r1, p.r0, p.h, 20), mat('#8a5a3c'), p.x, FELT + p.h / 2, p.z));
       const top = mesh(new THREE.CylinderGeometry(p.r1, p.r1, 0.012, 20), mat(FELT_COLOR), p.x, FELT + p.h + 0.006, p.z, false);
       root.add(top);
-      const lava = new THREE.Mesh(new THREE.TorusGeometry(p.r1, 0.035, 6, 24), new THREE.MeshStandardMaterial({ color: '#ff7a3c', emissive: '#ff5a1c', emissiveIntensity: 0.8 }));
+      const lava = new THREE.Mesh(new THREE.TorusGeometry(p.r1, 0.035, 6, 24), toonMat({ color: '#ff7a3c', emissive: '#ff5a1c', emissiveIntensity: 0.8 }));
       lava.rotation.x = Math.PI / 2;
       lava.position.set(p.x, FELT + p.h + 0.02, p.z);
       root.add(lava);
@@ -167,7 +167,7 @@ export class GolfCourse {
 
 /** A golf ball, tinted with its player's colour. */
 export function ballMesh(color: string): THREE.Mesh {
-  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(BALL_R, 2), new THREE.MeshStandardMaterial({ color, roughness: 0.35 }));
+  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(BALL_R, 2), toonMat({ color, roughness: 0.35 }));
   m.castShadow = true;
   return m;
 }

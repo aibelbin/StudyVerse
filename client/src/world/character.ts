@@ -6,6 +6,7 @@ import { SLOTS } from '../../../shared/wardrobe';
 import { BODY, buildItem } from './outfits';
 import { Overhead } from './overhead';
 import { textSprite } from './text';
+import { toonMat } from './materials';
 
 const INK = '#2a2430';
 
@@ -14,12 +15,12 @@ const INK = '#2a2430';
 function bouquetMesh(flower?: Flower): THREE.Group {
   const info = flower ? FLOWERS[flower] : { color: '#ff8fab', accent: '#ffd36e' };
   const g = new THREE.Group();
-  const wrap = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.16, 8, 1, true), new THREE.MeshStandardMaterial({ color: '#f4e6cf', side: THREE.DoubleSide, roughness: 0.9 }));
+  const wrap = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.16, 8, 1, true), toonMat({ color: '#f4e6cf', side: THREE.DoubleSide, roughness: 0.9 }));
   wrap.rotation.x = Math.PI;
   wrap.position.y = 0.02;
   g.add(wrap);
-  const petal = new THREE.MeshStandardMaterial({ color: info.color, roughness: 0.6, emissive: flower === 'glowLily' ? info.color : '#000000', emissiveIntensity: flower === 'glowLily' ? 0.6 : 0 });
-  const centre = new THREE.MeshStandardMaterial({ color: info.accent });
+  const petal = toonMat({ color: info.color, roughness: 0.6, emissive: flower === 'glowLily' ? info.color : '#000000', emissiveIntensity: flower === 'glowLily' ? 0.6 : 0 });
+  const centre = toonMat({ color: info.accent });
   for (const [x, z] of [[-0.035, 0], [0.035, 0.01], [0, -0.03]]) {
     const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.035, 0), petal);
     b.position.set(x, 0.13, z);
@@ -29,7 +30,7 @@ function bouquetMesh(flower?: Flower): THREE.Group {
     g.add(c);
   }
   for (const [x, z] of [[-0.05, 0.02], [0.05, -0.02]]) {
-    const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 4), new THREE.MeshStandardMaterial({ color: '#6fbf5f' }));
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 4), toonMat({ color: '#6fbf5f' }));
     leaf.scale.set(0.5, 1.4, 0.5);
     leaf.position.set(x, 0.1, z);
     g.add(leaf);
@@ -48,10 +49,10 @@ export class Character {
   facing = 0;
 
   private rig = new THREE.Group();
-  private bodyMat = new THREE.MeshStandardMaterial({ roughness: 0.75 });
-  private limbMat = new THREE.MeshStandardMaterial({ roughness: 0.8 });
-  private inkMat = new THREE.MeshStandardMaterial({ color: INK, roughness: 0.5 });
-  private blushMat = new THREE.MeshStandardMaterial({ color: '#ff9fb0', roughness: 1 });
+  private bodyMat = toonMat({ roughness: 0.75 });
+  private limbMat = toonMat({ roughness: 0.8 });
+  private inkMat = toonMat({ color: INK, roughness: 0.5 });
+  private blushMat = toonMat({ color: '#ff9fb0', roughness: 1 });
   private body: THREE.Mesh;
   private eyes = new THREE.Group();
   private eyeKey = '';
@@ -177,11 +178,11 @@ export class Character {
     }
     const fill = { espresso: '#5a3220', latte: '#c9a27a', matcha: '#8cc77a', cocoa: '#6b3e2a' }[drink];
     const g = new THREE.Group();
-    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.055, 0.13, 14), new THREE.MeshStandardMaterial({ color: '#fffaf2', roughness: 0.6 }));
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.055, 0.13, 14), toonMat({ color: '#fffaf2', roughness: 0.6 }));
     cup.castShadow = true;
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.064, 0.064, 0.01, 14), new THREE.MeshStandardMaterial({ color: fill }));
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.064, 0.064, 0.01, 14), toonMat({ color: fill }));
     top.position.y = 0.06;
-    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.066, 0.05, 14), new THREE.MeshStandardMaterial({ color: '#c98a5a' }));
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.066, 0.05, 14), toonMat({ color: '#c98a5a' }));
     g.add(cup, top, sleeve);
     const steamMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.5, depthWrite: false });
     for (let i = 0; i < 3; i++) {

@@ -159,6 +159,10 @@ conn.onMessage = (m) => {
       });
       game.onOpenGarden = (id) => gardenPanel.open(id);
       refreshGarden = () => gardenPanel.refresh();
+      hud.quality = game.quality;
+      hud.onToggleQuality = () => {
+        hud.quality = g.toggleQuality();
+      };
       game.onToggleDnd = toggleDnd;
       game.onChatKey = () => chat.focus();
       game.voice = voice;

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Decor, DecorKind } from '../../../shared/scenes/types';
-import { glow, mat, mesh } from './materials';
+import { glow, mat, mesh, toonMat } from './materials';
 import { PALETTE as P } from './palette';
 import { rng } from './rng';
 import { labelTexture } from './text';
@@ -114,7 +114,7 @@ const builders: Record<DecorKind, Builder> = {
     const tex = cobbles().clone();
     tex.repeat.set(w / 2.4, dd / 2.4);
     tex.needsUpdate = true;
-    return mesh(box(w, 0.02, dd), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }), 0, 0.01, 0, false);
+    return mesh(box(w, 0.02, dd), toonMat({ map: tex, roughness: 1 }), 0, 0.01, 0, false);
   },
 
   /** Asphalt with painted bay lines along the north side (d.seed bays, 5.5 m deep) and a wheel stop in each. */
@@ -153,7 +153,7 @@ const builders: Record<DecorKind, Builder> = {
     tex.anisotropy = 4;
     const lot = group(
       mesh(box(w + 0.3, 0.025, dd + 0.3), mat('#e7e1d2'), 0, 0.012, 0, false), // kerb
-      mesh(box(w, 0.03, dd), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }), 0, 0.016, 0, false),
+      mesh(box(w, 0.03, dd), toonMat({ map: tex, roughness: 0.95 }), 0, 0.016, 0, false),
     );
     for (let i = 0; i < bays; i++) {
       lot.add(mesh(box(1.4, 0.12, 0.22), mat('#d9d4c7'), -w / 2 + (i + 0.5) * bayW, 0.06, -dd / 2 + 0.75));
@@ -166,7 +166,7 @@ const builders: Record<DecorKind, Builder> = {
     const sz = (d.d ?? 3) / 2;
     const rim = mesh(cyl(1.08, 1.08, 0.05, 32), mat(P.waterRim), 0, 0.025, 0, false);
     rim.scale.set(sx, 1, sz);
-    const water = mesh(cyl(1, 1, 0.06, 32), new THREE.MeshStandardMaterial({ color: P.water, roughness: 0.15, metalness: 0.1 }), 0, 0.04, 0, false);
+    const water = mesh(cyl(1, 1, 0.06, 32), toonMat({ color: P.water, roughness: 0.15, metalness: 0.1 }), 0, 0.04, 0, false);
     water.scale.set(sx, 1, sz);
     const g = group(rim, water);
     for (let i = 0; i < 4; i++) {
@@ -245,7 +245,7 @@ const builders: Record<DecorKind, Builder> = {
     );
     for (let i = 0; i < 5; i++) g.add(mesh(box(w, 0.05, D), mat(P.wood), 0, 0.03 + i * 0.5, 0));
     const max = 4 * Math.ceil(w / 0.05);
-    const books = new THREE.InstancedMesh(box(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: 0.8, flatShading: true }), max);
+    const books = new THREE.InstancedMesh(box(1, 1, 1), toonMat({ roughness: 0.8, flatShading: true }), max);
     const m4 = new THREE.Matrix4();
     const col = new THREE.Color();
     let n = 0;
@@ -369,7 +369,7 @@ const builders: Record<DecorKind, Builder> = {
     return group(
       flat(new THREE.ShapeGeometry(shape(1.06), 2), mat('#e8d8a8', 1), 0.012),
       flat(new THREE.ShapeGeometry(shape(1.0), 2), mat(P.waterRim, 0.6), 0.02),
-      flat(new THREE.ShapeGeometry(shape(0.96), 2), new THREE.MeshStandardMaterial({ color: P.water, roughness: 0.12, metalness: 0.1 }), 0.03),
+      flat(new THREE.ShapeGeometry(shape(0.96), 2), toonMat({ color: P.water, roughness: 0.12, metalness: 0.1 }), 0.03),
     );
   },
 
@@ -421,7 +421,7 @@ const builders: Record<DecorKind, Builder> = {
   bandstand(d) {
     const r = d.w ?? 3.2;
     // The roof fades out while you stand under it, so the overhead camera can still see you.
-    const roofMat = new THREE.MeshStandardMaterial({ color: '#e98a8a', roughness: 0.85, flatShading: true, transparent: true });
+    const roofMat = toonMat({ color: '#e98a8a', roughness: 0.85, flatShading: true, transparent: true });
     const roof = group(mesh(new THREE.ConeGeometry(r + 0.5, 1.3, 8), roofMat, 0, 3.35, 0), mesh(sph(0.15, 1), roofMat, 0, 4.05, 0));
     roof.children[0].rotation.y = Math.PI / 8;
     roof.userData.fadeRadius = r + 0.6;
@@ -553,7 +553,7 @@ const builders: Record<DecorKind, Builder> = {
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set(w / 1.2, dd / 1.2);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, dd), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }));
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, dd), toonMat({ map: tex, roughness: 1 }));
     m.rotation.x = -Math.PI / 2;
     m.position.y = 0.02;
     m.receiveShadow = true;
@@ -581,7 +581,7 @@ const builders: Record<DecorKind, Builder> = {
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set(w / 0.8, dd / 0.8);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.03, dd), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }));
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.03, dd), toonMat({ map: tex, roughness: 1 }));
     m.position.y = 0.02;
     m.receiveShadow = true;
     return group(m);

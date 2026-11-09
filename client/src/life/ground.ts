@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Decor, LifeZone } from '../../../shared/scenes/types';
 import { Instances, lambert, nearby, type LifeCtx, type LifeSystem } from './kit';
 import { hash } from './math';
+import { toonMat } from '../world/materials';
 
 /** Ladybugs and snails pottering in slow little circles. */
 export function crawlers(zone: LifeZone, kind: 'ladybugs' | 'snails'): LifeSystem {
@@ -43,7 +44,7 @@ export function leafPiles(piles: Decor[]): LifeSystem {
   const root = new THREE.Group();
   const colors = ['#f2a65a', '#e8c35a', '#d9774a', '#c9603a'];
   const sets = piles.map((p, pi) => {
-    const inst = new Instances(new THREE.PlaneGeometry(0.2, 0.15), new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }), PILE_LEAVES);
+    const inst = new Instances(new THREE.PlaneGeometry(0.2, 0.15), toonMat({ side: THREE.DoubleSide }), PILE_LEAVES);
     inst.mesh.castShadow = true;
     for (let i = 0; i < PILE_LEAVES; i++) inst.color(i, colors[(i + pi) % colors.length]);
     root.add(inst.mesh);

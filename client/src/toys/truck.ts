@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Toy } from '../../../shared/scenes/types';
 import { angleDelta, boatPoseAt, type BoatPose, type Tilt } from '../../../shared/toys';
 import { Interp } from '../net/interp';
-import { glow, mat, mesh } from '../world/materials';
+import { glow, mat, mesh, toonMat } from '../world/materials';
 import { PALETTE as P } from '../world/palette';
 import { Floaters } from './floaters';
 import type { ToyFx, ToyView } from './registry';
@@ -139,7 +139,7 @@ export function truckView(toy: Toy, fx: ToyFx): VehicleView {
       if (speed > 3 && ctx.now - lastDust > 90) {
         lastDust = ctx.now;
         {
-          const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), new THREE.MeshLambertMaterial({ color: '#e8d8b8', transparent: true, opacity: 0.6 }));
+          const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), toonMat({ color: '#e8d8b8', transparent: true, opacity: 0.6 }));
           const bx = cur.x - Math.sin(cur.heading) * 1.4 + (Math.random() - 0.5) * 1.2;
           const bz = cur.z - Math.cos(cur.heading) * 1.4 + (Math.random() - 0.5) * 0.4;
           dust.add(puff, ctx.now, 700, (o, kk) => {
@@ -194,7 +194,7 @@ function beamTexture(): THREE.CanvasTexture {
 function poof(x: number, z: number, now: number): void {
   for (let i = 0; i < 10; i++) {
     const a = (i / 10) * Math.PI * 2;
-    const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(0.3, 0), new THREE.MeshLambertMaterial({ color: '#efe3cc', transparent: true, opacity: 0.8 }));
+    const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(0.3, 0), toonMat({ color: '#efe3cc', transparent: true, opacity: 0.8 }));
     dust.add(puff, now, 900, (o, k) => {
       o.position.set(x + Math.cos(a) * (0.6 + k * 1.6), 0.3 + k * 0.9, z + Math.sin(a) * (0.6 + k * 1.6));
       o.scale.setScalar(1 + k * 2.5);

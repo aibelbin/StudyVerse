@@ -39,6 +39,9 @@ import { BreathOverlay } from '../hud/breath';
 import { floorY } from '../toys/parkMath';
 import { FLOWERS } from '../../../shared/garden';
 import { StageFx } from '../world/stageFx';
+import { Post } from '../world/post';
+import { CLOUDS } from '../world/ground';
+import { initialQuality, QUALITY_KEY, SlowFrames, type Quality } from '../world/quality';
 import { GolfCourse } from '../golf/course';
 import { GolfPlay } from '../golf/play';
 import { Floaters } from '../toys/floaters';
@@ -134,6 +137,9 @@ export class Game {
   /** E was pressed while rolling: brake, then hop out. */
   private exiting = false;
   private breath = new BreathOverlay();
+  private post: Post;
+  quality: Quality = 'high';
+  private slowFrames = new SlowFrames();
   private golf: GolfPlay;
   /** Server time you sat on a meditation cushion (null when not on one). */
   private breathSitAt: number | null = null;
@@ -155,6 +161,9 @@ export class Game {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.post = new Post(this.renderer);
+    this.quality = initialQuality(location.search, localStorage.getItem(QUALITY_KEY));
+    this.post.high = this.quality === 'high';
     this.fade = new Fade(fadeEl);
     addEventListener('resize', () => this.resize());
     this.resize();
@@ -957,6 +966,16 @@ export class Game {
   private resize(): void {
     this.renderer.setSize(innerWidth, innerHeight, false);
     this.rig.resize(innerWidth, innerHeight);
+    this.post?.resize();
+  }
+
+  /** High (outlines, night glow, cloud shadows) or Lite; remembered on this device. */
+  toggleQuality(): Quality {
+    this.quality = this.quality === 'high' ? 'lite' : 'high';
+    localStorage.setItem(QUALITY_KEY, this.quality);
+    this.post.high = this.quality === 'high';
+    this.hud.toast(this.quality === 'high' ? 'Graphics: High ✨' : 'Graphics: Lite 🍃', 2000);
+    return this.quality;
   }
 
   private frame(): void {
@@ -1111,7 +1130,10 @@ export class Game {
     this.minimap.draw(nowP, { x: this.x, z: this.z, facing: this.facing, color: this.me.look.body },
       [...this.remotes.values()].map((r) => ({ x: r.char.root.position.x, z: r.char.root.position.z, color: r.view.look.body })), vehicles);
     this.hooks.frame({ def: this.def, built, now: sNow, dt, me: { x: this.x, z: this.z }, toyStates: this.toyStates });
-    this.renderer.render(this.scene, this.rig.camera);
+    CLOUDS.t.value = nowP / 1000;
+    CLOUDS.k.value = this.quality === 'high' && !this.def.theme.indoor ? 0.2 * (1 - this.night) : 0;
+    this.post.render(this.scene, this.rig.camera, this.night, this.def.theme.indoor);
+    if (this.slowFrames.update(dt, nowP, this.quality)) this.hud.toast('Running a bit slow? The ✨ button switches to Lite graphics 🍃', 6000);
     if (this.fps) {
       this.fps.frames++;
       if (nowP - this.fps.since >= 500) {
