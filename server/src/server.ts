@@ -75,7 +75,12 @@ async function serveStatic(dir: string, req: IncomingMessage, res: ServerRespons
   }
   try {
     const body = await readFile(file);
-    res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream' }).end(body);
+    // The page itself is always re-checked (so a deploy shows up on refresh); the hashed build files never change.
+    const hashed = /[\\/]assets[\\/]/.test(file);
+    res.writeHead(200, {
+      'content-type': MIME[extname(file)] ?? 'application/octet-stream',
+      'cache-control': hashed ? 'public, max-age=31536000, immutable' : 'no-cache',
+    }).end(body);
   } catch {
     res.writeHead(404).end('not found');
   }

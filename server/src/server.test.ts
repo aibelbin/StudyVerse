@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join as pathJoin } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -192,6 +192,21 @@ describe('server', () => {
       expect(r.status).toBe(200);
       expect(await r.text()).toBe('<h1>hi</h1>');
       expect(await (await fetch(`${base}/health`)).text()).toBe('ok');
+    } finally {
+      await s2.close();
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+  it('makes browsers re-check the page but keep the hashed build files', async () => {
+    const dir = await mkdtemp(pathJoin(tmpdir(), 'vs-static-'));
+    await writeFile(pathJoin(dir, 'index.html'), '<h1>hi</h1>');
+    await mkdir(pathJoin(dir, 'assets'));
+    await writeFile(pathJoin(dir, 'assets', 'index-abc123.js'), 'x');
+    const s2 = await startServer({ port: 0, dbPath: ':memory:', inviteCode: 'cozy', staticDir: dir });
+    try {
+      const base = `http://127.0.0.1:${s2.port}`;
+      expect((await fetch(`${base}/`)).headers.get('cache-control')).toBe('no-cache');
+      expect((await fetch(`${base}/assets/index-abc123.js`)).headers.get('cache-control')).toContain('immutable');
     } finally {
       await s2.close();
       await rm(dir, { recursive: true, force: true });
