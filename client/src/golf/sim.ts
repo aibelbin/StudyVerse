@@ -13,7 +13,7 @@ export interface Vec3 {
 const STEP = 1 / 120;
 const REST_SPEED = 0.06;
 const REST_FOR = 0.3;
-const HOLE_SPEED = 1.4;
+const HOLE_SPEED = 1.0;
 const MIN_DRAG_PX = 8;
 const FULL_DRAG_PX = 160;
 
@@ -125,7 +125,7 @@ export class GolfSim {
           const a = (i / 4) * Math.PI * 2;
           const r = p.bladeLen / 2;
           this.world.createCollider(
-            R.ColliderDesc.cuboid(0.04, p.bladeLen / 2, 0.13).setTranslation(0, Math.cos(a) * r, Math.sin(a) * r).setRotation(quatX(-a)).setRestitution(0.5),
+            R.ColliderDesc.cuboid(0.08, p.bladeLen / 2, 0.13).setTranslation(0, Math.cos(a) * r, Math.sin(a) * r).setRotation(quatX(-a)).setRestitution(0.5),
             body,
           );
         }

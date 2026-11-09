@@ -41,6 +41,8 @@ One process serves the page and the WebSocket (`/ws`). Profiles are stored in `d
 | G | offer your drink or bouquet to someone nearby (they get Accept / No thanks, or Y / N) |
 | Enter | open chat / send; Esc closes it |
 | T | emote wheel (hold, point, let go; or click) |
+| drag (mouse) | mini-golf: drag back from anywhere and let go to putt |
+| Q | leave the mini-golf hole you're on |
 | M | big map |
 | N | do not disturb |
 | V | mute / unmute your mic (when on voice) |
@@ -72,7 +74,7 @@ TURN server for friends behind strict networks.
 ## The town
 
 A 150×130 town with a square (Library, Café, bandstand piano, fountain, bell, jukebox, Boutique, notice board,
-knowledge tree), car parks by the Library and the Café with four trucks, cones and crates to knock over, a lake with a dock and two rowboats, woods with a campfire, a park with wind chimes, a telescope, a zen corner and a garden, an open-air stage in the south, and a playground (swings, seesaw,
+knowledge tree), car parks by the Library and the Café with four trucks, cones and crates to knock over, a lake with a dock and two rowboats, woods with a campfire, a park with wind chimes, a telescope, a zen corner and a garden, an open-air stage and a mini-golf course in the south, and a playground (swings, seesaw,
 merry-go-round, slide). Toys are shared: friends see and hear them. Ducks, fish, frogs, birds, insects, sailboats
 and clouds wander around on their own, and the sky follows your local clock (stars and fireflies at night).
 All art is procedural and all sound is synthesized in the browser; 🔊 in the status panel mutes it.
@@ -93,6 +95,12 @@ poppies for free, or unlock lavender, roses, lotuses and glow-lilies with KP. Ev
 anywhere in town, grows what you've planted (25 to 120 minutes to bloom). Friends can water your plot once a
 day, which makes your next 60 focus minutes count 50% extra. Pick a bloom for a little KP and a bouquet: give
 it away with G, or put it in your plot's vase for everyone to see. Plots and plants are saved.
+
+**Mini-golf** has six holes (par 18): a warm-up, a windmill, a ramp jump over a pond, a zigzag, a loop and a
+volcano. Press E on a tee, then drag back and let go to putt (the dotted line and the bar show aim and power).
+Everyone can play at once and sees each other's balls; six putts and you pick up (scored as 7). Your own browser
+simulates your ball with Rapier and streams it to everyone else. A full round goes on "Today's best" by the
+entrance and pays 3 ✨ KP (6 at or under par) once a day; a hole-in-one makes the feed.
 
 The **open-air stage** carries the voice of anyone standing on it to everyone in its 18 seats at full volume.
 Sit at the drums, guitar (chords) or keyboard and play with 1–8. Spotlights come on when someone's on stage,

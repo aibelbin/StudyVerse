@@ -1,3 +1,4 @@
+import { HOLES } from '../../../shared/golf';
 import type { Bounds } from '../../../shared/geometry';
 import type { SceneDef } from '../../../shared/scenes/types';
 import type { ToyKind } from '../../../shared/toys';
@@ -10,7 +11,7 @@ export function worldToMap(x: number, z: number, size: Bounds, w: number, h: num
 const ICONS: Partial<Record<ToyKind, string>> = {
   piano: '🎹', jukebox: '🎵', fountain: '⛲', bell: '🔔', chimes: '🎐', campfire: '🔥', telescope: '🔭',
   ducks: '🦆', swing: '🛝', merryGoRound: '🎠', stones: '🪨', slide: '🛝', seesaw: '⚖️',
-  shop: '👕', board: '📌', quotes: '📖', coffee: '☕', koi: '🎏', cushions: '🧘', drums: '🎤', plot: '🌷',
+  shop: '👕', board: '📌', quotes: '📖', coffee: '☕', koi: '🎏', cushions: '🧘', drums: '🎤', plot: '🌷', golfTee: '⛳',
 };
 
 export interface MapDot {
@@ -78,6 +79,7 @@ export class Minimap {
     };
     for (const d of def.decor) if (d.kind === 'path') rect(d.x, d.z, d.w ?? 1, d.d ?? 1, '#efdcb6');
     for (const d of def.decor) if (d.kind === 'parking') rect(d.x, d.z, d.w ?? 1, d.d ?? 1, '#8e9097');
+    if (def.toys.some((t) => t.kind === 'golfTee')) for (const hole of HOLES) for (const p of hole.pieces) if (p.kind === 'floor') rect(p.x, p.z, p.w, p.d, '#5cbf6c');
     for (const b of def.parking ?? []) rect(b.x - 1.6, b.z, 0.25, 5, '#f4f1e8'); // bay lines
     if (def.water) {
       g.fillStyle = '#8fd0e8';
@@ -132,7 +134,7 @@ export class Minimap {
     const seen = new Set<string>();
     for (const t of def.toys) {
       const icon = ICONS[t.kind];
-      const cell = t.kind === 'plot' ? 'plot' : `${t.kind}${Math.round(t.x / 6)}${Math.round(t.z / 6)}`; // one 🌷 for the whole garden
+      const cell = t.kind === 'plot' || t.kind === 'golfTee' ? t.kind : `${t.kind}${Math.round(t.x / 6)}${Math.round(t.z / 6)}`; // one icon for the garden and the course
       if (!icon || seen.has(cell)) continue;
       seen.add(cell);
       const p = m(t.x, t.z);

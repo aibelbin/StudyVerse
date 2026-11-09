@@ -36,7 +36,7 @@ describe('aiming and resting', () => {
 
   it('drops in only over the cup, at its height, and not too fast', () => {
     const cup = { x: 0, y: 0.05, z: 0 };
-    expect(cupCheck({ x: 0.1, y: 0.17, z: 0 }, 1, cup)).toBe(true);
+    expect(cupCheck({ x: 0.1, y: 0.17, z: 0 }, 0.8, cup)).toBe(true);
     expect(cupCheck({ x: 0.1, y: 0.17, z: 0 }, 3, cup)).toBe(false);
     expect(cupCheck({ x: 0.4, y: 0.17, z: 0 }, 0.5, cup)).toBe(false);
     expect(cupCheck({ x: 0, y: 0.6, z: 0 }, 0.5, cup)).toBe(false);

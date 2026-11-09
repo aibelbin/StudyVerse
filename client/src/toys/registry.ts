@@ -8,6 +8,9 @@ import { boardView, coffeeView, quotesView, shopView } from './local';
 import { campfireView, telescopeView } from './misc';
 import { truckView } from './truck';
 import { plotView } from './garden';
+import { golfBoardView } from '../golf/course';
+import { HOLES } from '../../../shared/golf';
+import { Group } from 'three';
 import { cairnView, cushionsView, drumsView, guitarView, keysView, koiView, stageScreenView } from './park';
 import { ducksView, fountainView, rowboatView, stonesView } from './water';
 
@@ -75,6 +78,10 @@ export function toyPrompt(toy: Toy, state?: ToyState): string | null {
     case 'koi': return '[E] feed the koi';
     case 'cairn': return '[E] add a stone to the cairn';
     case 'stageScreen': return '[E] change the stage screen';
+    case 'golfTee': {
+      const h = HOLES[Number(toy.id.split('-').pop()) - 1];
+      return h ? `[E] play hole ${h.n} · ${h.name} (par ${h.par}) ⛳` : null;
+    }
     default: return null;
   }
 }
@@ -115,5 +122,7 @@ function build(toy: Toy, def: SceneDef, fx: ToyFx): ToyView {
     case 'keys': return keysView(toy, fx);
     case 'stageScreen': return stageScreenView();
     case 'plot': return plotView(toy);
+    case 'golfBoard': return golfBoardView();
+    case 'golfTee': return { root: new Group(), update() {} }; // the course draws the tee
   }
 }

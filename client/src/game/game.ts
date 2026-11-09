@@ -39,6 +39,9 @@ import { BreathOverlay } from '../hud/breath';
 import { floorY } from '../toys/parkMath';
 import { FLOWERS } from '../../../shared/garden';
 import { StageFx } from '../world/stageFx';
+import { GolfCourse } from '../golf/course';
+import { GolfPlay } from '../golf/play';
+import { Floaters } from '../toys/floaters';
 import { PetModel } from '../pets/model';
 
 interface Remote {
@@ -53,6 +56,9 @@ interface SceneRuntime {
   toys: Map<string, ToyView>;
   props: PropsView | null;
   stageFx: StageFx | null;
+  golf: GolfCourse | null;
+  /** Emoji pops in the world (e.g. a hole-in-one). */
+  pops: Floaters;
 }
 
 /** Instruments you play from their seat with the number keys. */
@@ -128,6 +134,7 @@ export class Game {
   /** E was pressed while rolling: brake, then hop out. */
   private exiting = false;
   private breath = new BreathOverlay();
+  private golf: GolfPlay;
   /** Server time you sat on a meditation cushion (null when not on one). */
   private breathSitAt: number | null = null;
   private breathDone = false;
@@ -151,12 +158,34 @@ export class Game {
     this.fade = new Fade(fadeEl);
     addEventListener('resize', () => this.resize());
     this.resize();
+    this.golf = new GolfPlay({
+      scene: () => this.scene,
+      camera: () => this.rig.camera,
+      canvas,
+      hud,
+      send: (m) => this.send(m),
+      myColor: () => this.me?.look.body ?? '#ffffff',
+      colorOf: (id) => this.remotes.get(id)?.view.look.body ?? '#ffffff',
+      myId: () => this.me?.id ?? null,
+      standAt: (x, z) => {
+        // just behind the ball as the camera sees it (north), so you never hide your own ball
+        this.x = x;
+        this.z = z - 0.7;
+        this.sendMove(performance.now());
+      },
+      sound: (kind, x, z) => this.fx.sound(kind, x, z),
+      pop: (x, y, z, text) => this.rt?.pops.text(text, x, y, z, performance.now(), 0.8, 2200),
+    });
+    this.input.on('q', () => {
+      if (!this.hud.modalOpen()) this.golf.quit();
+    });
     this.input.on('e', () => this.interact());
     this.input.on(' ', () => this.openSessionPicker());
     this.input.on('m', () => {
       if (!this.hud.modalOpen()) this.minimap.toggle();
     });
     this.input.on('escape', () => {
+      this.golf.cancelDrag();
       this.hud.closeModals();
       this.hud.closeCard();
       this.wheel.close();
@@ -270,6 +299,12 @@ export class Game {
         }
         break;
       }
+      case 'golfBall':
+      case 'golfDone':
+      case 'golfGone':
+      case 'golfCard':
+        this.golf.onMessage(m);
+        break;
       case 'bloomed':
         this.hud.toast(`🌷 Your ${FLOWERS[m.flower].name} bloomed! Pick it in your garden.`, 4500);
         break;
@@ -341,7 +376,9 @@ export class Game {
       if (props) built.scene.add(props.root);
       const stageFx = this.def.stage ? new StageFx(this.def) : null;
       if (stageFx) built.scene.add(stageFx.root);
-      rt = { built, toys, props, stageFx };
+      const golf = this.def.toys.some((t) => t.kind === 'golfTee') ? new GolfCourse() : null;
+      if (golf) built.scene.add(golf.root);
+      rt = { built, toys, props, stageFx, golf, pops: new Floaters(built.scene) };
       this.runtimes.set(you.scene, rt);
       built.setTreeStage(treeStage(this.treeMinutes));
     }
@@ -829,6 +866,7 @@ export class Game {
       }
       if (LOCAL_TOYS.includes(t.toy.kind)) return this.onLocalToy(t.toy);
       if (t.toy.kind === 'plot') return this.usePlot(t.toy);
+      if (t.toy.kind === 'golfTee') return this.golf.tee(Number(t.toy.id.split('-').pop()));
       const action = TOY_DEFAULT_ACTION[t.toy.kind];
       if (!action) return;
       this.sendMove(performance.now());
@@ -888,6 +926,8 @@ export class Game {
   private promptText(): string | null {
     const me = this.me!;
     if (this.transitioning) return null;
+    const golfing = this.golf.prompt();
+    if (golfing) return golfing;
     if (this.telescope) return '✨ Stargazing… [E] or move to stop';
     if (me.slotId) {
       const slot = this.slotById(me.slotId);
@@ -1052,7 +1092,11 @@ export class Game {
       else this.hud.updateCard(statusText(r.view, sNow));
     }
 
-    this.rig.follow(this.x, this.z, dt);
+    this.rt.golf?.update(sNow);
+    this.golf.update(dt, sNow);
+    this.rt.pops.update(performance.now());
+    const focus = this.golf.focus();
+    this.rig.follow(focus?.x ?? this.x, focus?.z ?? this.z, dt);
     const built = this.rt.built;
     built.sway.value = nowP / 1000;
     followSun(built, this.x, this.z);
