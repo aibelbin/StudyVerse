@@ -55,7 +55,7 @@ export class TouchUI {
       this.pianoEl.append(k);
     }
     this.pianoEl.hidden = true;
-    this.chatBtn = h('button', { type: 'button', className: 'touch-round', textContent: '💬', title: 'Chat' });
+    this.chatBtn = h('button', { type: 'button', className: 'touch-round touch-chat', textContent: '💬', title: 'Chat' });
     this.chatBtn.addEventListener('click', () => this.toggleChat());
     const emote = h('button', { type: 'button', className: 'touch-round', textContent: '😊', title: 'Emotes' });
     hold(emote, 't');

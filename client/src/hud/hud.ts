@@ -27,6 +27,8 @@ export class Hud {
   admin = false;
   /** Gifts switched on (by the admins). */
   giftsOn = true;
+  /** Private messages switched on (by the admins). */
+  dmsOn = true;
   /** 'high' or 'lite' graphics, for the ✨ button. */
   quality = 'high';
   onToggleDnd: () => void = () => {};
@@ -111,7 +113,7 @@ export class Hud {
     const who = (p: OnlineEntry) => p.id === this.meId
       ? h('span', {}, h('span', { textContent: p.name }), ...mood(p))
       : h('span', {},
-        h('span', { className: 'who', textContent: p.name, title: `Message ${p.name}`, onclick: () => this.onOpenDm(p.id, p.name) }), ...mood(p),
+        this.dmsOn ? h('span', { className: 'who', textContent: p.name, title: `Message ${p.name}`, onclick: () => this.onOpenDm(p.id, p.name) }) : h('span', { textContent: p.name }), ...mood(p),
         ...(this.giftsOn ? [h('button', { className: 'gift-btn', title: `Send ${p.name} a gift`, textContent: '🎁', onclick: () => this.onSendGift(p.id, p.name) })] : []));
     byId('online').replaceChildren(
       h('div', { className: 'title', textContent: `🏡 ${list.length} in town` }),
@@ -232,13 +234,13 @@ export class Hud {
       v.dnd
         ? h('div', { className: 'sub', textContent: '🔕 Do not disturb: they are focusing' })
         : h('div', { className: 'actions' }, ...EMOTE_BUTTONS.map(([k, label]) => h('button', { textContent: label, onclick: () => onEmote(k) }))),
-      h('div', { className: 'actions' }, h('button', {
+      h('div', { className: 'actions' }, ...(this.dmsOn ? [h('button', {
         textContent: '💬 Message',
         onclick: () => {
           this.closeCard();
           this.onOpenDm(v.id, v.name);
         },
-      }), ...(this.giftsOn ? [h('button', {
+      })] : []), ...(this.giftsOn ? [h('button', {
         textContent: '🎁 Send a gift',
         onclick: () => {
           this.closeCard();

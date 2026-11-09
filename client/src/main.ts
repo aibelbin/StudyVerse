@@ -236,7 +236,9 @@ conn.onMessage = (m) => {
         if (me) openMe(hud, me, (emoji, text, minutes) => conn.send({ t: 'setStatus', emoji, text, minutes }), (k) => conn.send({ t: 'useKeepsake', id: k.id }));
       };
       game.onToggleDnd = toggleDnd;
-      game.onChatKey = () => chat.focus();
+      game.onChatKey = () => {
+        if (!document.body.classList.contains('chat-off')) chat.focus();
+      };
       game.voice = voice;
       game.onPetKey = () => {
         if (!wallet?.pet) {
@@ -284,6 +286,11 @@ conn.onMessage = (m) => {
   if (m.t === 'features' || m.t === 'welcome') {
     features = m.features;
     hud.giftsOn = m.features.gifts;
+    hud.dmsOn = m.features.dms;
+    // With both kinds of chat switched off, chat disappears from the screen entirely (admins can turn it back on).
+    const chatOff = !m.features.globalChat && !m.features.dms;
+    document.body.classList.toggle('chat-off', chatOff);
+    if (chatOff) chat.close();
     adminPanel?.setFeatures(m.features);
   }
   game?.onMessage(m);

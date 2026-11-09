@@ -342,3 +342,7 @@ body.touch .admin-panel { width: min(400px, 60vw); }
 .people { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; margin-top: 8px; }
 .person { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: 12px; min-height: 44px; }
 .person span { color: var(--mut); font-size: 12px; }
+
+/* chat switched off by an admin: no trace of it on screen */
+body.chat-off #chat, body.chat-off .touch-chat { display: none !important; }
+body.chat-off #feed { bottom: 14px; }
