@@ -78,8 +78,8 @@ knowledge tree), car parks by the Library and the Café with four trucks, cones 
 merry-go-round, slide). Toys are shared: friends see and hear them. Ducks, fish, frogs, birds, insects, sailboats
 and clouds wander around on their own, and the sky follows your local clock (stars and fireflies at night).
 All art is procedural and all sound is synthesized in the browser; 🔊 in the status panel mutes it. The look is a
-storybook one: toon shading, soft outlines, a hand-painted ground with drifting cloud shadows, a sky that follows the
-clock, and a gentle glow on lights at night. ✨ in the status panel switches to Lite graphics (no outlines, glow or cloud
+storybook one: toon shading, a hand-painted ground with drifting cloud shadows, a sky that follows the
+clock, and a gentle glow on lights at night. ✨ in the status panel switches to Lite graphics (no night glow or cloud
 shadows) on slower machines; `?lite` forces it.
 
 Trucks drive on real physics: [Rapier](https://rapier.rs)'s ray-cast vehicle with the tuning from Bruno Simon's

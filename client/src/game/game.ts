@@ -969,7 +969,7 @@ export class Game {
     this.post?.resize();
   }
 
-  /** High (outlines, night glow, cloud shadows) or Lite; remembered on this device. */
+  /** High (night glow, cloud shadows) or Lite; remembered on this device. */
   toggleQuality(): Quality {
     this.quality = this.quality === 'high' ? 'lite' : 'high';
     localStorage.setItem(QUALITY_KEY, this.quality);
@@ -1132,7 +1132,7 @@ export class Game {
     this.hooks.frame({ def: this.def, built, now: sNow, dt, me: { x: this.x, z: this.z }, toyStates: this.toyStates });
     CLOUDS.t.value = nowP / 1000;
     CLOUDS.k.value = this.quality === 'high' && !this.def.theme.indoor ? 0.2 * (1 - this.night) : 0;
-    this.post.render(this.scene, this.rig.camera, this.night, this.def.theme.indoor);
+    this.post.render(this.scene, this.rig.camera, this.night);
     if (this.slowFrames.update(dt, nowP, this.quality)) this.hud.toast('Running a bit slow? The ✨ button switches to Lite graphics 🍃', 6000);
     if (this.fps) {
       this.fps.frames++;

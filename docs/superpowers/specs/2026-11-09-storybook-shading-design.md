@@ -1,7 +1,7 @@
 # Storybook Graphics, Round 1: Shading and Light
 
 Date: 2026-11-09
-Status: approved in chat.
+Status: approved in chat. **Update after the first deploy:** the user found the outlines odd, so they were removed. The post pipeline now only runs at night, for the glow.
 
 The user chose:
 - A "cosy storybook" look: stylised, not realistic.
