@@ -277,6 +277,21 @@ describe('trucks', () => {
     expect(truckState(b.c)).toMatchObject({ x: truck.x + 5, returnFrom: null });
   });
 
+  it('accepts full-speed driving even when moves arrive bunched up by network jitter', () => {
+    const a = joinNew('Sam');
+    board(a.id);
+    const truck = SCENES.town.toys.find((x) => x.id === 'truck-1')!;
+    let x = truck.x;
+    const before = a.c.of('toyState').filter((m) => m.toyId === 'truck-1').length;
+    for (const gap of [100, 160, 40, 100, 30, 170, 100]) {
+      t += gap;
+      x += 1.07; // 10.7 m/s, the physics truck's top speed, sent every 100 ms
+      w.handle(a.id, { t: 'move', x, z: truck.z, facing: Math.PI / 2, anim: 'sit' });
+    }
+    expect(a.c.of('toyState').filter((m) => m.toyId === 'truck-1')).toHaveLength(before); // never snapped back
+    expect(w.view(a.id)!.x).toBeCloseTo(x);
+  });
+
   it('tells the driver where they left the truck when they hop out', () => {
     const a = joinNew('Sam');
     board(a.id);

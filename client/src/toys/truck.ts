@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Toy } from '../../../shared/scenes/types';
 import { angleDelta, boatPoseAt, type BoatPose, type Tilt } from '../../../shared/toys';
+import { Interp } from '../net/interp';
 import { glow, mat, mesh } from '../world/materials';
 import { PALETTE as P } from '../world/palette';
 import { Floaters } from './floaters';
@@ -17,6 +18,7 @@ const PAINT = ['#ff9e7a', '#7ab8ff', '#8fd694', '#ffd36e'];
 const FLAT: Tilt = { y: 0, pitch: 0, roll: 0 };
 
 const WHEEL_R = 0.3;
+const JUMP = 6; // further than this in one go means it parked itself: poof, don't glide
 
 /** A cute rounded pickup: wheels that spin and steer, dust when it's moving fast, glowing headlights. */
 export function truckView(toy: Toy, fx: ToyFx): VehicleView {
@@ -67,9 +69,18 @@ export function truckView(toy: Toy, fx: ToyFx): VehicleView {
   let steer = 0;
   let roll = 0;
   let lastDust = 0;
+  // Someone else driving: their poses arrive every ~100 ms, so draw them slightly in the past and glide
+  // between them (as for walking players), instead of chasing the newest one.
+  let interp = new Interp(JUMP);
+  let lastSt: unknown = null;
   return {
     root,
     setLocal(p, s = 0, t = FLAT) {
+      if (!p && local) {
+        // Handing back to the server: carry on from where we drew it, not from old samples.
+        interp = new Interp(JUMP);
+        interp.push({ x: cur.x, z: cur.z, facing: cur.heading }, performance.now());
+      }
       local = p ? { ...p } : null;
       localTilt = t;
       if (p) speed = s;
@@ -77,9 +88,19 @@ export function truckView(toy: Toy, fx: ToyFx): VehicleView {
     speedNow: () => speed,
     update(ctx) {
       const st = ctx.state;
-      const target = local ?? (st?.kind === 'truck' ? boatPoseAt(st, rest, ctx.now) : rest);
+      let target: BoatPose = rest;
+      if (local) target = local;
+      else if (st?.kind === 'truck') {
+        if (st !== lastSt) {
+          lastSt = st;
+          const p = boatPoseAt(st, rest, ctx.now);
+          interp.push({ x: p.x, z: p.z, facing: p.heading }, performance.now());
+        }
+        const s = interp.sample(performance.now());
+        target = { x: s.x, z: s.z, heading: s.facing };
+      }
       const wantTilt = local ? localTilt : st?.kind === 'truck' && st.tilt ? st.tilt : FLAT;
-      if (!local && Math.hypot(target.x - cur.x, target.z - cur.z) > 6) {
+      if (!local && Math.hypot(target.x - cur.x, target.z - cur.z) > JUMP) {
         // A big jump (it parked itself): poof here, poof there, no gliding through trees. The first
         // frame after arriving in town just places it.
         if (seen) {
@@ -89,7 +110,7 @@ export function truckView(toy: Toy, fx: ToyFx): VehicleView {
         Object.assign(cur, target);
       }
       seen = true;
-      const k = local ? 1 : 1 - Math.exp(-ctx.dt * 10);
+      const k = local || st?.kind === 'truck' ? 1 : 1 - Math.exp(-ctx.dt * 10); // the buffer already glides
       const kt = local ? 1 : 1 - Math.exp(-ctx.dt * 12);
       tilt.y += (wantTilt.y - tilt.y) * kt;
       tilt.pitch += (wantTilt.pitch - tilt.pitch) * kt;

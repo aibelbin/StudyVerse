@@ -25,9 +25,12 @@ export class Interp {
   private buf: Sample[] = [];
   private drawn: Pose | null = null;
 
+  /** `snapDist`: a jump bigger than this (a teleport) skips the glide. Fast things need a bigger one. */
+  constructor(private snapDist = SNAP_DIST) {}
+
   push(p: Pose, t: number): void {
     const pose = { x: p.x, z: p.z, facing: p.facing };
-    if (this.drawn && Math.hypot(pose.x - this.drawn.x, pose.z - this.drawn.z) > SNAP_DIST) {
+    if (this.drawn && Math.hypot(pose.x - this.drawn.x, pose.z - this.drawn.z) > this.snapDist) {
       this.buf = [];
       this.drawn = { ...pose };
     }

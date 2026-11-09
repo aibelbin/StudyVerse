@@ -83,6 +83,19 @@ interface PropBody {
 
 const yawQuat = (yaw: number) => ({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) });
 
+type Quat = { x: number; y: number; z: number; w: number };
+
+/** Normalised blend of two unit quaternions (taking the short way round); plenty for one 1/60 s step. */
+export function nlerp(a: Quat, b: Quat, k: number): Quat {
+  const s = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w < 0 ? -1 : 1;
+  const x = a.x + (b.x * s - a.x) * k;
+  const y = a.y + (b.y * s - a.y) * k;
+  const z = a.z + (b.z * s - a.z) * k;
+  const w = a.w + (b.w * s - a.w) * k;
+  const n = Math.hypot(x, y, z, w) || 1;
+  return { x: x / n, y: y / n, z: z / n, w: w / n };
+}
+
 /** Rotates v by unit quaternion q. */
 function rotate(q: { x: number; y: number; z: number; w: number }, v: [number, number, number]): [number, number, number] {
   const [vx, vy, vz] = v;
@@ -111,6 +124,8 @@ export class DriveWorld {
   private tippedFor = 0;
   private stuck: [number, number][] = []; // [distance, seconds] while throttling
   private lastPos = { x: 0, z: 0 };
+  /** The chassis before the latest step, so frames between steps can be drawn in between. */
+  private prev = { t: { x: 0, y: 0, z: 0 }, q: { x: 0, y: 0, z: 0, w: 1 } };
 
   constructor(private R: R, def: SceneDef, start: BoatPose) {
     this.world = new R.World({ x: 0, y: -9.81, z: 0 });
@@ -163,6 +178,7 @@ export class DriveWorld {
     for (let i = 0; i < 90; i++) this.tick();
     this.restY = this.chassis.translation().y;
     this.lastPos = { x: start.x, z: start.z };
+    this.keepPrev();
   }
 
   /** Advances by dt seconds of real time in fixed 60 Hz steps, after moving the blockers. */
@@ -171,6 +187,7 @@ export class DriveWorld {
     this.acc = Math.min(this.acc + dt, STEP * 4);
     while (this.acc >= STEP) {
       this.acc -= STEP;
+      this.keepPrev();
       this.drive();
       this.tick();
       this.time += STEP;
@@ -179,9 +196,17 @@ export class DriveWorld {
     this.selfRight(dt);
   }
 
+  /**
+   * The pose to draw: physics runs in fixed 1/60 s steps, so we blend the last two steps by how far
+   * this frame is into the next one. Without this the truck hops (0 or 2 steps in some frames).
+   */
   pose(): DrivePose {
-    const t = this.chassis.translation();
-    const q = this.chassis.rotation();
+    const a = Math.max(0, Math.min(1, this.acc / STEP));
+    const t1 = this.chassis.translation();
+    const q1 = this.chassis.rotation();
+    const { t: t0, q: q0 } = this.prev;
+    const t = { x: t0.x + (t1.x - t0.x) * a, y: t0.y + (t1.y - t0.y) * a, z: t0.z + (t1.z - t0.z) * a };
+    const q = nlerp(q0, q1, a);
     const fwd = rotate(q, [1, 0, 0]);
     const side = rotate(q, [0, 0, 1]);
     return {
@@ -204,6 +229,7 @@ export class DriveWorld {
     this.lastPos = { x: p.x, z: p.z };
     this.stuck = [];
     this.tippedFor = 0;
+    this.keepPrev();
   }
 
   props(): PropPose[] {
@@ -217,6 +243,12 @@ export class DriveWorld {
   dispose(): void {
     this.car.free();
     this.world.free();
+  }
+
+  private keepPrev(): void {
+    const t = this.chassis.translation();
+    const q = this.chassis.rotation();
+    this.prev = { t: { x: t.x, y: t.y, z: t.z }, q: { x: q.x, y: q.y, z: q.z, w: q.w } };
   }
 
   private tick(): void {

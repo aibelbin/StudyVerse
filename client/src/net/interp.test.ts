@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { Interp, lerpAngle } from './interp';
 
 describe('Interp', () => {
+  it('glides a fast mover with a bigger snap distance instead of teleporting', () => {
+    const i = new Interp(6);
+    i.push({ x: 0, z: 0, facing: 0 }, 1000);
+    i.sample(1100);
+    i.push({ x: 2.5, z: 0, facing: 0 }, 1200); // 2.5 m in 200 ms: over the walking snap of 2 m
+    expect(i.sample(1200).x).toBeCloseTo(1.25);
+  });
+
   it('returns the only sample', () => {
     const i = new Interp();
     i.push({ x: 1, z: 2, facing: 0 }, 1000);

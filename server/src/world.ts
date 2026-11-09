@@ -698,7 +698,9 @@ export class World {
     const spec = b && VEHICLES[b.toy.kind];
     if (!b || !spec) return;
     const t = this.now();
-    const allowed = (spec.speed * Math.max(t - p.lastMoveAt, 50)) / 1000 + 0.5;
+    // Moves are sent every 100 ms but can arrive bunched up by network jitter, so never judge one
+    // over less than 100 ms: a false "too fast" snaps the driver back and stops them dead.
+    const allowed = (spec.speed * Math.max(t - p.lastMoveAt, 100)) / 1000 + 0.5;
     if (dist(b.s.x, b.s.z, x, z) > allowed || !vehicleOk(b.toy.kind, this.scene(p.scene), x, z)) {
       p.conn?.send({ t: 'toyState', toyId, state: b.s });
       return;
