@@ -113,3 +113,56 @@ keepsakes(id, to_id, from_id, from_name, gift, at)
 - **Validation:** all new messages.
 - **Client:** the status picker and keepsake shelf render without errors (pure helpers where possible).
 - **Headless:** check all of this end to end.
+
+## Admin panel (added in chat)
+
+A side panel that only admins see. It's opened with the 🛡️ button in the status panel, or from the touch menu.
+
+**Access:** there's no separate login. Every admin action is checked on the server against `ADMIN_IDS`.
+
+**Message:** `admin { action, ... }`. Non-admins get a `not_admin` error.
+
+### Players
+
+The panel lists everyone online and recently seen: name, where they are, KP, status, and whether they're muted or banned.
+
+| Action | What it does |
+|---|---|
+| **Kick** | Closes their connection with a new error code `kicked`. The client shows "An admin sent you home", and they can rejoin. |
+| **Ban** | For 1 h, 24 h, 7 days or for good. The ban is saved to the `bans` table and they're kicked. Any `hello` with that profile's token is then refused with `banned` and the message "You're on a break until …". |
+| **Unban** | Lifts the ban. |
+| **Mute chat** | For 10 min, 1 h or 24 h, saved as the `mutes` record in kv. While muted, `chat` sends are refused with "You're muted until …". |
+| **Unmute** | Lifts the mute. |
+| **Go to** | Teleports the admin next to that player. It's allowed even across scenes: the admin is moved into the player's scene. |
+| **Send home** | Moves that player to the square spawn. Their seat is freed and their golf hole ended. |
+
+### Features
+
+Each switch defaults to on and is saved in kv. Turning one off refuses the matching messages with a friendly error and hides the matching UI where that's simple.
+
+| Switch | Covers |
+|---|---|
+| Everyone chat | `chat` with no recipient |
+| DMs | private messages |
+| Voice | voice chat |
+| Gifts | sending and buying gifts |
+| Stage screen | changing the stage screen text |
+| Notice board | posting notes |
+| Trucks | driving |
+| Mini-golf | the golf tees |
+
+The current switches go to everyone in `welcome`, and again as a `features` message whenever one changes.
+
+### Announcements
+
+The admin types a message, and the server sends `announce { text }` to everyone. It shows as a big banner for 8 s.
+
+### Clean-up
+
+| Target | How |
+|---|---|
+| Chat messages | A 🗑 on any chat message while the admin panel is open. The message is deleted from the database and `chatDelete { id }` goes to everyone. |
+| Notice-board notes | Deleted the same way. |
+| Stage screen | The admin can clear it. |
+
+**Limitation:** bans are per profile. Since the invite code is public, a banned person could join again with a new name. The panel has a hint to change `INVITE_CODE` if that happens.
