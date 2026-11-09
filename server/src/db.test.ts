@@ -23,6 +23,32 @@ describe('ProfileStore', () => {
     s.close();
   });
 
+  it('keeps the newest chat per channel and hands each profile its own history', () => {
+    const s = new ProfileStore(':memory:');
+    const msg = (from: string, to: string | null, text: string) => s.addChat({ from, fromName: from, to, text, at: 1 }, 3);
+    for (let i = 0; i < 5; i++) msg('a', null, `g${i}`);
+    msg('a', 'b', 'hi b');
+    msg('b', 'a', 'hi a');
+    msg('a', 'c', 'hi c');
+    const forB = s.chatFor('b', 10, 10).map((m) => m.text);
+    expect(forB).toEqual(['g2', 'g3', 'g4', 'hi b', 'hi a']); // only the newest 3 Everyone lines; not a↔c
+    expect(s.chatFor('c', 2, 10).map((m) => m.text)).toEqual(['g3', 'g4', 'hi c']);
+    const m = s.chatFor('b', 0, 1)[0];
+    expect(m).toMatchObject({ from: 'b', to: 'a', reactions: {} });
+    s.setReactions(m.id, { '👍': ['a'] });
+    expect(s.chatById(m.id)!.reactions).toEqual({ '👍': ['a'] });
+    expect(s.chatById(9999)).toBeNull();
+    s.close();
+  });
+
+  it('looks up profile names', () => {
+    const s = new ProfileStore(':memory:');
+    const { profile } = s.create('Sam', DEFAULT_LOOK);
+    expect(s.profileName(profile.id)).toBe('Sam');
+    expect(s.profileName('nobody')).toBeNull();
+    s.close();
+  });
+
   it('returns null for an unknown token', () => {
     const s = new ProfileStore(':memory:');
     expect(s.findByToken('nope')).toBeNull();

@@ -21,3 +21,12 @@ export const CUP_SIPS = 4;                   // sips in a fresh cup
 export const GIFT_RANGE = 3.5;               // how close you must be to offer a cup
 export const GIFT_TTL_MS = 15_000;           // how long an offer waits for an answer
 export const SELF_PARK_MS = 10 * 60_000;    // an abandoned truck parks itself after this
+
+export const CHAT_MAX = 200;                // characters per chat message
+export const CHAT_KEEP = 100;               // messages kept per channel (Everyone, or each DM pair)
+export const CHAT_DM_HISTORY = 300;         // DMs sent to a player when they join
+export const CHAT_GAP_MS = 1000;            // at most one message a second…
+export const CHAT_BURST = 5;                // …and five per window
+export const CHAT_WINDOW_MS = 10_000;
+export const REACT_GAP_MS = 300;
+export const ACT_GAP_MS = 1500;

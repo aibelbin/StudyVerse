@@ -91,6 +91,25 @@ export interface Wallet {
   pet: PetInfo | null;
 }
 
+/** A chat line: to null is the Everyone channel, otherwise a direct message to that profile. */
+export interface ChatMsg {
+  id: number;
+  from: string;
+  fromName: string;
+  to: string | null;
+  text: string;
+  at: number;
+  /** emoji -> profile ids who reacted with it */
+  reactions: Record<string, string[]>;
+}
+
+export const REACTIONS = ['👍', '❤️', '😂', '😮', '🎉'] as const;
+
+/** Emotes your blob acts out from the emote wheel. */
+export type Act = 'wave' | 'cheer' | 'dance' | 'laugh' | 'love' | 'think' | 'sleepy' | 'clap';
+export const ACTS: Act[] = ['wave', 'cheer', 'dance', 'laugh', 'love', 'think', 'sleepy', 'clap'];
+export const ACT_EMOJI: Record<Act, string> = { wave: '👋', cheer: '🙌', dance: '💃', laugh: '😂', love: '💖', think: '🤔', sleepy: '😴', clap: '👏' };
+
 export interface Note {
   id: number;
   authorId: string;

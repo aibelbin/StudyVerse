@@ -1,6 +1,6 @@
 import type { Tilt } from './toys';
 import type { ToyAction, ToyState } from './toys';
-import type { Anim, Drink, EmoteKind, FeedEvent, Look, Note, OnlineEntry, PetKind, PetView, PlayerView, Wallet } from './types';
+import type { Act, Anim, ChatMsg, Drink, EmoteKind, FeedEvent, Look, Note, OnlineEntry, PetKind, PetView, PlayerView, Wallet } from './types';
 
 export type ClientMsg =
   | { t: 'hello'; token?: string; inviteCode?: string; name?: string; look?: Look }
@@ -20,6 +20,9 @@ export type ClientMsg =
   | { t: 'setDnd'; on: boolean }
   | { t: 'brew'; drink: Drink; stars: number }
   | { t: 'sip' }
+  | { t: 'chat'; text: string; to?: string }
+  | { t: 'react'; id: number; emoji: string }
+  | { t: 'act'; kind: Act }
   | { t: 'offerCoffee'; to: string }
   | { t: 'answerCoffee'; fromId: string; accept: boolean }
   | { t: 'setVoice'; on: boolean }
@@ -44,9 +47,14 @@ export type ErrorCode =
   | 'bad_item'
   | 'no_kp'
   | 'bad_note'
-  | 'bad_gift';
+  | 'bad_gift'
+  | 'chat_slow'
+  | 'bad_chat';
 
 export type ServerMsg =
+  | { t: 'chat'; msg: ChatMsg }
+  | { t: 'chatReact'; id: number; reactions: Record<string, string[]> }
+  | { t: 'act'; fromId: string; kind: Act }
   | { t: 'coffeeOffer'; fromId: string; name: string; drink: Drink; stars: number }
   | { t: 'coffeeAnswer'; name: string; accepted: boolean }
   | {
@@ -63,6 +71,8 @@ export type ServerMsg =
       treeMinutes: number;
       /** STUN/TURN servers for voice chat. */
       ice: IceServer[];
+      /** Recent Everyone messages and this player's DMs, oldest first. */
+      chat: ChatMsg[];
     }
   | { t: 'error'; code: ErrorCode; message: string }
   | { t: 'sceneSnapshot'; scene: string; you: PlayerView; players: PlayerView[]; toys: Record<string, ToyState> }

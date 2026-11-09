@@ -1,6 +1,7 @@
 import {
   CHEER_FEED_COOLDOWN_MS, DOOR_PAD, FEED_ON_WELCOME, GRACE_MS, MAX_SPEED, NOTE_COOLDOWN_MS, NOTE_MAX, NOTES_PER_AUTHOR,
   NOTES_SHOWN, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS, BREW_COOLDOWN_MS, CUP_SIPS, GIFT_RANGE, GIFT_TTL_MS, SELF_PARK_MS,
+  ACT_GAP_MS, CHAT_BURST, CHAT_DM_HISTORY, CHAT_GAP_MS, CHAT_KEEP, CHAT_WINDOW_MS, REACT_GAP_MS,
 } from '../../shared/constants';
 import { clampToBounds, dist, inBox, pointInPolygon } from '../../shared/geometry';
 import type { ClientMsg, ErrorCode, IceServer, ServerMsg } from '../../shared/protocol';
@@ -11,7 +12,7 @@ import {
   type Tilt,
 } from '../../shared/toys';
 import { CONTROLLER_POSES, VEHICLES, vehicleOk } from '../../shared/vehicles';
-import type { Anim, Drink, EmoteKind, FeedKind, Look, OnlineEntry, PetView, PlayerView, Session, Wallet } from '../../shared/types';
+import type { Act, Anim, ChatMsg, Drink, EmoteKind, FeedKind, Look, OnlineEntry, PetView, PlayerView, Session, Wallet } from '../../shared/types';
 import { isFree, itemById, SLOTS } from '../../shared/wardrobe';
 import { petPrice } from '../../shared/pets/kinds';
 import type { PetKind } from '../../shared/types';
@@ -53,6 +54,10 @@ interface Player {
   pet: PetView | null;
   lastNoteAt: number;
   lastBrewAt: number;
+  /** Recent chat send times, for the rate limit. */
+  chatTimes: number[];
+  lastReactAt: number;
+  lastActAt: number;
   lastPetAt: number;
 }
 
@@ -109,6 +114,7 @@ export class World {
       conn, disconnectedAt: null, lastMoveAt: this.now(), lastCheerFeedAt: 0, lastUse: new Map(),
       wallet: this.store.wallet(profile.id),
       dnd: false, voice: false, holding: null, pet: null, lastNoteAt: 0, lastBrewAt: 0, lastPetAt: 0,
+      chatTimes: [], lastReactAt: 0, lastActAt: 0,
     };
     this.players.set(p.id, p);
     this.spawnPet(p);
@@ -146,6 +152,9 @@ export class World {
       case 'deleteNote': return this.deleteNote(p, msg.id);
       case 'brew': return this.brew(p, msg.drink, msg.stars);
       case 'sip': return this.sip(p);
+      case 'chat': return this.chat(p, msg.text, msg.to);
+      case 'react': return this.react(p, msg.id, msg.emoji);
+      case 'act': return this.act(p, msg.kind);
       case 'offerCoffee': return this.offerCoffee(p, msg.to);
       case 'answerCoffee': return this.answerCoffee(p, msg.fromId, msg.accept);
       case 'setVoice': {
@@ -432,6 +441,52 @@ export class World {
     this.toScene(p.scene, { t: 'petMoved', id: p.id, x: c.x, z: c.z, facing, anim }, p.id);
   }
 
+  // ---------- chat & emotes ----------
+
+  private chat(p: Player, text: string, to?: string): void {
+    const t = this.now();
+    p.chatTimes = p.chatTimes.filter((at) => t - at < CHAT_WINDOW_MS);
+    const last = p.chatTimes.at(-1);
+    if ((last !== undefined && t - last < CHAT_GAP_MS) || p.chatTimes.length >= CHAT_BURST) {
+      return this.error(p, 'chat_slow', 'Slow down a little 🐢');
+    }
+    if (to !== undefined && (to === p.id || this.store.profileName(to) === null)) {
+      return this.error(p, 'bad_chat', "That message couldn't be delivered.");
+    }
+    p.chatTimes.push(t);
+    const msg = this.store.addChat({ from: p.id, fromName: p.name, to: to ?? null, text, at: t }, CHAT_KEEP);
+    this.toAudience(msg, { t: 'chat', msg });
+  }
+
+  /** Toggles p's reaction on a message they can see. */
+  private react(p: Player, id: number, emoji: string): void {
+    const t = this.now();
+    if (t - p.lastReactAt < REACT_GAP_MS) return;
+    const msg = this.store.chatById(id);
+    if (!msg || (msg.to !== null && msg.to !== p.id && msg.from !== p.id)) return;
+    p.lastReactAt = t;
+    const who = msg.reactions[emoji] ?? [];
+    const next = who.includes(p.id) ? who.filter((x) => x !== p.id) : [...who, p.id];
+    const reactions = { ...msg.reactions, [emoji]: next };
+    if (!next.length) delete reactions[emoji];
+    this.store.setReactions(id, reactions);
+    this.toAudience(msg, { t: 'chatReact', id, reactions });
+  }
+
+  /** Everyone messages go to everyone online; DMs to the pair. */
+  private toAudience(msg: ChatMsg, out: ServerMsg): void {
+    if (msg.to === null) return this.toAll(out);
+    this.players.get(msg.from)?.conn?.send(out);
+    if (msg.to !== msg.from) this.players.get(msg.to)?.conn?.send(out);
+  }
+
+  private act(p: Player, kind: Act): void {
+    const t = this.now();
+    if (t - p.lastActAt < ACT_GAP_MS) return;
+    p.lastActAt = t;
+    this.toScene(p.scene, { t: 'act', fromId: p.id, kind });
+  }
+
   // ---------- coffee ----------
 
   /** A sip from your cup (the ☕ emote); the fourth one finishes it. */
@@ -673,6 +728,7 @@ export class World {
       wallet: this.publicWallet(p),
       treeMinutes: this.store.dailyMinutes(dayOf(this.now())),
       ice: this.ice,
+      chat: this.store.chatFor(p.id, CHAT_KEEP, CHAT_DM_HISTORY),
     });
   }
 

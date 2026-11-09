@@ -1,9 +1,9 @@
-import { NAME_MAX } from '../../shared/constants';
+import { CHAT_MAX, NAME_MAX } from '../../shared/constants';
 import { normalizeLook } from '../../shared/wardrobe';
 import { isPetKind } from '../../shared/pets/kinds';
 import type { ClientMsg } from '../../shared/protocol';
 import { TOY_ACTIONS, type ToyAction } from '../../shared/toys';
-import { DRINKS, type Anim, type Drink, type EmoteKind, type Look } from '../../shared/types';
+import { ACTS, DRINKS, REACTIONS, type Act, type Anim, type Drink, type EmoteKind, type Look } from '../../shared/types';
 
 const ANIMS: Anim[] = ['idle', 'walk', 'sit'];
 const EMOTES: EmoteKind[] = ['wave', 'clap', 'flex', 'coffee'];
@@ -104,6 +104,17 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'brew':
       if (!DRINKS.includes(m.drink as Drink) || !Number.isInteger(m.stars)) return null;
       return { t: 'brew', drink: m.drink as Drink, stars: Math.max(1, Math.min(3, m.stars as number)) };
+    case 'chat': {
+      if (typeof m.text !== 'string') return null;
+      const text = m.text.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+      if (!text || text.length > CHAT_MAX) return null;
+      if (m.to !== undefined && !isStr(m.to, 64)) return null;
+      return m.to === undefined ? { t: 'chat', text } : { t: 'chat', text, to: m.to as string };
+    }
+    case 'react':
+      return Number.isInteger(m.id) && (REACTIONS as readonly string[]).includes(m.emoji as string) ? { t: 'react', id: m.id as number, emoji: m.emoji as string } : null;
+    case 'act':
+      return ACTS.includes(m.kind as Act) ? { t: 'act', kind: m.kind as Act } : null;
     case 'sip':
       return { t: 'sip' };
     case 'offerCoffee':

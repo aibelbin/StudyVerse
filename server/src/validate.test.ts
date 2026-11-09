@@ -18,6 +18,22 @@ describe('parseClientMsg', () => {
     expect(parseClientMsg(JSON.stringify({ t: 'sit', slotId: 'a' }))).toEqual({ t: 'sit', slotId: 'a' });
     expect(parseClientMsg(JSON.stringify({ t: 'sit', seatId: 'a' }))).toBeNull();
   });
+  it('parses chat, trimming and dropping control characters', () => {
+    expect(parseClientMsg(JSON.stringify({ t: 'chat', text: '  hi\u0007 there  ' }))).toEqual({ t: 'chat', text: 'hi  there' });
+    expect(parseClientMsg(JSON.stringify({ t: 'chat', text: 'yo', to: 'p2' }))).toEqual({ t: 'chat', text: 'yo', to: 'p2' });
+    expect(parseClientMsg(JSON.stringify({ t: 'chat', text: '   ' }))).toBeNull();
+    expect(parseClientMsg(JSON.stringify({ t: 'chat', text: 'x'.repeat(201) }))).toBeNull();
+    expect(parseClientMsg(JSON.stringify({ t: 'chat', text: 'hi', to: 3 }))).toBeNull();
+  });
+
+  it('parses reactions and acts from the allowed sets only', () => {
+    expect(parseClientMsg(JSON.stringify({ t: 'react', id: 4, emoji: '🎉' }))).toEqual({ t: 'react', id: 4, emoji: '🎉' });
+    expect(parseClientMsg(JSON.stringify({ t: 'react', id: 4, emoji: '💩' }))).toBeNull();
+    expect(parseClientMsg(JSON.stringify({ t: 'react', id: 1.5, emoji: '👍' }))).toBeNull();
+    expect(parseClientMsg(JSON.stringify({ t: 'act', kind: 'dance' }))).toEqual({ t: 'act', kind: 'dance' });
+    expect(parseClientMsg(JSON.stringify({ t: 'act', kind: 'moonwalk' }))).toBeNull();
+  });
+
   it('parses sips and coffee gifts', () => {
     expect(parseClientMsg(JSON.stringify({ t: 'sip' }))).toEqual({ t: 'sip' });
     expect(parseClientMsg(JSON.stringify({ t: 'offerCoffee', to: 'p1' }))).toEqual({ t: 'offerCoffee', to: 'p1' });

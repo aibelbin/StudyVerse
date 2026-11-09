@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
-import type { Look, Note, PetInfo, PetKind, Wallet } from '../../shared/types';
+import type { ChatMsg, Look, Note, PetInfo, PetKind, Wallet } from '../../shared/types';
 import { DEFAULT_LOOK, normalizeLook } from '../../shared/wardrobe';
 
 export interface Profile {
@@ -33,6 +33,14 @@ export interface Store {
   noteCount(authorId: string): number;
   addDailyMinutes(day: string, minutes: number): number;
   dailyMinutes(day: string): number;
+  /** Saves a chat line (keeping only the newest `keep` in its channel) and returns it with its id. */
+  addChat(msg: Omit<ChatMsg, 'id' | 'reactions'>, keep: number): ChatMsg;
+  /** The last `globalLimit` Everyone messages plus the last `dmLimit` DMs to or from this profile, oldest first. */
+  chatFor(profileId: string, globalLimit: number, dmLimit: number): ChatMsg[];
+  chatById(id: number): ChatMsg | null;
+  setReactions(id: number, reactions: Record<string, string[]>): void;
+  /** A profile's name, or null if there's no such profile. */
+  profileName(id: string): string | null;
 }
 
 export class ProfileStore implements Store {
@@ -60,6 +68,11 @@ export class ProfileStore implements Store {
       CREATE TABLE IF NOT EXISTS owned (profile_id TEXT NOT NULL, item_id TEXT NOT NULL, PRIMARY KEY (profile_id, item_id));
       CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY AUTOINCREMENT, profile_id TEXT NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL, created_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS daily (day TEXT PRIMARY KEY, minutes INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS chat (id INTEGER PRIMARY KEY AUTOINCREMENT, pair TEXT NOT NULL, from_id TEXT NOT NULL, from_name TEXT NOT NULL,
+        to_id TEXT, text TEXT NOT NULL, at INTEGER NOT NULL, reactions_json TEXT NOT NULL DEFAULT '{}');
+      CREATE INDEX IF NOT EXISTS chat_pair ON chat (pair, id);
+      CREATE INDEX IF NOT EXISTS chat_to ON chat (to_id, id);
+      CREATE INDEX IF NOT EXISTS chat_from ON chat (from_id, id);
     `);
   }
 
@@ -153,6 +166,33 @@ export class ProfileStore implements Store {
     return (this.db.prepare('SELECT COUNT(*) AS n FROM notes WHERE profile_id = ?').get(authorId) as { n: number }).n;
   }
 
+  addChat(msg: Omit<ChatMsg, 'id' | 'reactions'>, keep: number): ChatMsg {
+    const pair = msg.to === null ? 'global' : [msg.from, msg.to].sort().join('|');
+    const r = this.db.prepare('INSERT INTO chat (pair, from_id, from_name, to_id, text, at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(pair, msg.from, msg.fromName, msg.to, msg.text, msg.at);
+    this.db.prepare('DELETE FROM chat WHERE pair = ? AND id NOT IN (SELECT id FROM chat WHERE pair = ? ORDER BY id DESC LIMIT ?)').run(pair, pair, keep);
+    return { ...msg, id: Number(r.lastInsertRowid), reactions: {} };
+  }
+
+  chatFor(profileId: string, globalLimit: number, dmLimit: number): ChatMsg[] {
+    const g = this.db.prepare("SELECT * FROM chat WHERE pair = 'global' ORDER BY id DESC LIMIT ?").all(globalLimit) as unknown as ChatRow[];
+    const d = this.db.prepare('SELECT * FROM chat WHERE pair != \'global\' AND (to_id = ? OR from_id = ?) ORDER BY id DESC LIMIT ?').all(profileId, profileId, dmLimit) as unknown as ChatRow[];
+    return [...g, ...d].sort((a, b) => a.id - b.id).map(toChat);
+  }
+
+  chatById(id: number): ChatMsg | null {
+    const r = this.db.prepare('SELECT * FROM chat WHERE id = ?').get(id) as unknown as ChatRow | undefined;
+    return r ? toChat(r) : null;
+  }
+
+  setReactions(id: number, reactions: Record<string, string[]>): void {
+    this.db.prepare('UPDATE chat SET reactions_json = ? WHERE id = ?').run(JSON.stringify(reactions), id);
+  }
+
+  profileName(id: string): string | null {
+    return (this.db.prepare('SELECT name FROM profiles WHERE id = ?').get(id) as { name: string } | undefined)?.name ?? null;
+  }
+
   addDailyMinutes(day: string, minutes: number): number {
     this.db.prepare('INSERT INTO daily (day, minutes) VALUES (?, ?) ON CONFLICT(day) DO UPDATE SET minutes = minutes + excluded.minutes').run(day, minutes);
     return this.dailyMinutes(day);
@@ -165,4 +205,14 @@ export class ProfileStore implements Store {
   close(): void {
     this.db.close();
   }
+}
+
+interface ChatRow { id: number; from_id: string; from_name: string; to_id: string | null; text: string; at: number; reactions_json: string }
+
+function toChat(r: ChatRow): ChatMsg {
+  let reactions: Record<string, string[]> = {};
+  try {
+    reactions = JSON.parse(r.reactions_json) as Record<string, string[]>;
+  } catch { /* a damaged row just loses its reactions */ }
+  return { id: r.id, from: r.from_id, fromName: r.from_name, to: r.to_id, text: r.text, at: r.at, reactions };
 }
