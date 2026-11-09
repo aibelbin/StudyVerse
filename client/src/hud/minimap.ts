@@ -77,6 +77,8 @@ export class Minimap {
       g.fillRect(p.u, p.v, w * k, d * k);
     };
     for (const d of def.decor) if (d.kind === 'path') rect(d.x, d.z, d.w ?? 1, d.d ?? 1, '#efdcb6');
+    for (const d of def.decor) if (d.kind === 'parking') rect(d.x, d.z, d.w ?? 1, d.d ?? 1, '#8e9097');
+    for (const b of def.parking ?? []) rect(b.x - 1.6, b.z, 0.25, 5, '#f4f1e8'); // bay lines
     if (def.water) {
       g.fillStyle = '#8fd0e8';
       g.beginPath();

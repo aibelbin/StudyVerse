@@ -117,6 +117,50 @@ const builders: Record<DecorKind, Builder> = {
     return mesh(box(w, 0.02, dd), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }), 0, 0.01, 0, false);
   },
 
+  /** Asphalt with painted bay lines along the north side (d.seed bays, 5.5 m deep) and a wheel stop in each. */
+  parking(d) {
+    const w = d.w ?? 19.2;
+    const dd = d.d ?? 13.4;
+    const bays = d.seed ?? 6;
+    const PX = 24; // texture pixels per metre
+    const c = document.createElement('canvas');
+    c.width = Math.round(w * PX);
+    c.height = Math.round(dd * PX);
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#7d7f86';
+    g.fillRect(0, 0, c.width, c.height);
+    const r = rng(77);
+    for (let i = 0; i < 900; i++) {
+      g.fillStyle = r() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
+      g.fillRect(r() * c.width, r() * c.height, 3, 3);
+    }
+    g.strokeStyle = '#f4f1e8';
+    g.lineWidth = 0.12 * PX;
+    const bayW = w / bays;
+    for (let i = 0; i <= bays; i++) {
+      g.beginPath();
+      g.moveTo(i * bayW * PX, 0.2 * PX);
+      g.lineTo(i * bayW * PX, 5.6 * PX);
+      g.stroke();
+    }
+    g.setLineDash([0.6 * PX, 0.5 * PX]);
+    g.beginPath();
+    g.moveTo(0.4 * PX, 9.4 * PX);
+    g.lineTo((w - 0.4) * PX, 9.4 * PX);
+    g.stroke();
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    const lot = group(
+      mesh(box(w + 0.3, 0.025, dd + 0.3), mat('#e7e1d2'), 0, 0.012, 0, false), // kerb
+      mesh(box(w, 0.03, dd), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }), 0, 0.016, 0, false),
+    );
+    for (let i = 0; i < bays; i++) {
+      lot.add(mesh(box(1.4, 0.12, 0.22), mat('#d9d4c7'), -w / 2 + (i + 0.5) * bayW, 0.06, -dd / 2 + 0.75));
+    }
+    return lot;
+  },
+
   pond(d, r) {
     const sx = (d.w ?? 4) / 2;
     const sz = (d.d ?? 3) / 2;

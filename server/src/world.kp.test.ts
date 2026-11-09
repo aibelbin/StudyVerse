@@ -28,7 +28,7 @@ function joinNew(name: string) {
 
 function study(id: string, minutes: number) {
   t += 10_000;
-  w.handle(id, { t: 'move', x: -20, z: 12.5, facing: 0, anim: 'idle' });
+  w.handle(id, { t: 'move', x: -35, z: 17.5, facing: 0, anim: 'idle' });
   w.handle(id, { t: 'sit', slotId: 'park-b1-a' });
   w.handle(id, { t: 'startSession', focusMin: minutes, breakMin: 5 });
   t += minutes * MIN + 1000;
@@ -65,7 +65,7 @@ describe('knowledge points', () => {
   it('pays nothing for an early quit', () => {
     const a = joinNew('Sam');
     t += 10_000;
-    w.handle(a.id, { t: 'move', x: -20, z: 12.5, facing: 0, anim: 'idle' });
+    w.handle(a.id, { t: 'move', x: -35, z: 17.5, facing: 0, anim: 'idle' });
     w.handle(a.id, { t: 'sit', slotId: 'park-b1-a' });
     w.handle(a.id, { t: 'startSession', focusMin: 25, breakMin: 5 });
     t += 10 * MIN;

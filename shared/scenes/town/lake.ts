@@ -1,8 +1,8 @@
 import { pointInPolygon, polygonToBoxes, type Box } from '../../geometry';
-import { merge, type Parts } from '../kit';
+import { merge, shift, type Parts } from '../kit';
 import { rowboat, simpleToy } from '../kitToys';
 import type { Decor, SailPath, Water } from '../types';
-import { inAny, scatter } from './scatter';
+import { inAny, OFFSETS, scatter } from './scatter';
 
 export const LAKE = { x: 28, z: -24, rx: 22, rz: 13 };
 export const DOCK: Box = { x: 24, z: -13.5, w: 2, d: 9 };
@@ -17,7 +17,8 @@ function ring(n: number, rx: number, rz: number, cx: number, cz: number, wobble:
   return out;
 }
 
-export const OUTLINE = ring(24, LAKE.rx, LAKE.rz, LAKE.x, LAKE.z, 0.05);
+/** The shore in the zone's own (unshifted) coordinates; use water.outline in town space. */
+const OUTLINE = ring(24, LAKE.rx, LAKE.rz, LAKE.x, LAKE.z, 0.05);
 
 /** A point on the outline pushed outward (away from the lake centre) by k. */
 function outward([x, z]: [number, number], k: number): { x: number; z: number } {
@@ -53,7 +54,15 @@ const sailPaths: SailPath[] = [
   { points: ring(6, 8, 5, 38, -24, 0.1, 2.2), period: 180, offset: 0.7, color: '#ffd36e' },
 ];
 
-export const water: Water = { outline: OUTLINE, landings, sailPaths };
+const [DX, DZ] = OFFSETS.lake;
+const mv = ([x, z]: [number, number]): [number, number] => [x + DX, z + DZ];
+
+/** The lake in town coordinates (the zone is laid out at its old spot, then shifted). */
+export const water: Water = {
+  outline: OUTLINE.map(mv),
+  landings: landings.map((p) => ({ x: p.x + DX, z: p.z + DZ })),
+  sailPaths: sailPaths.map((s) => ({ ...s, points: s.points.map(mv) })),
+};
 
 const lilies: Decor[] = scatter(41, 40, { x: LAKE.x, z: LAKE.z, w: LAKE.rx * 2, d: LAKE.rz * 2 }, (x, z) => {
   if (!pointInPolygon(OUTLINE, x, z)) return false;
@@ -61,7 +70,7 @@ const lilies: Decor[] = scatter(41, 40, { x: LAKE.x, z: LAKE.z, w: LAKE.rx * 2, 
   return k > 0.68 && k < 0.92 && !inAny([DOCK], x, z, 2.5);
 }).map(([x, z], i) => ({ kind: 'lilyPad', x, z, seed: i * 31 + 7 }));
 
-export const lake: Parts = merge(
+export const lake: Parts = shift(merge(
   rowboat('boat-1', 22.6, -15.4, Math.PI),
   rowboat('boat-2', 25.4, -15.4, Math.PI),
   simpleToy('stones', 'stones', 24, -17.4, 1.2),
@@ -80,4 +89,4 @@ export const lake: Parts = merge(
       { kind: 'dragonflies', x: LAKE.x, z: LAKE.z + 4, r: 16, count: 8, seed: 14 },
     ],
   },
-);
+), DX, DZ);

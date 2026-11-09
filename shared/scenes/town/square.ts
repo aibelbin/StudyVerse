@@ -1,5 +1,5 @@
 import { bench, building, lampPost, merge, type Parts } from '../kit';
-import { piano, simpleToy, truck } from '../kitToys';
+import { piano, simpleToy } from '../kitToys';
 import type { Door, Spawn } from '../types';
 
 const BANDSTAND = { x: 0, z: -9, r: 3.2 };
@@ -9,7 +9,7 @@ const pillars = Array.from({ length: 8 }, (_, k) => {
   return { x: BANDSTAND.x + Math.sin(a) * 3, z: BANDSTAND.z + Math.cos(a) * 3, w: 0.25, d: 0.25 };
 });
 
-const lamps = [-50, -40, -20, -10, 10, 20, 40, 50].map((x) => lampPost(x, 3.3));
+const lamps = [-66, -56, -36, -20, -10, 10, 20, 36, 56, 66].map((x) => lampPost(x, 3.3));
 
 export const square: Parts = merge(
   building(-12, -6, 9, 7, 4.4, '#f2dcc0', '#8c5a6e', 'Library'),
@@ -18,9 +18,7 @@ export const square: Parts = merge(
   simpleToy('fountain', 'fountain', 0, 6, 2.6, { x: 0, z: 6, w: 3.2, d: 3.2 }),
   simpleToy('bell', 'bell', -6, 7, 1.4, { x: -6, z: 7, w: 0.3, d: 0.3 }),
   simpleToy('jukebox', 'jukebox', 17.6, -3.5, 1.4, { x: 17.6, z: -3.5, w: 0.8, d: 0.6 }),
-  truck('truck-1', 23, 6.2, Math.PI / 2),
-  truck('truck-2', -36, 6.2, -Math.PI / 2),
-  simpleToy('boutique', 'shop', -21, -4, 2.0, { x: -21, z: -4.6, w: 2.6, d: 1.2 }),
+  simpleToy('boutique', 'shop', -19.6, -4, 2.0, { x: -19.6, z: -4.6, w: 2.6, d: 1.2 }),
   simpleToy('board', 'board', -5.6, -2.9, 1.6, { x: -5.6, z: -3.1, w: 1.6, d: 0.25 }),
   bench('sq-b1', -5, -1, 0),
   bench('sq-b2', 5, -1, 0),

@@ -1,7 +1,8 @@
-import { merge, tree, type Parts } from '../kit';
+import { merge, shift, tree, type Parts } from '../kit';
+import { OFFSETS } from './scatter';
 import { merryGoRound, seesaw, slide, swing } from '../kitToys';
 
-export const playground: Parts = merge(
+export const playground: Parts = shift(merge(
   swing('swing-1', 19, 22),
   swing('swing-2', 21, 22),
   seesaw('seesaw', 30, 22),
@@ -21,4 +22,4 @@ export const playground: Parts = merge(
       { kind: 'birds', x: 34, z: 36, r: 6, count: 6, seed: 62 },
     ],
   },
-);
+), ...OFFSETS.playground);

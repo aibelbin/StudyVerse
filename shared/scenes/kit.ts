@@ -1,5 +1,5 @@
 import type { Box } from '../geometry';
-import type { Decor, LifeZone, Slot, Toy } from './types';
+import type { Bay, Decor, LifeZone, Prop, Slot, Toy } from './types';
 
 /** A reusable chunk of a scene: what it looks like, what blocks movement, where you can sit. */
 export interface Parts {
@@ -8,18 +8,36 @@ export interface Parts {
   slots: Slot[];
   toys: Toy[];
   life: LifeZone[];
+  parking?: Bay[];
+  props?: Prop[];
 }
 
 export function merge(...ps: Partial<Parts>[]): Parts {
-  const out: Parts = { decor: [], colliders: [], slots: [], toys: [], life: [] };
+  const out: Parts = { decor: [], colliders: [], slots: [], toys: [], life: [], parking: [], props: [] };
   for (const p of ps) {
     out.decor.push(...(p.decor ?? []));
     out.colliders.push(...(p.colliders ?? []));
     out.slots.push(...(p.slots ?? []));
     out.toys.push(...(p.toys ?? []));
     out.life.push(...(p.life ?? []));
+    out.parking!.push(...(p.parking ?? []));
+    out.props!.push(...(p.props ?? []));
   }
   return out;
+}
+
+/** The same parts moved by (dx, dz): lets a whole zone slide over as the map grows. */
+export function shift(p: Parts, dx: number, dz: number): Parts {
+  const at = <T extends { x: number; z: number }>(o: T): T => ({ ...o, x: o.x + dx, z: o.z + dz });
+  return {
+    decor: p.decor.map((d) => (d.points ? { ...d, points: d.points.map(([x, z]) => [x + dx, z + dz] as [number, number]) } : at(d))),
+    colliders: p.colliders.map(at),
+    slots: p.slots.map(at),
+    toys: p.toys.map(at),
+    life: p.life.map(at),
+    parking: (p.parking ?? []).map(at),
+    props: (p.props ?? []).map(at),
+  };
 }
 
 /** 1.4 x 0.8 desk with a lamp. 'north' slots sit behind the desk facing the camera (+z); 'south' slots face away. */

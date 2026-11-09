@@ -14,7 +14,7 @@ describe('vehicleOk', () => {
   });
   it('keeps trucks out of buildings and inside the map', () => {
     expect(vehicleOk('truck', town, -12, -6)).toBe(false); // the Library
-    expect(vehicleOk('truck', town, 59.9, 0)).toBe(false);
+    expect(vehicleOk('truck', town, 74.9, 0)).toBe(false);
   });
   it('every truck starts somewhere it may be', () => {
     for (const t of town.toys.filter((x) => x.kind === 'truck')) expect(vehicleOk('truck', town, t.x, t.z), t.id).toBe(true);

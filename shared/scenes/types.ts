@@ -34,7 +34,7 @@ export type DecorKind =
   | 'tree' | 'pine' | 'bush' | 'flowers' | 'lampPost' | 'bench' | 'path' | 'building' | 'pond'
   | 'desk' | 'chair' | 'deskLamp' | 'bookshelf' | 'rug' | 'plant' | 'window' | 'sign'
   | 'cafeTable' | 'stool' | 'counter' | 'coffeeMachine' | 'cup'
-  | 'lake' | 'dock' | 'lilyPad' | 'rock' | 'grass' | 'hedge' | 'bandstand' | 'swingSet' | 'log' | 'leafPile' | 'mound' | 'knowledgeTree';
+  | 'lake' | 'dock' | 'lilyPad' | 'rock' | 'grass' | 'hedge' | 'bandstand' | 'swingSet' | 'log' | 'leafPile' | 'mound' | 'knowledgeTree' | 'parking';
 
 /** Visual-only object. Size fields mean different things per kind (see client/src/world/decor.ts). */
 export interface Decor {
@@ -81,6 +81,23 @@ export interface LifeZone {
   seed: number;
 }
 
+/** A parking space; a truck parked here faces rot (or rot + π). */
+export interface Bay {
+  id: string;
+  x: number;
+  z: number;
+  rot: number;
+}
+
+/** A light thing a truck can knock flying (client-only physics, never synced). */
+export interface Prop {
+  id: string;
+  kind: 'cone' | 'crate';
+  x: number;
+  z: number;
+  rot: number;
+}
+
 export interface SailPath {
   points: [number, number][];
   /** Seconds per lap. */
@@ -122,6 +139,8 @@ export interface SceneDef {
   toys: Toy[];
   life: LifeZone[];
   water?: Water;
+  parking?: Bay[];
+  props?: Prop[];
   doors: Door[];
   spawns: Spawn[];
   decor: Decor[];

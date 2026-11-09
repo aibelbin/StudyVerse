@@ -1,19 +1,19 @@
-import { merge, tree, type Parts } from '../kit';
+import { merge, shift, tree, type Parts } from '../kit';
 import { campfire } from '../kitToys';
 import type { Decor } from '../types';
-import { inAny, near, PATHS, scatter } from './scatter';
+import { inAny, near, OFFSETS, ZONE_PATHS, scatter } from './scatter';
 
 export const CAMP = { x: -30, z: -28 };
 const AREA = { x: -33, z: -28.5, w: 50, d: 29 }; // x -58..-8, z -43..-14
 
-const clear = (x: number, z: number) => !near(x, z, CAMP.x, CAMP.z, 6) && !inAny(PATHS, x, z, 1.2);
+const clear = (x: number, z: number) => !near(x, z, CAMP.x, CAMP.z, 6) && !inAny(ZONE_PATHS, x, z, 1.2);
 
 const pines = scatter(301, 140, AREA, clear).map(([x, z], i) => tree(x, z, 0.85 + ((i * 37) % 10) / 20, 'pine'));
 const leafy = scatter(302, 30, AREA, clear).map(([x, z], i) => tree(x, z, 0.9 + ((i * 13) % 6) / 15));
 const piles: Decor[] = scatter(303, 6, { x: CAMP.x, z: CAMP.z, w: 30, d: 20 }, (x, z) => clear(x, z) || near(x, z, CAMP.x, CAMP.z, 6) && !near(x, z, CAMP.x, CAMP.z, 3.5))
   .map(([x, z], i) => ({ kind: 'leafPile', x, z, seed: 500 + i }));
 
-export const woods: Parts = merge(
+export const woods: Parts = shift(merge(
   campfire('campfire', CAMP.x, CAMP.z),
   ...pines,
   ...leafy,
@@ -26,4 +26,4 @@ export const woods: Parts = merge(
       { kind: 'birds', x: -20, z: -18, r: 6, count: 5, seed: 34 },
     ],
   },
-);
+), ...OFFSETS.woods);

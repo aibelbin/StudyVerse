@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { PLAYER_RADIUS } from '../constants';
 import { inBox, pointInPolygon } from '../geometry';
+import { inBay } from '../parking';
 import { MOVING_TOYS, TOY_KINDS } from '../toys';
+import { PATHS } from './town/scatter';
 import { findSlot, SCENES, START_SCENE, START_SPAWN } from './index';
 
 const scenes = Object.values(SCENES);
@@ -73,8 +75,8 @@ describe('scene data', () => {
     }
   });
 
-  it('the town is 120 x 90 and every kind of toy is somewhere', () => {
-    expect(SCENES.town.size).toEqual({ w: 120, d: 90 });
+  it('the town is 150 x 100 and every kind of toy is somewhere', () => {
+    expect(SCENES.town.size).toEqual({ w: 150, d: 100 });
     for (const k of TOY_KINDS) expect(scenes.some((s) => s.toys.some((t) => t.kind === k)), k).toBe(true);
   });
 
@@ -85,7 +87,7 @@ describe('scene data', () => {
     expect(w.landings.length).toBeGreaterThanOrEqual(4);
     for (const l of w.landings) {
       expect(pointInPolygon(w.outline, l.x, l.z)).toBe(false);
-      expect(inside(120, 90, l.x, l.z, PLAYER_RADIUS)).toBe(true);
+      expect(inside(150, 100, l.x, l.z, PLAYER_RADIUS)).toBe(true);
       expect(SCENES.town.colliders.some((c) => inBox(c, l.x, l.z, PLAYER_RADIUS)), `${l.x},${l.z}`).toBe(false);
     }
   });
@@ -95,17 +97,50 @@ describe('scene data', () => {
     for (const id of ['boat-1-row', 'boat-2-row']) {
       const slot = t.slots.find((s) => s.id === id)!;
       // a spot on the dock within reach of the rowing seat
-      const ok = [23.35, 24.65].some((x) => Math.hypot(x - slot.x, -15.9 - slot.z) <= 1.5
-        && !t.colliders.some((c) => inBox(c, x, -15.9, PLAYER_RADIUS)));
+      const ok = [38.35, 39.65].some((x) => Math.hypot(x - slot.x, -20.9 - slot.z) <= 1.5
+        && !t.colliders.some((c) => inBox(c, x, -20.9, PLAYER_RADIUS)));
       expect(ok, id).toBe(true);
     }
   });
 
   it('has the slots later tests rely on', () => {
     const slot = findSlot('town', 'park-b1-a')!;
-    expect(slot.x).toBeCloseTo(-20.45);
-    expect(slot.z).toBe(12);
+    expect(slot.x).toBeCloseTo(-35.45);
+    expect(slot.z).toBe(17);
     expect(SCENES.library.slots.length).toBe(16);
     expect(SCENES.cafe.slots.length).toBe(12);
+  });
+});
+
+describe('car parks', () => {
+  const town = SCENES.town;
+  const lots = town.decor.filter((d) => d.kind === 'parking');
+
+  it('has two lots of six bays and four trucks', () => {
+    expect(lots).toHaveLength(2);
+    expect(town.parking).toHaveLength(12);
+    expect(town.toys.filter((t) => t.kind === 'truck')).toHaveLength(4);
+  });
+
+  it('every truck starts in a bay', () => {
+    for (const t of town.toys.filter((x) => x.kind === 'truck')) {
+      expect(town.parking!.some((b) => inBay(b, t.x, t.z, t.rot ?? 0)), t.id).toBe(true);
+    }
+  });
+
+  it('bays are clear of colliders, water and paths other than the street', () => {
+    for (const b of town.parking!) {
+      for (const [dx, dz] of [[0, 0], [-1.4, -2.6], [1.4, -2.6], [-1.4, 2.6], [1.4, 2.6]]) {
+        const x = b.x + dx;
+        const z = b.z + dz;
+        expect(town.colliders.some((c) => inBox(c, x, z)), `${b.id} ${dx},${dz}`).toBe(false);
+        expect(pointInPolygon(town.water!.outline, x, z), b.id).toBe(false);
+      }
+    }
+  });
+
+  it('every lot touches the main street', () => {
+    const street = PATHS[0];
+    for (const l of lots) expect(Math.abs(l.z + (l.d ?? 0) / 2 - (street.z - street.d / 2))).toBeLessThan(1);
   });
 });
