@@ -1,7 +1,7 @@
 import { bench, merge, shift, tree, type Parts } from '../kit';
 import { simpleToy } from '../kitToys';
 import type { Decor } from '../types';
-import { inAny, near, OFFSETS, ZONE_PATHS, scatter } from './scatter';
+import { inAny, near, OFFSETS, RESERVED, TOWN_DZ, ZONE_PATHS, scatter } from './scatter';
 
 const AREA = { x: -32, z: 24.5, w: 52, d: 37 }; // x -58..-6, z 6..43
 const TELESCOPE = { x: -40, z: 32 };
@@ -10,16 +10,19 @@ const CHIMES_TREE = { x: -22, z: 20 };
 const benches = [
   bench('park-b1', -20, 12, 0),
   bench('park-b2', -20, 26, Math.PI),
-  bench('park-b3', -44, 14, 0),
+  bench('park-b3', -44, 10, 0),
   bench('park-b4', -48, 38, Math.PI),
-  bench('park-b5', -12, 36, Math.PI),
+  bench('park-b5', -8, 22, Math.PI),
   bench('park-b6', -34, 40, Math.PI),
 ];
-const benchSpots = [[-20, 12], [-20, 26], [-44, 14], [-48, 38], [-12, 36], [-34, 40]];
+const benchSpots = [[-20, 12], [-20, 26], [-44, 10], [-48, 38], [-8, 22], [-34, 40]];
+
+/** The zen corner and garden ground, which are in final town coordinates, seen from here. */
+const reservedHere = RESERVED.map((b) => ({ ...b, x: b.x - OFFSETS.park[0], z: b.z - OFFSETS.park[1] - TOWN_DZ }));
 
 const open = (x: number, z: number) =>
   !inAny(ZONE_PATHS, x, z, 1.5) && !near(x, z, TELESCOPE.x, TELESCOPE.z, 4) && !near(x, z, CHIMES_TREE.x, CHIMES_TREE.z, 2.5)
-  && !benchSpots.some(([bx, bz]) => near(x, z, bx, bz, 2.5));
+  && !benchSpots.some(([bx, bz]) => near(x, z, bx, bz, 2.5)) && !inAny(reservedHere, x, z, 1.5);
 
 const trees = scatter(401, 26, AREA, open).map(([x, z], i) => tree(x, z, 0.9 + ((i * 7) % 5) / 10));
 const beds: Decor[] = scatter(402, 10, AREA, open).map(([x, z], i) => ({ kind: 'flowers', x, z, seed: 600 + i }));

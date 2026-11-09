@@ -2,7 +2,7 @@ import { merge, tree, type Parts } from '../kit';
 import { rng } from '../../rng';
 
 const HX = 73.5;
-const HZ = 48.5;
+const HZ = 63.5; // 150×130 since the south strip
 
 const hedges: Parts['decor'] = [
   { kind: 'hedge', x: 0, z: -HZ, w: HX * 2 + 1, d: 1 },
@@ -19,8 +19,8 @@ function treeLine(): Partial<Parts>[] {
     const t = tree(x + (r() - 0.5) * 1.5, z + (r() - 0.5) * 1.5, 0.9 + r() * 0.5, r() < 0.5 ? 'pine' : 'tree');
     out.push({ decor: t.decor }); // outside the play area: no colliders needed
   };
-  for (let x = -77; x <= 77; x += 3.2) for (const z of [-51, -54, 51, 54]) add(x, z);
-  for (let z = -49; z <= 49; z += 3.2) for (const x of [-76, -79, 76, 79]) add(x, z);
+  for (let x = -77; x <= 77; x += 3.2) for (const z of [-HZ - 2.5, -HZ - 5.5, HZ + 2.5, HZ + 5.5]) add(x, z);
+  for (let z = -HZ - 0.5; z <= HZ + 0.5; z += 3.2) for (const x of [-76, -79, 76, 79]) add(x, z);
   return out;
 }
 

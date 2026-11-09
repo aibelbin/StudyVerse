@@ -28,7 +28,7 @@ function joinNew(name: string) {
 
 function study(id: string, minutes: number) {
   t += 10_000;
-  w.handle(id, { t: 'move', x: -35, z: 17.5, facing: 0, anim: 'idle' });
+  w.handle(id, { t: 'move', x: -35, z: 2.5, facing: 0, anim: 'idle' });
   w.handle(id, { t: 'sit', slotId: 'park-b1-a' });
   w.handle(id, { t: 'startSession', focusMin: minutes, breakMin: 5 });
   t += minutes * MIN + 1000;
@@ -65,7 +65,7 @@ describe('knowledge points', () => {
   it('pays nothing for an early quit', () => {
     const a = joinNew('Sam');
     t += 10_000;
-    w.handle(a.id, { t: 'move', x: -35, z: 17.5, facing: 0, anim: 'idle' });
+    w.handle(a.id, { t: 'move', x: -35, z: 2.5, facing: 0, anim: 'idle' });
     w.handle(a.id, { t: 'sit', slotId: 'park-b1-a' });
     w.handle(a.id, { t: 'startSession', focusMin: 25, breakMin: 5 });
     t += 10 * MIN;
@@ -142,7 +142,7 @@ describe('do not disturb', () => {
 describe('coffee', () => {
   function toCafe(id: string) {
     t += 10_000;
-    w.handle(id, { t: 'move', x: 12, z: -2.35, facing: 0, anim: 'idle' });
+    w.handle(id, { t: 'move', x: 12, z: -17.35, facing: 0, anim: 'idle' });
     w.handle(id, { t: 'enterScene', doorId: 'to-cafe' });
     t += 10_000;
     w.handle(id, { t: 'move', x: -2.8, z: -2.2, facing: 0, anim: 'idle' });
@@ -269,7 +269,7 @@ describe('trucks', () => {
     w.handle(a.id, { t: 'move', x: truck.x + 15, z: truck.z, facing: 0, anim: 'sit' });
     expect(truckState(a.c)).toMatchObject({ x: truck.x + 5 }); // too fast: snapped back
     t += 60_000;
-    w.handle(a.id, { t: 'move', x: 28, z: -24, facing: 0, anim: 'sit' }); // the middle of the lake
+    w.handle(a.id, { t: 'move', x: 28, z: -39, facing: 0, anim: 'sit' }); // the middle of the lake
     expect(truckState(a.c)).toMatchObject({ x: truck.x + 5 });
     w.handle(a.id, { t: 'stand' });
     const v = w.view(a.id)!;
@@ -372,7 +372,7 @@ describe('voice signalling', () => {
     w.handle(a.id, { t: 'rtc', to: b.id, data: 'offer' });
     expect(b.c.of('rtc')).toEqual([{ t: 'rtc', from: a.id, data: 'offer' }]);
     t += 10_000;
-    w.handle(b.id, { t: 'move', x: 12, z: -2.35, facing: 0, anim: 'idle' });
+    w.handle(b.id, { t: 'move', x: 12, z: -17.35, facing: 0, anim: 'idle' });
     w.handle(b.id, { t: 'enterScene', doorId: 'to-cafe' });
     w.handle(a.id, { t: 'rtc', to: b.id, data: 'again' });
     expect(b.c.of('rtc')).toHaveLength(1);

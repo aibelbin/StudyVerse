@@ -45,8 +45,8 @@ export const OFFSETS = {
   playground: [15, 5],
 } as const;
 
-/** The walkways in town coordinates. */
-export const PATHS: Box[] = [
+/** The 150×100 walkways, before the town moved 15 m north to make room for the south strip. */
+export const BASE_PATHS: Box[] = [
   { x: 0, z: 1.5, w: 144, d: 2.4 },      // main east–west street, also the road to both car parks
   { x: 0, z: -2, w: 14, d: 24 },         // square plaza
   { x: 0, z: -31, w: 2.4, d: 34 },       // north path from the square
@@ -58,4 +58,30 @@ export const PATHS: Box[] = [
   { x: -45, z: 18.5, w: 2, d: 31.6 },    // into the park
   { x: 45, z: 14.9, w: 2, d: 24.4 },     // to the playground
   { x: 45, z: 32, w: 24, d: 2 },         // playground cross path
+];
+
+/**
+ * The town grew to 150×130 by adding a strip in the south. Scenes are centred on the origin, so
+ * everything laid out for 150×100 moves this far in z (north).
+ */
+export const TOWN_DZ = -15;
+
+/** The south strip, in final town coordinates: z from 33.5 (the old hedge line) to the new edge. */
+export const STRIP = { x: 0, z: 48.5, w: 147, d: 30 };
+
+/** Park ground kept for the zen corner and for round 2's garden plots (final town coordinates). */
+export const ZEN_BOX: Box = { x: -32, z: 25, w: 14, d: 12 };
+export const GARDEN_BOX: Box = { x: -62, z: 10, w: 16, d: 12 };
+export const RESERVED: Box[] = [ZEN_BOX, GARDEN_BOX];
+
+const moved = (b: Box): Box => ({ ...b, z: b.z + TOWN_DZ });
+
+/** The walkways in final town coordinates. */
+export const PATHS: Box[] = [
+  ...BASE_PATHS.map((b, i) => {
+    if (i === 3) return { x: 0, z: 15, w: 2.4, d: 52 };        // south path, now on to the strip path
+    if (i === 8) return { x: -45, z: 14.35, w: 2, d: 53.3 };   // park path, now on to the strip path
+    return moved(b);
+  }),
+  { x: -29.4, z: 40, w: 61.2, d: 2 },    // strip path: park path to south path, past the stage
 ];

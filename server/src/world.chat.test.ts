@@ -39,7 +39,7 @@ describe('chat', () => {
     const a = joinNew('Sam');
     const b = joinNew('Jo');
     t += 10_000;
-    w.handle(b.id, { t: 'move', x: -12, z: -2.1, facing: 0, anim: 'idle' });
+    w.handle(b.id, { t: 'move', x: -12, z: -17.1, facing: 0, anim: 'idle' });
     w.handle(b.id, { t: 'enterScene', doorId: 'to-library' });
     expect(w.view(b.id)!.scene).toBe('library');
     say(a.id, 'hello town');

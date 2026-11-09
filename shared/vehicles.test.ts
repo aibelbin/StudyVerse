@@ -9,11 +9,11 @@ describe('vehicleOk', () => {
     const boat = town.toys.find((t) => t.kind === 'rowboat')!;
     expect(vehicleOk('rowboat', town, boat.x, boat.z)).toBe(true);
     expect(vehicleOk('truck', town, boat.x, boat.z)).toBe(false);
-    expect(vehicleOk('rowboat', town, 0, 1.5)).toBe(false);
-    expect(vehicleOk('truck', town, 0, 1.5)).toBe(true);
+    expect(vehicleOk('rowboat', town, 0, -13.5)).toBe(false);
+    expect(vehicleOk('truck', town, 0, -13.5)).toBe(true);
   });
   it('keeps trucks out of buildings and inside the map', () => {
-    expect(vehicleOk('truck', town, -12, -6)).toBe(false); // the Library
+    expect(vehicleOk('truck', town, -12, -21)).toBe(false); // the Library
     expect(vehicleOk('truck', town, 74.9, 0)).toBe(false);
   });
   it('every truck starts somewhere it may be', () => {

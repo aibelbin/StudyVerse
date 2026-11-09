@@ -75,8 +75,8 @@ describe('scene data', () => {
     }
   });
 
-  it('the town is 150 x 100 and every kind of toy is somewhere', () => {
-    expect(SCENES.town.size).toEqual({ w: 150, d: 100 });
+  it('the town is 150 x 130 and every kind of toy is somewhere', () => {
+    expect(SCENES.town.size).toEqual({ w: 150, d: 130 });
     for (const k of TOY_KINDS) expect(scenes.some((s) => s.toys.some((t) => t.kind === k)), k).toBe(true);
   });
 
@@ -87,7 +87,7 @@ describe('scene data', () => {
     expect(w.landings.length).toBeGreaterThanOrEqual(4);
     for (const l of w.landings) {
       expect(pointInPolygon(w.outline, l.x, l.z)).toBe(false);
-      expect(inside(150, 100, l.x, l.z, PLAYER_RADIUS)).toBe(true);
+      expect(inside(150, 130, l.x, l.z, PLAYER_RADIUS)).toBe(true);
       expect(SCENES.town.colliders.some((c) => inBox(c, l.x, l.z, PLAYER_RADIUS)), `${l.x},${l.z}`).toBe(false);
     }
   });
@@ -97,8 +97,8 @@ describe('scene data', () => {
     for (const id of ['boat-1-row', 'boat-2-row']) {
       const slot = t.slots.find((s) => s.id === id)!;
       // a spot on the dock within reach of the rowing seat
-      const ok = [38.35, 39.65].some((x) => Math.hypot(x - slot.x, -20.9 - slot.z) <= 1.5
-        && !t.colliders.some((c) => inBox(c, x, -20.9, PLAYER_RADIUS)));
+      const ok = [38.35, 39.65].some((x) => Math.hypot(x - slot.x, -35.9 - slot.z) <= 1.5
+        && !t.colliders.some((c) => inBox(c, x, -35.9, PLAYER_RADIUS)));
       expect(ok, id).toBe(true);
     }
   });
@@ -106,7 +106,7 @@ describe('scene data', () => {
   it('has the slots later tests rely on', () => {
     const slot = findSlot('town', 'park-b1-a')!;
     expect(slot.x).toBeCloseTo(-35.45);
-    expect(slot.z).toBe(17);
+    expect(slot.z).toBe(2);
     expect(SCENES.library.slots.length).toBe(16);
     expect(SCENES.cafe.slots.length).toBe(12);
   });
