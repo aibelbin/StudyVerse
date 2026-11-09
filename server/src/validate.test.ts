@@ -98,6 +98,22 @@ describe('garden', () => {
   });
 });
 
+describe('golf', () => {
+  const parse = (m: object) => parseClientMsg(JSON.stringify(m));
+  it('accepts holes 1–6, ball positions and quitting', () => {
+    expect(parse({ t: 'golfTee', hole: 6 })).toEqual({ t: 'golfTee', hole: 6 });
+    expect(parse({ t: 'golfShot', hole: 2, penalty: true })).toEqual({ t: 'golfShot', hole: 2, penalty: true });
+    expect(parse({ t: 'golfShot', hole: 2, penalty: 'yes' })).toEqual({ t: 'golfShot', hole: 2 });
+    expect(parse({ t: 'golfBall', x: 1, y: 0.2, z: 3 })).toEqual({ t: 'golfBall', x: 1, y: 0.2, z: 3 });
+    expect(parse({ t: 'golfQuit' })).toEqual({ t: 'golfQuit' });
+  });
+  it('refuses other holes and bad numbers', () => {
+    expect(parse({ t: 'golfTee', hole: 7 })).toBeNull();
+    expect(parse({ t: 'golfHoled', hole: 1.5 })).toBeNull();
+    expect(parse({ t: 'golfBall', x: 1, y: 'up', z: 3 })).toBeNull();
+  });
+});
+
 describe('stageText', () => {
   it('cleans and trims the text, allows empty (clears), and refuses over 60 characters', () => {
     expect(parseClientMsg(JSON.stringify({ t: 'stageText', text: '  Calculus\n7pm ' }))).toEqual({ t: 'stageText', text: 'Calculus 7pm' });

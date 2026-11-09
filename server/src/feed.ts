@@ -29,6 +29,8 @@ export const feedText = {
   coffee: (name: string, stars: number, drink: string) => `☕ ${name} made a ${'★'.repeat(stars)} ${drink}`,
   gift: (from: string, to: string, stars: number, drink: string) => `🎁 ${from} gave ${to} a ${stars ? `${'★'.repeat(stars)} ` : ''}${drink}`,
   harvest: (name: string, what: string) => `🌷 ${name} picked a ${what}`,
+  holeInOne: (name: string, hole: string) => `🎉 ${name} got a hole-in-one on the ${hole}!`,
+  golfRound: (name: string, total: number) => `⛳ ${name} went round the mini-golf in ${total}`,
   meditate: (name: string, companions: number) =>
     `🧘 ${name} finished a breather${companions ? ` with ${companions} ${companions === 1 ? 'friend' : 'friends'}` : ''}`,
 };

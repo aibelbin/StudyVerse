@@ -124,6 +124,17 @@ export function parseClientMsg(raw: string): ClientMsg | null {
         ...(m.flower !== undefined ? { flower: m.flower as Flower } : {}),
       };
     }
+    case 'golfTee':
+    case 'golfHoled':
+    case 'golfPickUp':
+      return Number.isInteger(m.hole) && (m.hole as number) >= 1 && (m.hole as number) <= 6 ? { t: m.t, hole: m.hole as number } : null;
+    case 'golfShot':
+      if (!(Number.isInteger(m.hole) && (m.hole as number) >= 1 && (m.hole as number) <= 6)) return null;
+      return m.penalty === true ? { t: 'golfShot', hole: m.hole as number, penalty: true } : { t: 'golfShot', hole: m.hole as number };
+    case 'golfBall':
+      return isNum(m.x) && isNum(m.y) && isNum(m.z) ? { t: 'golfBall', x: m.x, y: m.y, z: m.z } : null;
+    case 'golfQuit':
+      return { t: 'golfQuit' };
     case 'buySeed':
       return isFlower(m.flower) ? { t: 'buySeed', flower: m.flower } : null;
     case 'stageText': {

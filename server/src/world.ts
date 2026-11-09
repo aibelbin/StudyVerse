@@ -3,7 +3,8 @@ import {
   NOTES_SHOWN, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS, BREW_COOLDOWN_MS, CUP_SIPS, GIFT_RANGE, GIFT_TTL_MS, SELF_PARK_MS,
   ACT_GAP_MS, CHAT_BURST, CHAT_DM_HISTORY, CHAT_GAP_MS, CHAT_KEEP, CHAT_WINDOW_MS, REACT_GAP_MS,
   MEDITATE_COMPANION_MAX, MEDITATE_EVERY_MS, MEDITATE_KP, MEDITATE_MS, STAGE_TEXT_GAP_MS, STAGE_TEXT_TTL_MS,
-  PLOT_IDLE_MS, WATER_BOOST_MIN,
+  PLOT_IDLE_MS, WATER_BOOST_MIN, GOLF_BALL_GAP_MS, GOLF_CUP_CHECK, GOLF_KP, GOLF_MAX_STROKES, GOLF_PAR_KP, GOLF_PICKUP_SCORE,
+  GOLF_TEE_RANGE,
 } from '../../shared/constants';
 import { clampToBounds, dist, inBox, pointInPolygon } from '../../shared/geometry';
 import type { ClientMsg, ErrorCode, IceServer, ServerMsg } from '../../shared/protocol';
@@ -26,6 +27,7 @@ import { COOLDOWN_MS, HANDLERS } from './toys';
 import { freeBay, inBay } from '../../shared/parking';
 import { emptyPlot, FLOWERS, grow, seedItem, stageOf, type Flower, type PlotState } from '../../shared/garden';
 import type { GardenAction } from '../../shared/protocol';
+import { BALL_R, COURSE_PAR, FELT, HOLES } from '../../shared/golf';
 
 /** What the World needs from a network connection. */
 export interface Conn {
@@ -66,10 +68,12 @@ interface Player {
   /** When they sat on a meditation cushion (null when not on one, or once this breather is done). */
   meditateFrom: number | null;
   lastStageTextAt: number;
+  /** Mini-golf: the hole being played, its strokes, the ball, and this visit's scorecard. */
+  golf: { hole: number | null; strokes: number; ball: { x: number; y: number; z: number } | null; lastBallAt: number; card: (number | null)[] };
 }
 
 /** World state that survives restarts, saved in the store's kv table under the toy kind. */
-const SAVED_KINDS = ['cairn', 'stageScreen', 'plot'] as const;
+const SAVED_KINDS = ['cairn', 'stageScreen', 'plot', 'golfBoard'] as const;
 
 const EMOJI: Record<EmoteKind, string> = { wave: '👋', clap: '👏', flex: '💪', coffee: '☕' };
 
@@ -138,6 +142,7 @@ export class World {
       wallet: this.store.wallet(profile.id),
       dnd: false, voice: false, holding: null, pet: null, lastNoteAt: 0, lastBrewAt: 0, lastPetAt: 0,
       chatTimes: [], lastReactAt: 0, lastActAt: 0, meditateFrom: null, lastStageTextAt: 0,
+      golf: { hole: null, strokes: 0, ball: null, lastBallAt: 0, card: Array(HOLES.length).fill(null) },
     };
     this.players.set(p.id, p);
     this.spawnPet(p);
@@ -153,6 +158,7 @@ export class World {
     if (!p || p.conn !== conn) return;
     p.conn = null;
     p.disconnectedAt = this.now();
+    this.golfClear(p);
     this.toScene(p.scene, { t: 'playerUpdated', player: this.toView(p) }, p.id);
   }
 
@@ -181,6 +187,12 @@ export class World {
       case 'stageText': return this.stageText(p, msg.text);
       case 'garden': return this.garden(p, msg.toyId, msg.action, msg.spot, msg.flower);
       case 'buySeed': return this.buySeed(p, msg.flower);
+      case 'golfTee': return this.golfTee(p, msg.hole);
+      case 'golfShot': return this.golfShot(p, msg.hole, msg.penalty === true);
+      case 'golfBall': return this.golfBall(p, msg.x, msg.y, msg.z);
+      case 'golfHoled': return this.golfHoled(p, msg.hole);
+      case 'golfPickUp': return this.golfPickUp(p, msg.hole);
+      case 'golfQuit': return this.golfClear(p);
       case 'offerCoffee': return this.offerCoffee(p, msg.to);
       case 'answerCoffee': return this.answerCoffee(p, msg.fromId, msg.accept);
       case 'setVoice': {
@@ -287,6 +299,7 @@ export class World {
     const target = this.scene(door.toScene);
     const spawn = target.spawns.find((s) => s.id === door.toSpawn)!;
     this.toScene(p.scene, { t: 'playerLeft', id: p.id }, p.id);
+    this.golfClear(p);
     p.scene = target.id;
     p.x = spawn.x;
     p.z = spawn.z;
@@ -308,6 +321,7 @@ export class World {
       return this.error(p, 'bad_slot', 'Get a little closer to that seat.');
     }
     if (this.slots.has(slotId)) return this.error(p, 'slot_taken', 'That seat is taken!');
+    this.golfClear(p);
     this.slots.set(slotId, p.id);
     p.slotId = slotId;
     p.x = pos.x;
@@ -451,6 +465,7 @@ export class World {
       this.pushFeed('leave', feedText.leave(p.name));
     }
     this.freeSlot(p);
+    this.golfClear(p);
     this.offers.delete(p.id);
     for (const [toId, o] of this.offers) if (o.fromId === p.id) this.offers.delete(toId);
     this.players.delete(p.id);
@@ -554,6 +569,102 @@ export class World {
         p.holding = null;
         this.updated(p);
       }
+    }
+  }
+
+  // ---------- mini-golf ----------
+
+  private golfCard(p: Player): void {
+    p.conn?.send({ t: 'golfCard', card: p.golf.card.slice(), hole: p.golf.hole, strokes: p.golf.strokes });
+  }
+
+  /** Drops the hole you're on (your scorecard stays). */
+  private golfClear(p: Player): void {
+    if (p.golf.hole === null) return;
+    p.golf.hole = null;
+    p.golf.strokes = 0;
+    p.golf.ball = null;
+    this.toScene(p.scene, { t: 'golfGone', id: p.id });
+    this.golfCard(p);
+  }
+
+  private golfTee(p: Player, n: number): void {
+    const hole = HOLES[n - 1];
+    const tee = this.scene(p.scene).toys.find((x) => x.id === `golf-tee-${n}`);
+    if (!hole || !tee || p.slotId || dist(p.x, p.z, hole.tee.x, hole.tee.z) > GOLF_TEE_RANGE) return this.error(p, 'bad_golf', 'Stand on the tee to start this hole.');
+    if (p.golf.hole !== null && p.golf.hole !== n) this.toScene(p.scene, { t: 'golfGone', id: p.id });
+    const ball = { x: hole.tee.x, y: FELT + BALL_R, z: hole.tee.z };
+    p.golf = { ...p.golf, hole: n, strokes: 0, ball, lastBallAt: 0 };
+    this.toScene(p.scene, { t: 'golfBall', id: p.id, hole: n, ...ball });
+    this.golfCard(p);
+  }
+
+  private golfShot(p: Player, n: number, penalty: boolean): void {
+    if (p.golf.hole !== n) return;
+    if (p.golf.strokes >= (penalty ? GOLF_PICKUP_SCORE : GOLF_MAX_STROKES)) return this.error(p, 'bad_golf', 'Out of strokes on this hole: pick up.');
+    p.golf.strokes++;
+    this.golfCard(p);
+  }
+
+  /** Your rolling ball, relayed to everyone else in the scene (at most every GOLF_BALL_GAP_MS). */
+  private golfBall(p: Player, x: number, y: number, z: number): void {
+    const n = p.golf.hole;
+    const hole = n !== null ? HOLES[n - 1] : undefined;
+    if (!hole || y < -2 || y > 4 || !inBox(hole.bounds, x, z, 2)) return;
+    p.golf.ball = { x, y, z };
+    const t = this.now();
+    if (t - p.golf.lastBallAt < GOLF_BALL_GAP_MS - 20) return;
+    p.golf.lastBallAt = t;
+    this.toScene(p.scene, { t: 'golfBall', id: p.id, hole: n!, x, y, z }, p.id);
+  }
+
+  private golfHoled(p: Player, n: number): void {
+    const hole = HOLES[n - 1];
+    const b = p.golf.ball;
+    if (p.golf.hole !== n || !b || p.golf.strokes < 1) return;
+    if (Math.hypot(b.x - hole.cup.x, b.z - hole.cup.z) > GOLF_CUP_CHECK || Math.abs(b.y - hole.cup.y) > 0.5) {
+      return this.error(p, 'bad_golf', "That ball isn't in the cup.");
+    }
+    this.golfFinishHole(p, n, p.golf.strokes);
+  }
+
+  private golfPickUp(p: Player, n: number): void {
+    if (p.golf.hole !== n || p.golf.strokes < GOLF_MAX_STROKES) return;
+    this.golfFinishHole(p, n, GOLF_PICKUP_SCORE);
+  }
+
+  private golfFinishHole(p: Player, n: number, strokes: number): void {
+    const holeInOne = strokes === 1;
+    p.golf.card[n - 1] = strokes;
+    p.golf.hole = null;
+    p.golf.strokes = 0;
+    p.golf.ball = null;
+    this.toScene(p.scene, { t: 'golfDone', id: p.id, hole: n, strokes, holeInOne });
+    if (holeInOne) this.pushFeed('golf', feedText.holeInOne(p.name, HOLES[n - 1].name));
+    if (p.golf.card.every((c) => c !== null)) this.golfFinishRound(p);
+    this.golfCard(p);
+  }
+
+  /** All six holes: post the total to today's board, and pay KP the first time today. */
+  private golfFinishRound(p: Player): void {
+    const total = p.golf.card.reduce<number>((s, c) => s + (c ?? 0), 0);
+    p.golf.card = Array(HOLES.length).fill(null);
+    this.pushFeed('golf', feedText.golfRound(p.name, total));
+    const board = this.scene(p.scene).toys.find((x) => x.kind === 'golfBoard');
+    const s = board && this.stateOf(board);
+    if (!board || s?.kind !== 'golfBoard') return;
+    const day = dayOf(this.now());
+    const fresh = s.day === day ? s : { kind: 'golfBoard' as const, day, top: [], paid: [] };
+    const others = fresh.top.filter((e) => e.name !== p.name);
+    const mine = fresh.top.find((e) => e.name === p.name);
+    const best = mine && mine.strokes <= total ? mine : { name: p.name, strokes: total };
+    const top = [...others, best].sort((a, b) => a.strokes - b.strokes).slice(0, 5);
+    const pay = !fresh.paid.includes(p.id);
+    this.saveToyState(board.id, { ...fresh, top, paid: pay ? [...fresh.paid, p.id] : fresh.paid });
+    if (pay) {
+      this.store.addKp(p.id, total <= COURSE_PAR ? GOLF_PAR_KP : GOLF_KP);
+      p.wallet = this.store.wallet(p.id);
+      p.conn?.send({ t: 'wallet', wallet: this.publicWallet(p) });
     }
   }
 
