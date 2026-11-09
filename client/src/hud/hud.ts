@@ -5,6 +5,7 @@ import type { ConnStatus } from '../net/connection';
 import { byId, h } from './dom';
 import { formatClock, sessionLeftMs } from './format';
 import { toggleFullscreen } from '../touch/fullscreen';
+import { keepsakeShelf, moodText } from './gifts';
 
 const FEED_SHOWN = 6;
 const FEED_FADE_MS = 30_000;
@@ -15,6 +16,15 @@ export class Hud {
   onEndBreak: () => void = () => {};
   onToggleMute: () => void = () => {};
   onToggleQuality: () => void = () => {};
+  /** Your own name: status and keepsakes. */
+  onMe: () => void = () => {};
+  /** 🎁 next to someone: send them a gift. */
+  onSendGift: (id: string, name: string) => void = () => {};
+  onAdmin: () => void = () => {};
+  /** Shows the 🛡️ button. */
+  admin = false;
+  /** Gifts switched on (by the admins). */
+  giftsOn = true;
   /** 'high' or 'lite' graphics, for the ✨ button. */
   quality = 'high';
   onToggleDnd: () => void = () => {};
@@ -56,12 +66,12 @@ export class Hud {
       ? `${s.phase === 'focus' ? '📖 Focus' : '☕ Break'} · ${formatClock(sessionLeftMs(s, now))}`
       : me.slotId ? '🪑 Sitting' : `🚶 Wandering ${def.where}`;
     this.dnd = me.dnd;
-    const key = `${me.name}|${line}|${def.id}|${this.muted}|${this.walletText}|${me.dnd}|${this.voiceState}|${this.quality}`;
+    const key = `${me.name}|${line}|${def.id}|${this.muted}|${this.walletText}|${me.dnd}|${this.voiceState}|${this.quality}|${moodText(me.status)}|${this.admin}`;
     if (key === this.statusKey) return;
     this.statusKey = key;
     byId('status').replaceChildren(
       h('div', { className: 'row' },
-        h('b', { textContent: me.name }),
+        h('b', { className: 'me-name', textContent: me.name, title: 'Set your status · your keepsakes', onclick: () => this.onMe() }),
         h('span', { className: 'buttons' },
           h('button', {
             className: `mini${this.voiceState !== 'off' ? ' on' : ''}`,
@@ -73,7 +83,9 @@ export class Hud {
           h('button', { className: 'mini', title: this.muted ? 'Sound off' : 'Sound on', textContent: this.muted ? '🔇' : '🔊', onclick: () => this.onToggleMute() }),
           h('button', { className: 'mini', title: this.quality === 'high' ? 'Graphics: High (click for Lite)' : 'Graphics: Lite (click for High)', textContent: this.quality === 'high' ? '✨' : '🍃', onclick: () => this.onToggleQuality() }),
           h('button', { className: 'mini', title: 'Full screen (F)', textContent: '⛶', onclick: () => toggleFullscreen() }),
+          ...(this.admin ? [h('button', { className: 'mini', title: 'Admin panel', textContent: '🛡️', onclick: () => this.onAdmin() })] : []),
           h('button', { className: 'mini', title: 'Change your look', textContent: '✏️', onclick: () => this.onEditLook() }))),
+      ...(me.status ? [h('div', { className: 'st me-name', textContent: moodText(me.status), onclick: () => this.onMe() })] : []),
       h('div', { className: s ? `timer ${s.phase}` : 'sub', textContent: line }),
       ...(s?.phase === 'break' ? [h('button', { className: 'mini', textContent: 'End break', onclick: () => this.onEndBreak() })] : []),
       h('div', { className: 'sub', textContent: `📍 ${def.name}` }),
@@ -81,8 +93,9 @@ export class Hud {
     );
   }
 
-  setWallet(kp: number, streak: number): void {
-    this.walletText = `✨ ${kp} KP${streak > 1 ? ` · 🔥 ${streak}-day streak` : ''}`;
+  setWallet(kp: number, streak: number, admin = false): void {
+    this.walletText = `✨ ${admin ? '∞' : kp} KP${streak > 1 ? ` · 🔥 ${streak}-day streak` : ''}`;
+    this.admin = admin;
   }
 
   setOnline(list: OnlineEntry[]): void {
@@ -91,9 +104,12 @@ export class Hud {
       const scene = SCENES[p.scene]?.name ?? p.scene;
       by.set(scene, [...(by.get(scene) ?? []), p]);
     }
+    const mood = (p: OnlineEntry) => (p.status ? [h('span', { className: 'st', textContent: ` ${moodText(p.status)}` })] : []);
     const who = (p: OnlineEntry) => p.id === this.meId
-      ? h('span', { textContent: p.name })
-      : h('span', { className: 'who', textContent: p.name, title: `Message ${p.name}`, onclick: () => this.onOpenDm(p.id, p.name) });
+      ? h('span', {}, h('span', { textContent: p.name }), ...mood(p))
+      : h('span', {},
+        h('span', { className: 'who', textContent: p.name, title: `Message ${p.name}`, onclick: () => this.onOpenDm(p.id, p.name) }), ...mood(p),
+        ...(this.giftsOn ? [h('button', { className: 'gift-btn', title: `Send ${p.name} a gift`, textContent: '🎁', onclick: () => this.onSendGift(p.id, p.name) })] : []));
     byId('online').replaceChildren(
       h('div', { className: 'title', textContent: `🏡 ${list.length} in town` }),
       ...[...by].map(([scene, people]) => h('div', {}, h('b', { textContent: scene }), ' · ', ...people.flatMap((p, i) => (i ? [', ', who(p)] : [who(p)])))),
@@ -209,6 +225,7 @@ export class Hud {
     el.replaceChildren(
       h('div', { className: 'row' }, h('b', { textContent: v.name }), h('button', { className: 'mini', textContent: '✕', onclick: () => this.closeCard() })),
       h('div', { className: 'sub', id: 'card-status' }),
+      ...(v.status ? [h('div', { className: 'sub', textContent: moodText(v.status) })] : []),
       v.dnd
         ? h('div', { className: 'sub', textContent: '🔕 Do not disturb: they are focusing' })
         : h('div', { className: 'actions' }, ...EMOTE_BUTTONS.map(([k, label]) => h('button', { textContent: label, onclick: () => onEmote(k) }))),
@@ -218,7 +235,14 @@ export class Hud {
           this.closeCard();
           this.onOpenDm(v.id, v.name);
         },
-      })),
+      }), ...(this.giftsOn ? [h('button', {
+        textContent: '🎁 Send a gift',
+        onclick: () => {
+          this.closeCard();
+          this.onSendGift(v.id, v.name);
+        },
+      })] : [])),
+      keepsakeShelf(v.keepsakes, v.keepsakeCount),
     );
   }
 

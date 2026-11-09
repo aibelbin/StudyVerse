@@ -1,4 +1,5 @@
 import { FLOWERS, type Flower } from './garden';
+import { GIFTS, type Gift, type Keepsake, type Status } from './gifts';
 export type Eyes = 'dot' | 'happy' | 'sleepy';
 export type OutfitSlot = 'hat' | 'top' | 'face' | 'back' | 'neck';
 
@@ -46,20 +47,28 @@ export interface PlayerView {
   /** A drink (or a bouquet from the garden) in hand. */
   holding: Holding | null;
   pet: PetView | null;
+  /** "🍜 Eating" and so on; null when not set. */
+  status: Status | null;
+  /** The newest keepsakes (gifts received), and how many in all. */
+  keepsakes: Keepsake[];
+  keepsakeCount: number;
 }
 
 export type Drink = 'espresso' | 'latte' | 'matcha' | 'cocoa';
-export type HoldItem = Drink | 'bouquet';
+export type HoldItem = Drink | 'bouquet' | 'gift';
 export interface Holding {
   item: HoldItem;
   stars: number;
   sips: number;
   /** For a bouquet: which flowers. */
   flower?: Flower;
+  /** For a gift from the stall: which one. */
+  gift?: Gift;
 }
 
 /** "latte", or "bouquet of roses". */
-export function holdName(h: { item: HoldItem; flower?: Flower }): string {
+export function holdName(h: { item: HoldItem; flower?: Flower; gift?: Gift }): string {
+  if (h.item === 'gift') return h.gift ? GIFTS[h.gift].name : 'gift';
   return h.item === 'bouquet' ? `bouquet of ${h.flower ? FLOWERS[h.flower].plural : 'flowers'}` : h.item;
 }
 export const DRINKS: Drink[] = ['espresso', 'latte', 'matcha', 'cocoa'];
@@ -77,9 +86,10 @@ export interface OnlineEntry {
   id: string;
   name: string;
   scene: string;
+  status?: Status | null;
 }
 
-export type FeedKind = 'arrive' | 'leave' | 'start' | 'finish' | 'quit' | 'cheer' | 'coffee' | 'gift' | 'meditate' | 'garden' | 'golf';
+export type FeedKind = 'arrive' | 'leave' | 'start' | 'finish' | 'quit' | 'cheer' | 'coffee' | 'gift' | 'meditate' | 'garden' | 'golf' | 'giftSent';
 
 export interface FeedEvent {
   kind: FeedKind;
@@ -103,6 +113,8 @@ export interface Wallet {
   owned: string[];
   pets: PetKind[];
   pet: PetInfo | null;
+  /** Admins spend nothing (shown as ∞). */
+  admin?: boolean;
 }
 
 /** A chat line: to null is the Everyone channel, otherwise a direct message to that profile. */

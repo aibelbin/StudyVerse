@@ -112,6 +112,26 @@ export class Overhead {
     this.group.add(this.badge);
   }
 
+  private statusSprite: THREE.Sprite | null = null;
+  private statusKey = '';
+
+  /** "🍜 Eating" as a soft pill above the head; empty hides it. */
+  setStatus(text: string): void {
+    if (text === this.statusKey) return;
+    this.statusKey = text;
+    if (this.statusSprite) {
+      this.statusSprite.removeFromParent();
+      this.statusSprite.material.map?.dispose();
+      this.statusSprite.material.dispose();
+      this.statusSprite = null;
+    }
+    if (!text) return;
+    this.statusSprite = textSprite(text.length > 28 ? `${text.slice(0, 27)}…` : text, 0.24, { bg: '#fff4d6ee', font: 38, pad: 12 });
+    this.statusSprite.position.set(0, 0.32, 0);
+    this.statusSprite.renderOrder = 12;
+    this.group.add(this.statusSprite);
+  }
+
   emote(kind: EmoteKind, now: number): void {
     this.float(textSprite(EMOJI[kind], 0.5, { bg: null, font: 64, pad: 6 }), now);
   }

@@ -17,6 +17,9 @@ export class NotesBoard {
   private open = false;
   private notes: Note[] = [];
 
+  /** Admins can take down anyone's note. */
+  adminDelete: ((id: number) => void) | null = null;
+
   constructor(private hud: Hud, private myId: () => string | null, private send: (m: { t: 'getNotes' } | { t: 'postNote'; text: string } | { t: 'deleteNote'; id: number }) => void) {}
 
   show(): void {
@@ -59,7 +62,8 @@ export class NotesBoard {
         h('p', { textContent: n.text }),
         h('div', { className: 'row' },
           h('small', { textContent: `— ${n.name}, ${ago(now - n.at)}` }),
-          n.authorId === me ? h('button', { className: 'mini', type: 'button', title: 'Take it down', textContent: '✕', onclick: () => this.send({ t: 'deleteNote', id: n.id }) }) : '')))
+          n.authorId === me ? h('button', { className: 'mini', type: 'button', title: 'Take it down', textContent: '✕', onclick: () => this.send({ t: 'deleteNote', id: n.id }) })
+            : this.adminDelete ? h('button', { className: 'mini', type: 'button', title: 'Take it down (admin)', textContent: '🗑', onclick: () => this.adminDelete?.(n.id) }) : '')))
       : [h('p', { className: 'sub', textContent: 'Nothing pinned yet. Be the first!' })]));
   }
 }

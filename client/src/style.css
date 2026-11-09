@@ -297,3 +297,45 @@ body.touch input, body.touch select { font-size: 16px; }
 .a2hs li { margin: 4px 0; }
 .a2hs p { font-size: 12px; color: var(--mut); margin: 6px 0 10px; }
 .a2hs button { width: 100%; }
+
+/* gifts, keepsakes, status */
+.gift-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; margin-top: 10px; }
+.gift-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; border-radius: 14px; }
+.gift-tile b { font-size: 13px; }
+.gift-tile span:last-child { font-size: 11px; color: var(--mut); }
+.gift-tile:disabled { opacity: 0.45; }
+.gift-emoji { font-size: 28px; line-height: 1.1; }
+.keepsakes { margin-top: 6px; }
+.keepsake-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.keepsake { display: flex; flex-direction: column; align-items: center; min-width: 54px; padding: 4px 6px; border-radius: 10px; background: rgba(255, 255, 255, 0.55); font-size: 11px; }
+.keepsake .gift-emoji { font-size: 22px; }
+.keepsake .from { color: var(--mut); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0; }
+.status-custom { display: flex; gap: 6px; }
+.status-custom .status-emoji { width: 56px; text-align: center; }
+.status-custom input:not(.status-emoji) { flex: 1; }
+.status-durs { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+.status-durs .on { background: #ffd9a0; }
+.me-modal hr { border: 0; border-top: 1px solid #0001; margin: 12px 0 6px; }
+#online .st { color: var(--mut); font-size: 12px; }
+#online .gift-btn { border: 0; background: none; cursor: pointer; padding: 0 2px; font-size: 12px; }
+#status .me-name { cursor: pointer; }
+#status .me-name:hover { text-decoration: underline dotted; }
+#status .st { font-size: 12px; color: var(--mut); }
+/* announcements and the admin panel */
+.announce { position: fixed; top: 16%; left: 50%; transform: translateX(-50%); z-index: 70; max-width: min(640px, 90vw); padding: 14px 22px; font-size: 18px; font-weight: 800; text-align: center; animation: gift-pop 0.3s ease-out; }
+.announce small { display: block; font-size: 12px; color: var(--mut); font-weight: 600; }
+.admin-panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 92vw); z-index: 55; overflow: auto; border-radius: 16px 0 0 16px; padding: 12px 14px; font-size: 13px; }
+.admin-panel h2 { margin: 0 0 8px; font-size: 17px; display: flex; justify-content: space-between; align-items: center; }
+.admin-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.admin-tabs button.on { background: #ffd9a0; }
+.admin-player { padding: 8px; border-radius: 12px; background: rgba(255, 255, 255, 0.55); margin-bottom: 6px; }
+.admin-player .meta { color: var(--mut); font-size: 12px; }
+.admin-player .acts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.admin-player select { font-size: 12px; }
+.admin-feature { display: flex; justify-content: space-between; align-items: center; padding: 6px 2px; }
+.admin-panel textarea { width: 100%; min-height: 70px; font: inherit; }
+.admin-note { font-size: 11px; color: var(--mut); margin-top: 10px; }
+#chat .del { border: 0; background: none; cursor: pointer; font-size: 11px; opacity: 0.6; }
+.balloon-up { pointer-events: none; }
+body.touch .admin-panel { width: min(400px, 60vw); }

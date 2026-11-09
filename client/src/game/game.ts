@@ -11,6 +11,9 @@ import {
   angleDelta, BOAT_SPEED, boatOnWater, boatPoseAt, LOCAL_TOYS, slotWorld, type BoatPose, type Tilt, type ToyAction, type ToyState,
 } from '../../../shared/toys';
 import { holdName, type EmoteKind, type PlayerView } from '../../../shared/types';
+import { moodText } from '../hud/gifts';
+import { aGift, GIFTS } from '../../../shared/gifts';
+import { mesh, toonMat } from '../world/materials';
 import type { SoundKind } from '../audio/kinds';
 import { chime } from '../hud/chime';
 import { statusText } from '../hud/format';
@@ -337,6 +340,15 @@ export class Game {
       case 'coffeeOffer':
         showGiftOffer(m.name, m.drink, m.stars, (accept) => this.send({ t: 'answerCoffee', fromId: m.fromId, accept }), m.flower);
         break;
+      case 'giftReceived': {
+        const ch = this.charOf(m.toId);
+        if (ch) for (const [i, e] of ['💖', GIFTS[m.gift].emoji, '💕'].entries()) setTimeout(() => ch.overhead.pop(e, performance.now(), 0.45), i * 220);
+        if (m.toId === this.me?.id) this.hud.toast(`${GIFTS[m.gift].emoji} ${m.fromName} sent you ${aGift(m.gift)}! It's on your keepsakes shelf.`, 5000);
+        break;
+      }
+      case 'balloonUp':
+        this.releaseBalloon(m.x, m.z, m.color);
+        break;
       case 'coffeeAnswer':
         this.hud.toast(m.accepted ? `${m.name} took your drink ☕💛` : `${m.name} said no thanks`, 3500);
         break;
@@ -621,6 +633,20 @@ export class Game {
     this.send({ t: 'garden', toyId: toy.id, action: 'water' });
     this.fx.sound('splash', toy.x, toy.z);
     this.hud.toast(`💧 You watered ${s.ownerName}'s garden`, 2500);
+  }
+
+  /** A balloon someone let go of, floating up and away for everyone in the scene. */
+  private releaseBalloon(x: number, z: number, color: string): void {
+    const pops = this.rt?.pops;
+    if (!pops) return;
+    const g = new THREE.Group();
+    g.add(mesh(new THREE.SphereGeometry(0.28, 14, 12), toonMat({ color }), 0, 0, 0));
+    g.add(mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.8, 4), toonMat({ color: '#ffffff' }), 0, -0.68, 0, false));
+    const drift = Math.random() * Math.PI * 2;
+    pops.add(g, performance.now(), 8000, (o, k) => {
+      o.position.set(x + Math.sin(drift) * k * 3 + Math.sin(k * 12) * 0.2, 1.4 + k * 18, z + Math.cos(drift) * k * 3);
+      o.rotation.z = Math.sin(k * 10) * 0.2;
+    });
   }
 
   toyState(id: string): ToyState | undefined {
@@ -1057,7 +1083,8 @@ export class Game {
       r.char.facing = facing;
       r.char.setDim(!r.view.connected);
       r.char.overhead.setBadge(this.badgeFor(r.view));
-      r.char.setHolding(r.view.holding?.item ?? null, r.view.holding?.flower);
+      r.char.setHolding(r.view.holding?.item ?? null, r.view.holding?.flower, r.view.holding?.gift);
+      r.char.overhead.setStatus(moodText(r.view.status));
       r.char.overhead.setSession(r.view.session, sNow);
       r.char.overhead.setRain(r.view.rainUntil > sNow);
       r.char.update(dt, nowP);
@@ -1110,7 +1137,8 @@ export class Game {
       { id: this.me.id, x: this.x, z: this.z, voice: this.me.voice, dnd: this.me.dnd },
       [...this.remotes.values()].map((r) => ({ id: r.view.id, x: r.char.root.position.x, z: r.char.root.position.z, voice: r.view.voice && r.view.connected, dnd: r.view.dnd })),
     );
-    c.setHolding(this.me.holding?.item ?? null, this.me.holding?.flower);
+    c.setHolding(this.me.holding?.item ?? null, this.me.holding?.flower, this.me.holding?.gift);
+    c.overhead.setStatus(moodText(this.me.status));
     c.update(dt, nowP);
 
     if (this.transitioning || this.me.slotId || mySlide || this.telescope) {

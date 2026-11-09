@@ -71,6 +71,24 @@ player card, or by clicking their name in the online list. DMs to people who are
 messages per channel are kept. React to any message with 👍 ❤️ 😂 😮 🎉. There's a gentle rate limit (one message a
 second, five per ten seconds). Hold **T** for the emote wheel: wave, cheer, dance, laugh, love, think, sleepy, clap.
 
+## Gifts, keepsakes and status
+
+The 🎁 gift stall in the square sells cute gifts for KP (love letters, cookies, balloons, cupcakes, a mini cactus,
+bouquets, rubber duckies, surprise boxes, plushie bears, star jars). Carry one over and press G to hand it to
+someone, or send one from anywhere with 🎁 on their player card or next to their name in the online list. Gifts
+land on the receiver's keepsakes shelf (shown on their card); eat a cupcake or cookie, or let a balloon float away.
+Click your own name to set a status (🍜 Eating, 😴 Napping, ☕ Coffee break… or your own words) that shows over your
+head and in the online list, for 30 min, 1 h, 4 h or until you clear it. Newcomers only see chat from after they
+joined.
+
+## Admins
+
+Put profile ids in `ADMIN_IDS` (comma-separated). Admins get ✨ ∞ KP (everything is free) and a 🛡️ side panel: see
+who's online and where, go to someone or send them home, kick, mute chat (10 min to 24 h), ban (1 h, 24 h, 7 days or
+for good), switch features off for everyone (Everyone chat, DMs, voice, gifts, stage screen, notice board, trucks,
+mini-golf), post an announcement banner, and delete chat messages, notes or the stage screen text. Every admin
+action is checked on the server.
+
 ## Voice chat
 
 🎙️ in the status panel joins proximity voice: people nearby hear you, quieter with distance. Browsers only allow

@@ -12,6 +12,9 @@ import { GardenPanel } from './hud/garden';
 import { isTouchDevice } from './touch/detect';
 import { TouchUI } from './touch/ui';
 import { loadDone, loadStep } from './loader';
+import { openGiftPicker, openGiftShop, openMe } from './hud/gifts';
+import type { Features } from '../../shared/gifts';
+import { AdminPanel, showAnnouncement } from './hud/admin';
 
 loadStep(0.35); // the game's code has arrived
 import { NotesBoard } from './hud/notes';
@@ -29,6 +32,8 @@ let game: Game | null = null;
 let hello: ClientMsg | null = null;
 let wallet: Wallet | null = null;
 let refreshGarden: () => void = () => {};
+let adminPanel: AdminPanel | null = null;
+let features: Features | null = null;
 
 const wardrobe = new Wardrobe({
   hud,
@@ -97,7 +102,15 @@ hud.onToggleDnd = toggleDnd;
 
 function setWallet(w: Wallet): void {
   wallet = w;
-  hud.setWallet(w.kp, w.streak);
+  hud.setWallet(w.kp, w.streak, !!w.admin);
+  if (w.admin && !adminPanel) {
+    adminPanel = new AdminPanel((a) => conn.send({ t: 'admin', ...a }), (open) => {
+      chat.onAdminDelete = open ? (id) => conn.send({ t: 'admin', action: 'deleteChat', id }) : null;
+      board.adminDelete = open ? (id) => conn.send({ t: 'admin', action: 'deleteNote', id }) : null;
+      chat.refresh();
+    }, () => hud.meId);
+    hud.onAdmin = () => adminPanel?.toggle();
+  }
   if (wardrobe.isOpen()) wardrobe.refresh();
 }
 
@@ -112,10 +125,16 @@ conn.onOpen = () => {
   loadStep(0.55);
   if (hello) conn.send(hello);
 };
-const gone = () => {
+const gone = (title?: string, text?: string) => {
   conn.stop();
   game?.stop();
-  byId('gone').hidden = false;
+  const el = byId('gone');
+  if (title) {
+    el.querySelector('h1')!.textContent = title;
+    el.querySelector('p')!.textContent = text ?? '';
+    el.querySelector('button')!.textContent = 'Try again';
+  }
+  el.hidden = false;
   loadDone();
 };
 conn.onClose = (code) => {
@@ -158,6 +177,7 @@ conn.onMessage = (m) => {
         if (toy.kind === 'shop') wardrobe.open('hat');
         if (toy.kind === 'board') board.show();
         if (toy.kind === 'coffee') openBarista(hud, (drink, stars) => conn.send({ t: 'brew', drink, stars }));
+        if (toy.kind === 'giftShop') openGiftShop(hud, wallet, !!g.myView()?.holding, (gift) => conn.send({ t: 'buyGift', gift }));
         if (toy.kind === 'stageScreen') {
           const st = game?.toyState(toy.id);
           openStageScreen(hud, st?.kind === 'stageScreen' ? st.text : null, (text) => conn.send({ t: 'stageText', text }));
@@ -193,6 +213,14 @@ conn.onMessage = (m) => {
       }
       setTimeout(() => (hud.feedLive = true), 3000);
       game.onFirstFrame = () => loadDone();
+      hud.onSendGift = (id, name) => {
+        if (features && !features.gifts) return hud.toast('Gifts are switched off right now.');
+        openGiftPicker(hud, name, wallet, (gift) => conn.send({ t: 'sendGift', to: id, gift }));
+      };
+      hud.onMe = () => {
+        const me = g.myView();
+        if (me) openMe(hud, me, (emoji, text, minutes) => conn.send({ t: 'setStatus', emoji, text, minutes }), (k) => conn.send({ t: 'useKeepsake', id: k.id }));
+      };
       game.onToggleDnd = toggleDnd;
       game.onChatKey = () => chat.focus();
       game.voice = voice;
@@ -225,6 +253,18 @@ conn.onMessage = (m) => {
   if (m.t === 'error' && m.code === 'connected_elsewhere') {
     gone();
     return;
+  }
+  if (m.t === 'error' && (m.code === 'kicked' || m.code === 'banned')) {
+    gone(m.code === 'kicked' ? '👢 Sent home' : '⛔ Taking a break', m.message);
+    return;
+  }
+  if (m.t === 'adminList') adminPanel?.setPlayers(m.players);
+  if (m.t === 'announce') showAnnouncement(m.text);
+  if (m.t === 'chatDelete') chat.remove(m.id);
+  if (m.t === 'features' || m.t === 'welcome') {
+    features = m.features;
+    hud.giftsOn = m.features.gifts;
+    adminPanel?.setFeatures(m.features);
   }
   game?.onMessage(m);
   if (m.t === 'toyState' || m.t === 'wallet' || m.t === 'playerUpdated') refreshGarden();

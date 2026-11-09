@@ -35,8 +35,25 @@ export interface Store {
   dailyMinutes(day: string): number;
   /** Saves a chat line (keeping only the newest `keep` in its channel) and returns it with its id. */
   addChat(msg: Omit<ChatMsg, 'id' | 'reactions'>, keep: number): ChatMsg;
-  /** The last `globalLimit` Everyone messages plus the last `dmLimit` DMs to or from this profile, oldest first. */
-  chatFor(profileId: string, globalLimit: number, dmLimit: number): ChatMsg[];
+  /**
+   * The last `globalLimit` Everyone messages sent since `since` (newcomers don't see older ones) plus the
+   * last `dmLimit` DMs to or from this profile, oldest first.
+   */
+  chatFor(profileId: string, globalLimit: number, dmLimit: number, since?: number): ChatMsg[];
+  deleteChat(id: number): boolean;
+  /** When the profile was created (0 if unknown). */
+  createdAt(id: string): number;
+  addKeepsake(toId: string, fromId: string, fromName: string, gift: string, at: number): number;
+  keepsakes(toId: string, limit: number): { id: number; gift: string; fromName: string }[];
+  keepsakeCount(toId: string): number;
+  /** Removes one of this profile's keepsakes and says which gift it was (null if not theirs). */
+  takeKeepsake(toId: string, id: number): string | null;
+  /** Bans and chat mutes: until is server ms (Number.MAX_SAFE_INTEGER = for good). */
+  setRestriction(id: string, kind: 'ban' | 'mute', until: number | null): void;
+  restriction(id: string, kind: 'ban' | 'mute'): number | null;
+  restrictions(kind: 'ban' | 'mute'): { id: string; name: string; until: number }[];
+  /** Deletes a note whoever wrote it (admins). */
+  deleteNoteAny(noteId: number): boolean;
   chatById(id: number): ChatMsg | null;
   setReactions(id: number, reactions: Record<string, string[]>): void;
   /** A profile's name, or null if there's no such profile. */
@@ -79,6 +96,9 @@ export class ProfileStore implements Store {
       CREATE INDEX IF NOT EXISTS chat_to ON chat (to_id, id);
       CREATE INDEX IF NOT EXISTS chat_from ON chat (from_id, id);
       CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS keepsakes (id INTEGER PRIMARY KEY AUTOINCREMENT, to_id TEXT NOT NULL, from_id TEXT NOT NULL, from_name TEXT NOT NULL, gift TEXT NOT NULL, at INTEGER NOT NULL);
+      CREATE INDEX IF NOT EXISTS keepsakes_to ON keepsakes (to_id, id);
+      CREATE TABLE IF NOT EXISTS restrictions (profile_id TEXT NOT NULL, kind TEXT NOT NULL, until INTEGER NOT NULL, PRIMARY KEY (profile_id, kind));
     `);
   }
 
@@ -180,8 +200,8 @@ export class ProfileStore implements Store {
     return { ...msg, id: Number(r.lastInsertRowid), reactions: {} };
   }
 
-  chatFor(profileId: string, globalLimit: number, dmLimit: number): ChatMsg[] {
-    const g = this.db.prepare("SELECT * FROM chat WHERE pair = 'global' ORDER BY id DESC LIMIT ?").all(globalLimit) as unknown as ChatRow[];
+  chatFor(profileId: string, globalLimit: number, dmLimit: number, since = 0): ChatMsg[] {
+    const g = this.db.prepare("SELECT * FROM chat WHERE pair = 'global' AND at >= ? ORDER BY id DESC LIMIT ?").all(since, globalLimit) as unknown as ChatRow[];
     const d = this.db.prepare('SELECT * FROM chat WHERE pair != \'global\' AND (to_id = ? OR from_id = ?) ORDER BY id DESC LIMIT ?').all(profileId, profileId, dmLimit) as unknown as ChatRow[];
     return [...g, ...d].sort((a, b) => a.id - b.id).map(toChat);
   }
@@ -197,6 +217,53 @@ export class ProfileStore implements Store {
 
   profileName(id: string): string | null {
     return (this.db.prepare('SELECT name FROM profiles WHERE id = ?').get(id) as { name: string } | undefined)?.name ?? null;
+  }
+
+  deleteChat(id: number): boolean {
+    return Number(this.db.prepare('DELETE FROM chat WHERE id = ?').run(id).changes) > 0;
+  }
+
+  createdAt(id: string): number {
+    return (this.db.prepare('SELECT created_at FROM profiles WHERE id = ?').get(id) as { created_at: number } | undefined)?.created_at ?? 0;
+  }
+
+  addKeepsake(toId: string, fromId: string, fromName: string, gift: string, at: number): number {
+    return Number(this.db.prepare('INSERT INTO keepsakes (to_id, from_id, from_name, gift, at) VALUES (?, ?, ?, ?, ?)').run(toId, fromId, fromName, gift, at).lastInsertRowid);
+  }
+
+  keepsakes(toId: string, limit: number): { id: number; gift: string; fromName: string }[] {
+    return (this.db.prepare('SELECT id, gift, from_name FROM keepsakes WHERE to_id = ? ORDER BY id DESC LIMIT ?').all(toId, limit) as { id: number; gift: string; from_name: string }[])
+      .map((r) => ({ id: Number(r.id), gift: r.gift, fromName: r.from_name }));
+  }
+
+  keepsakeCount(toId: string): number {
+    return Number((this.db.prepare('SELECT COUNT(*) AS n FROM keepsakes WHERE to_id = ?').get(toId) as { n: number }).n);
+  }
+
+  takeKeepsake(toId: string, id: number): string | null {
+    const row = this.db.prepare('SELECT gift FROM keepsakes WHERE id = ? AND to_id = ?').get(id, toId) as { gift: string } | undefined;
+    if (!row) return null;
+    this.db.prepare('DELETE FROM keepsakes WHERE id = ?').run(id);
+    return row.gift;
+  }
+
+  setRestriction(id: string, kind: 'ban' | 'mute', until: number | null): void {
+    if (until === null) this.db.prepare('DELETE FROM restrictions WHERE profile_id = ? AND kind = ?').run(id, kind);
+    else this.db.prepare('INSERT INTO restrictions (profile_id, kind, until) VALUES (?, ?, ?) ON CONFLICT(profile_id, kind) DO UPDATE SET until = excluded.until').run(id, kind, until);
+  }
+
+  restriction(id: string, kind: 'ban' | 'mute'): number | null {
+    const r = this.db.prepare('SELECT until FROM restrictions WHERE profile_id = ? AND kind = ?').get(id, kind) as { until: number } | undefined;
+    return r ? Number(r.until) : null;
+  }
+
+  restrictions(kind: 'ban' | 'mute'): { id: string; name: string; until: number }[] {
+    return (this.db.prepare('SELECT r.profile_id AS id, p.name AS name, r.until AS until FROM restrictions r JOIN profiles p ON p.id = r.profile_id WHERE r.kind = ?').all(kind) as { id: string; name: string; until: number }[])
+      .map((r) => ({ id: r.id, name: r.name, until: Number(r.until) }));
+  }
+
+  deleteNoteAny(noteId: number): boolean {
+    return Number(this.db.prepare('DELETE FROM notes WHERE id = ?').run(noteId).changes) > 0;
   }
 
   addKp(id: string, kp: number): void {

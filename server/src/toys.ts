@@ -34,6 +34,7 @@ export const HANDLERS: Record<ToyKind, ToyHandler> = {
   stageScreen: none,
   plot: { actions: [], init: () => emptyPlot(), apply: () => ({}) },
   golfTee: none,
+  giftShop: none,
   golfBoard: { actions: [], init: () => ({ kind: 'golfBoard', day: '', top: [], paid: [] }), apply: () => ({}) },
   cushions: {
     actions: [],

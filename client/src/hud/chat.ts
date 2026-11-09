@@ -29,6 +29,8 @@ function loadRead(): Record<string, number> {
 export class ChatPanel {
   onSend: (text: string, to?: string) => void = () => {};
   onReact: (id: number, emoji: string) => void = () => {};
+  /** Set while the admin panel is open: each line gets a 🗑. */
+  onAdminDelete: ((id: number) => void) | null = null;
   /** A DM from someone else arrived while you weren't looking at it. */
   onPing: (m: ChatMsg) => void = () => {};
 
@@ -103,6 +105,17 @@ export class ChatPanel {
     if (looking) this.markRead(tab);
     if (tab !== GLOBAL && m.from !== this.me && !looking) this.onPing(m);
     this.render();
+  }
+
+  /** A message an admin removed. */
+  remove(id: number): void {
+    this.msgs = this.msgs.filter((m) => m.id !== id);
+    this.renderList();
+  }
+
+  /** Redraw (e.g. to show or hide the admin 🗑 buttons). */
+  refresh(): void {
+    this.renderList();
   }
 
   setReactions(id: number, reactions: Record<string, string[]>): void {
@@ -249,6 +262,10 @@ export class ChatPanel {
       h('b', { textContent: `${mine ? 'You' : m.fromName}: ` }),
       h('span', { className: 'text', textContent: m.text }),
       h('span', { className: 'reacts' }, ...chips, ...(this.open ? [add, ...picker] : [])),
+      ...(this.onAdminDelete ? [h('button', { type: 'button', className: 'del', title: 'Delete (admin)', textContent: '🗑', onclick: (e: MouseEvent) => {
+        e.stopPropagation();
+        this.onAdminDelete?.(m.id);
+      } })] : []),
     );
   }
 }

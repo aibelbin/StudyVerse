@@ -20,6 +20,8 @@ export interface ServerOptions {
   tickMs?: number;
   heartbeatMs?: number;
   helloTimeoutMs?: number;
+  /** Profile ids with admin powers. */
+  adminIds?: string[];
   /** Serve HTTPS + WSS (browsers only allow microphones on secure pages). */
   tls?: { cert: Buffer; key: Buffer } | null;
   iceServers?: IceServer[];
@@ -82,6 +84,7 @@ async function serveStatic(dir: string, req: IncomingMessage, res: ServerRespons
 export async function startServer(opts: ServerOptions): Promise<RunningServer> {
   const store = new ProfileStore(opts.dbPath);
   const world = new World(opts.now, Math.random, undefined, store);
+  world.admins = new Set(opts.adminIds ?? []);
   if (opts.iceServers?.length) world.ice = opts.iceServers;
 
   const handler = (req: IncomingMessage, res: ServerResponse) => {
@@ -127,9 +130,9 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       send: (msg: ServerMsg) => {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
       },
-      close: (code) => {
+      close: (code, message) => {
         replaced = true;
-        conn.send({ t: 'error', code, message: 'The town is open in another tab or device.' });
+        conn.send({ t: 'error', code, message: message ?? 'The town is open in another tab or device.' });
         ws.close(4001, code);
       },
     };

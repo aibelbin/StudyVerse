@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Pose } from '../../../shared/scenes/types';
 import { FLOWERS, type Flower } from '../../../shared/garden';
+import { GIFTS, type Gift } from '../../../shared/gifts';
 import { ACT_EMOJI, type Act, type Anim, type Eyes, type HoldItem, type Look, type OutfitSlot } from '../../../shared/types';
 import { SLOTS } from '../../../shared/wardrobe';
 import { BODY, buildItem } from './outfits';
@@ -169,8 +170,8 @@ export class Character {
   }
 
   /** A cup of coffee (or matcha, or cocoa) in the right hand, steaming. */
-  setHolding(drink: HoldItem | null, flower?: Flower): void {
-    const key = drink === 'bouquet' ? `bouquet:${flower}` : drink;
+  setHolding(drink: HoldItem | null, flower?: Flower, gift?: Gift): void {
+    const key = drink === 'bouquet' ? `bouquet:${flower}` : drink === 'gift' ? `gift:${gift}` : drink;
     if (key === this.cupKind) return;
     this.cupKind = key;
     if (this.cup) {
@@ -180,6 +181,16 @@ export class Character {
       this.steam = [];
     }
     if (!drink) return;
+    if (drink === 'gift') {
+      const g = new THREE.Group();
+      const s = textSprite(gift ? GIFTS[gift].emoji : '🎁', 0.32, { bg: null, font: 64, pad: 2 });
+      s.position.y = 0.1;
+      g.add(s);
+      g.position.set(0, -0.1, 0.1);
+      this.arms[1].add(g);
+      this.cup = g;
+      return;
+    }
     if (drink === 'bouquet') {
       const g = bouquetMesh(flower);
       g.position.set(0, -0.1, 0.07);

@@ -4,7 +4,7 @@ import { formatClock, sessionLeftMs, statusText } from './format';
 
 const base: PlayerView = {
   id: 'a', name: 'Sam', look: { body: '#ffffff', eyes: 'dot', hat: 'none', top: 'none', face: 'none', back: 'none', neck: 'none' }, scene: 'town',
-  x: 0, z: 0, facing: 0, anim: 'idle', slotId: null, session: null, connected: true, rainUntil: 0, dnd: false, voice: false, holding: null, pet: null,
+  x: 0, z: 0, facing: 0, anim: 'idle', slotId: null, session: null, connected: true, rainUntil: 0, dnd: false, voice: false, holding: null, pet: null, status: null, keepsakes: [], keepsakeCount: 0,
 };
 
 describe('format', () => {

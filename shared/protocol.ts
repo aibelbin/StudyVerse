@@ -1,9 +1,26 @@
 import type { Tilt } from './toys';
 
 export type GardenAction = 'claim' | 'plant' | 'water' | 'harvest' | 'vase';
+
+/** What an admin can ask for (checked on the server). Minutes null = for good / until cleared. */
+export type AdminAction =
+  | { action: 'list' }
+  | { action: 'kick'; id: string }
+  | { action: 'ban'; id: string; minutes: number | null }
+  | { action: 'unban'; id: string }
+  | { action: 'mute'; id: string; minutes: number }
+  | { action: 'unmute'; id: string }
+  | { action: 'goto'; id: string }
+  | { action: 'sendHome'; id: string }
+  | { action: 'feature'; feature: Feature; on: boolean }
+  | { action: 'announce'; text: string }
+  | { action: 'deleteChat'; id: number }
+  | { action: 'deleteNote'; id: number }
+  | { action: 'clearStage' };
 export const GARDEN_ACTIONS: GardenAction[] = ['claim', 'plant', 'water', 'harvest', 'vase'];
 import type { ToyAction, ToyState } from './toys';
 import type { Flower } from './garden';
+import type { AdminPlayer, Feature, Features, Gift } from './gifts';
 import type { Act, Anim, ChatMsg, Drink, EmoteKind, HoldItem, FeedEvent, Look, Note, OnlineEntry, PetKind, PetView, PlayerView, Wallet } from './types';
 
 export type ClientMsg =
@@ -36,6 +53,11 @@ export type ClientMsg =
   | { t: 'golfHoled'; hole: number }
   | { t: 'golfPickUp'; hole: number }
   | { t: 'golfQuit' }
+  | { t: 'buyGift'; gift: Gift }
+  | { t: 'sendGift'; to: string; gift: Gift }
+  | { t: 'useKeepsake'; id: number }
+  | { t: 'setStatus'; emoji: string; text: string; minutes: number | null }
+  | ({ t: 'admin' } & AdminAction)
   | { t: 'offerCoffee'; to: string }
   | { t: 'answerCoffee'; fromId: string; accept: boolean }
   | { t: 'setVoice'; on: boolean }
@@ -65,7 +87,12 @@ export type ErrorCode =
   | 'bad_chat'
   | 'bad_stage'
   | 'bad_garden'
-  | 'bad_golf';
+  | 'bad_golf'
+  | 'kicked'
+  | 'banned'
+  | 'muted'
+  | 'feature_off'
+  | 'not_admin';
 
 export type ServerMsg =
   | { t: 'chat'; msg: ChatMsg }
@@ -101,7 +128,15 @@ export type ServerMsg =
       ice: IceServer[];
       /** Recent Everyone messages and this player's DMs, oldest first. */
       chat: ChatMsg[];
+      /** Which town features the admins have switched on. */
+      features: Features;
     }
+  | { t: 'giftReceived'; fromId: string; fromName: string; toId: string; gift: Gift }
+  | { t: 'balloonUp'; x: number; z: number; color: string }
+  | { t: 'features'; features: Features }
+  | { t: 'announce'; text: string }
+  | { t: 'chatDelete'; id: number }
+  | { t: 'adminList'; players: AdminPlayer[] }
   | { t: 'error'; code: ErrorCode; message: string }
   | { t: 'sceneSnapshot'; scene: string; you: PlayerView; players: PlayerView[]; toys: Record<string, ToyState> }
   | { t: 'playerJoined'; player: PlayerView }

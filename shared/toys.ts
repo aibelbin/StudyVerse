@@ -6,17 +6,17 @@ export type ToyKind =
   | 'swing' | 'seesaw' | 'merryGoRound' | 'slide' | 'piano' | 'jukebox' | 'ducks'
   | 'fountain' | 'bell' | 'chimes' | 'stones' | 'campfire' | 'telescope' | 'rowboat'
   | 'shop' | 'board' | 'quotes' | 'coffee' | 'truck'
-  | 'koi' | 'cushions' | 'cairn' | 'drums' | 'guitar' | 'keys' | 'stageScreen' | 'plot' | 'golfTee' | 'golfBoard';
+  | 'koi' | 'cushions' | 'cairn' | 'drums' | 'guitar' | 'keys' | 'stageScreen' | 'plot' | 'golfTee' | 'golfBoard' | 'giftShop';
 
 export const TOY_KINDS: ToyKind[] = [
   'swing', 'seesaw', 'merryGoRound', 'slide', 'piano', 'jukebox', 'ducks',
   'fountain', 'bell', 'chimes', 'stones', 'campfire', 'telescope', 'rowboat',
   'shop', 'board', 'quotes', 'coffee', 'truck',
-  'koi', 'cushions', 'cairn', 'drums', 'guitar', 'keys', 'stageScreen', 'plot', 'golfTee', 'golfBoard',
+  'koi', 'cushions', 'cairn', 'drums', 'guitar', 'keys', 'stageScreen', 'plot', 'golfTee', 'golfBoard', 'giftShop',
 ];
 
 /** Toys whose E opens something on your own screen instead of telling the server. */
-export const LOCAL_TOYS: ToyKind[] = ['telescope', 'shop', 'board', 'quotes', 'coffee', 'stageScreen'];
+export const LOCAL_TOYS: ToyKind[] = ['telescope', 'shop', 'board', 'quotes', 'coffee', 'stageScreen', 'giftShop'];
 
 export type ToyAction = 'push' | 'slide' | 'note' | 'next' | 'feed' | 'coin' | 'ring' | 'skip' | 'toggle' | 'honk' | 'stack';
 

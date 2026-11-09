@@ -20,6 +20,7 @@ export const square: Parts = merge(
   simpleToy('jukebox', 'jukebox', 17.6, -3.5, 1.4, { x: 17.6, z: -3.5, w: 0.8, d: 0.6 }),
   simpleToy('boutique', 'shop', -19.6, -4, 2.0, { x: -19.6, z: -4.6, w: 2.6, d: 1.2 }),
   simpleToy('board', 'board', -5.6, -2.9, 1.6, { x: -5.6, z: -3.1, w: 1.6, d: 0.25 }),
+  simpleToy('giftShop', 'giftShop', 6.2, -3.9, 1.8, { x: 6.2, z: -4.2, w: 1.6, d: 0.7 }),
   bench('sq-b1', -5, -1, 0),
   bench('sq-b2', 5, -1, 0),
   bench('sq-b3', -4.5, 9, Math.PI),

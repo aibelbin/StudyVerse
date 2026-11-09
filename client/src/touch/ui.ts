@@ -82,6 +82,14 @@ export class TouchUI {
             this.toggleMenu(false);
             this.showHomeScreenCard();
           })] : []),
+          item('🙂 Status & gifts', () => {
+            this.toggleMenu(false);
+            hud.onMe();
+          }),
+          ...(hud.admin ? [item('🛡️ Admin', () => {
+            this.toggleMenu(false);
+            hud.onAdmin();
+          })] : []),
           item('✏️ Look', () => {
             this.toggleMenu(false);
             hud.onEditLook();

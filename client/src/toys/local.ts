@@ -45,6 +45,35 @@ export function boardView(): ToyView {
   return { root, update: (ctx) => bob(sign, 2.25, ctx.now) };
 }
 
+/** The gift stall: a little striped cart piled with wrapped presents, a balloon tied on, and a sign. */
+export function giftShopView(): ToyView {
+  const root = new THREE.Group();
+  root.add(mesh(new THREE.BoxGeometry(1.5, 0.75, 0.6), mat('#f7d0c8'), 0, 0.55, -0.3));
+  root.add(mesh(new THREE.BoxGeometry(1.6, 0.06, 0.7), mat(P.woodLight), 0, 0.95, -0.3));
+  for (const x of [-0.55, 0.55]) {
+    const wheel = mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 14), mat(P.woodDark), x, 0.2, 0.0);
+    wheel.rotation.x = Math.PI / 2;
+    root.add(wheel);
+  }
+  for (const x of [-0.72, 0.72]) root.add(mesh(new THREE.BoxGeometry(0.05, 1.3, 0.05), mat(P.woodDark), x, 1.6, -0.55));
+  const roof = mesh(new THREE.BoxGeometry(1.8, 0.06, 0.9), mat('#ff8fab'), 0, 2.28, -0.35);
+  roof.rotation.x = 0.18;
+  root.add(roof);
+  for (let i = 0; i < 6; i++) root.add(mesh(new THREE.SphereGeometry(0.1, 8, 6), mat(i % 2 ? '#fff6ea' : '#ff8fab'), -0.75 + i * 0.3, 2.17, 0.06, false));
+  const boxes: [number, number, number, string, string][] = [[-0.45, 1.1, 0.26, '#7ab8ff', '#ffd36e'], [0, 1.08, 0.22, '#c3a6ff', '#ffffff'], [0.42, 1.12, 0.3, '#8fd694', '#ff8fab'], [-0.1, 1.32, 0.18, '#ffd36e', '#ff6f8f']];
+  for (const [x, y, s, c, r] of boxes) {
+    root.add(mesh(new THREE.BoxGeometry(s, s, s), mat(c), x, y, -0.3));
+    root.add(mesh(new THREE.BoxGeometry(s + 0.01, s + 0.01, 0.04), mat(r), x, y, -0.3, false));
+    root.add(mesh(new THREE.BoxGeometry(0.04, s + 0.01, s + 0.01), mat(r), x, y, -0.3, false));
+  }
+  root.add(mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.9, 4), mat('#ffffff'), 0.68, 1.4, -0.4, false));
+  root.add(mesh(new THREE.SphereGeometry(0.17, 12, 10), mat('#ff5a6a'), 0.68, 1.95, -0.4));
+  const sign = textSprite('🎁 Gifts', 0.28, { bg: '#ffffffdd', font: 40, pad: 12 });
+  sign.position.set(0, 2.7, -0.3);
+  root.add(sign);
+  return { root, update: (ctx) => bob(sign, 2.7, ctx.now) };
+}
+
 /** A floating open book over the library shelf that hands out study quotes. */
 export function quotesView(): ToyView {
   const root = new THREE.Group();

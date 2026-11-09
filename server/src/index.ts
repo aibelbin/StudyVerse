@@ -28,7 +28,9 @@ if (process.env.ICE_SERVERS) {
   }
 }
 
-const server = await startServer({ port, dbPath, inviteCode, staticDir, tls, iceServers });
+// ADMIN_IDS: comma-separated profile ids with admin powers (∞ KP, the admin panel).
+const adminIds = (process.env.ADMIN_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+const server = await startServer({ port, dbPath, inviteCode, staticDir, tls, iceServers, adminIds });
 const scheme = tls ? 'https' : 'http';
 console.log(`🏡 Virtual Study World on ${scheme}://localhost:${server.port}${staticDir ? '' : ' (API only, run `npm run build` for the client)'}`);
 

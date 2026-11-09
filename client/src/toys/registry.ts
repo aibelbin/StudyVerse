@@ -4,7 +4,7 @@ import type { BoatPose, ToyAction, ToyKind, ToyState } from '../../../shared/toy
 import type { SoundKind } from '../audio/kinds';
 import { bellView, chimesView, jukeboxView, pianoView } from './music';
 import { merryGoRoundView, seesawView, slideView, swingView } from './playground';
-import { boardView, coffeeView, quotesView, shopView } from './local';
+import { boardView, coffeeView, giftShopView, quotesView, shopView } from './local';
 import { campfireView, telescopeView } from './misc';
 import { truckView } from './truck';
 import { plotView } from './garden';
@@ -78,6 +78,7 @@ export function toyPrompt(toy: Toy, state?: ToyState): string | null {
     case 'koi': return '[E] feed the koi';
     case 'cairn': return '[E] add a stone to the cairn';
     case 'stageScreen': return '[E] change the stage screen';
+    case 'giftShop': return '[E] browse the gift stall 🎁';
     case 'golfTee': {
       const h = HOLES[Number(toy.id.split('-').pop()) - 1];
       return h ? `[E] play hole ${h.n} · ${h.name} (par ${h.par}) ⛳` : null;
@@ -123,6 +124,7 @@ function build(toy: Toy, def: SceneDef, fx: ToyFx): ToyView {
     case 'stageScreen': return stageScreenView();
     case 'plot': return plotView(toy);
     case 'golfBoard': return golfBoardView();
+    case 'giftShop': return giftShopView();
     case 'golfTee': return { root: new Group(), update() {} }; // the course draws the tee
   }
 }

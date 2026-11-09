@@ -2,7 +2,9 @@ import { CHAT_MAX, NAME_MAX, PLOT_SPOTS, STAGE_TEXT_MAX } from '../../shared/con
 import { isFlower, type Flower } from '../../shared/garden';
 import { normalizeLook } from '../../shared/wardrobe';
 import { isPetKind } from '../../shared/pets/kinds';
-import { GARDEN_ACTIONS, type ClientMsg, type GardenAction } from '../../shared/protocol';
+import { GARDEN_ACTIONS, type AdminAction, type ClientMsg, type GardenAction } from '../../shared/protocol';
+import { FEATURE_KINDS, isGift, STATUS_MINUTES, STATUS_TEXT_MAX, type Feature } from '../../shared/gifts';
+import { ANNOUNCE_MAX } from '../../shared/constants';
 import { TOY_ACTIONS, type ToyAction } from '../../shared/toys';
 import { ACTS, DRINKS, REACTIONS, type Act, type Anim, type Drink, type EmoteKind, type Look } from '../../shared/types';
 
@@ -135,6 +137,21 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return isNum(m.x) && isNum(m.y) && isNum(m.z) ? { t: 'golfBall', x: m.x, y: m.y, z: m.z } : null;
     case 'golfQuit':
       return { t: 'golfQuit' };
+    case 'buyGift':
+      return isGift(m.gift) ? { t: 'buyGift', gift: m.gift } : null;
+    case 'sendGift':
+      return isStr(m.to, 64) && isGift(m.gift) ? { t: 'sendGift', to: m.to, gift: m.gift } : null;
+    case 'useKeepsake':
+      return Number.isInteger(m.id) ? { t: 'useKeepsake', id: m.id as number } : null;
+    case 'setStatus': {
+      if (typeof m.emoji !== 'string' || typeof m.text !== 'string') return null;
+      const clean = (v: string) => v.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+      const minutes = m.minutes === null || m.minutes === undefined ? null : (STATUS_MINUTES as readonly number[]).includes(m.minutes as number) ? (m.minutes as number) : undefined;
+      if (minutes === undefined || m.emoji.length > 16 || [...clean(m.text)].length > STATUS_TEXT_MAX) return null;
+      return { t: 'setStatus', emoji: clean(m.emoji), text: clean(m.text), minutes };
+    }
+    case 'admin':
+      return parseAdmin(m);
     case 'buySeed':
       return isFlower(m.flower) ? { t: 'buySeed', flower: m.flower } : null;
     case 'stageText': {
@@ -172,5 +189,34 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     }
     default:
       return null;
+  }
+}
+
+const BAN_MINUTES = [60, 24 * 60, 7 * 24 * 60];
+const MUTE_MINUTES = [10, 60, 24 * 60];
+
+/** Admin requests: only well-formed ones get to the World (which still checks the sender is an admin). */
+function parseAdmin(m: Record<string, unknown>): ClientMsg | null {
+  const id = isStr(m.id, 64) ? m.id : null;
+  const wrap = (a: AdminAction): ClientMsg => ({ t: 'admin', ...a });
+  switch (m.action) {
+    case 'list': return wrap({ action: 'list' });
+    case 'clearStage': return wrap({ action: 'clearStage' });
+    case 'kick': case 'unban': case 'unmute': case 'goto': case 'sendHome':
+      return id ? wrap({ action: m.action, id }) : null;
+    case 'ban':
+      return id && (m.minutes === null || BAN_MINUTES.includes(m.minutes as number)) ? wrap({ action: 'ban', id, minutes: m.minutes as number | null }) : null;
+    case 'mute':
+      return id && MUTE_MINUTES.includes(m.minutes as number) ? wrap({ action: 'mute', id, minutes: m.minutes as number }) : null;
+    case 'feature':
+      return FEATURE_KINDS.includes(m.feature as Feature) && typeof m.on === 'boolean' ? wrap({ action: 'feature', feature: m.feature as Feature, on: m.on }) : null;
+    case 'announce': {
+      if (typeof m.text !== 'string') return null;
+      const text = m.text.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+      return text && text.length <= ANNOUNCE_MAX ? wrap({ action: 'announce', text }) : null;
+    }
+    case 'deleteChat': case 'deleteNote':
+      return Number.isInteger(m.id) ? wrap({ action: m.action, id: m.id as number }) : null;
+    default: return null;
   }
 }

@@ -4,7 +4,7 @@ import {
   ACT_GAP_MS, CHAT_BURST, CHAT_DM_HISTORY, CHAT_GAP_MS, CHAT_KEEP, CHAT_WINDOW_MS, REACT_GAP_MS,
   MEDITATE_COMPANION_MAX, MEDITATE_EVERY_MS, MEDITATE_KP, MEDITATE_MS, STAGE_TEXT_GAP_MS, STAGE_TEXT_TTL_MS,
   PLOT_IDLE_MS, WATER_BOOST_MIN, GOLF_BALL_GAP_MS, GOLF_CUP_CHECK, GOLF_KP, GOLF_MAX_STROKES, GOLF_PAR_KP, GOLF_PICKUP_SCORE,
-  GOLF_TEE_RANGE,
+  GOLF_TEE_RANGE, GIFT_SEND_GAP_MS, KEEPSAKES_SHOWN,
 } from '../../shared/constants';
 import { clampToBounds, dist, inBox, pointInPolygon } from '../../shared/geometry';
 import type { ClientMsg, ErrorCode, IceServer, ServerMsg } from '../../shared/protocol';
@@ -28,11 +28,14 @@ import { freeBay, inBay } from '../../shared/parking';
 import { emptyPlot, FLOWERS, grow, seedItem, stageOf, type Flower, type PlotState } from '../../shared/garden';
 import type { GardenAction } from '../../shared/protocol';
 import { BALL_R, COURSE_PAR, FELT, HOLES } from '../../shared/golf';
+import { aGift, allOn, GIFTS, STATUS_TEXT_MAX, type AdminPlayer, type Feature, type Features, type Gift, type Keepsake, type Status } from '../../shared/gifts';
+import type { AdminAction } from '../../shared/protocol';
 
 /** What the World needs from a network connection. */
 export interface Conn {
   send(msg: ServerMsg): void;
-  close(code: ErrorCode): void;
+  /** Closes the connection, telling the player why. */
+  close(code: ErrorCode, message?: string): void;
 }
 
 interface Player {
@@ -70,7 +73,13 @@ interface Player {
   lastStageTextAt: number;
   /** Mini-golf: the hole being played, its strokes, the ball, and this visit's scorecard. */
   golf: { hole: number | null; strokes: number; ball: { x: number; y: number; z: number } | null; lastBallAt: number; card: (number | null)[] };
+  status: Status | null;
+  keepsakes: Keepsake[];
+  keepsakeCount: number;
+  lastGiftSentAt: number;
 }
+
+const FOREVER = Number.MAX_SAFE_INTEGER;
 
 /** World state that survives restarts, saved in the store's kv table under the toy kind. */
 const SAVED_KINDS = ['cairn', 'stageScreen', 'plot', 'golfBoard'] as const;
@@ -87,6 +96,9 @@ export class World {
   private toySceneOf = new Map<string, string>(); // toyId -> scene id
   private meditatedAt = new Map<string, number>(); // profile id -> last breather award (survives reconnects)
   private wateredOn = new Map<string, string>(); // `plotId|profileId` -> the day they last watered it
+  /** Profile ids with admin powers (from ADMIN_IDS). */
+  admins = new Set<string>();
+  private features: Features = allOn();
   /** STUN/TURN servers handed to clients for voice chat. */
   ice: IceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 
@@ -97,6 +109,9 @@ export class World {
     private store: Store = new ProfileStore(':memory:'),
   ) {
     for (const def of Object.values(scenes)) for (const toy of def.toys) this.toySceneOf.set(toy.id, def.id);
+    try {
+      this.features = { ...allOn(), ...(JSON.parse(this.store.getKv('features') ?? '{}') as Partial<Features>) };
+    } catch { /* keep everything on */ }
     for (const def of Object.values(scenes)) {
       for (const toy of def.toys) {
         if (!(SAVED_KINDS as readonly string[]).includes(toy.kind)) continue;
@@ -120,6 +135,11 @@ export class World {
   }
 
   join(profile: Profile, conn: Conn, newToken?: string): void {
+    const banned = this.store.restriction(profile.id, 'ban');
+    if (banned !== null && banned > this.now()) {
+      conn.close('banned', banned >= FOREVER ? 'An admin has closed the town to you.' : `You're on a break from the town until ${new Date(banned).toLocaleString()}.`);
+      return;
+    }
     const existing = this.players.get(profile.id);
     if (existing) {
       const old = existing.conn;
@@ -143,7 +163,9 @@ export class World {
       dnd: false, voice: false, holding: null, pet: null, lastNoteAt: 0, lastBrewAt: 0, lastPetAt: 0,
       chatTimes: [], lastReactAt: 0, lastActAt: 0, meditateFrom: null, lastStageTextAt: 0,
       golf: { hole: null, strokes: 0, ball: null, lastBallAt: 0, card: Array(HOLES.length).fill(null) },
+      status: null, keepsakes: [], keepsakeCount: 0, lastGiftSentAt: 0,
     };
+    this.loadKeepsakes(p);
     this.players.set(p.id, p);
     this.spawnPet(p);
     this.sendWelcome(p, newToken);
@@ -193,9 +215,15 @@ export class World {
       case 'golfHoled': return this.golfHoled(p, msg.hole);
       case 'golfPickUp': return this.golfPickUp(p, msg.hole);
       case 'golfQuit': return this.golfClear(p);
+      case 'buyGift': return this.buyGift(p, msg.gift);
+      case 'sendGift': return this.sendGift(p, msg.to, msg.gift);
+      case 'useKeepsake': return this.useKeepsake(p, msg.id);
+      case 'setStatus': return this.setStatus(p, msg.emoji, msg.text, msg.minutes);
+      case 'admin': return this.admin(p, msg);
       case 'offerCoffee': return this.offerCoffee(p, msg.to);
       case 'answerCoffee': return this.answerCoffee(p, msg.fromId, msg.accept);
       case 'setVoice': {
+        if (msg.on && !this.features.voice) return this.error(p, 'feature_off', 'Voice chat is switched off right now.');
         const on = msg.on && !p.dnd;
         if (p.voice === on) return;
         p.voice = on;
@@ -242,6 +270,13 @@ export class World {
       this.players.get(o.fromId)?.conn?.send({ t: 'coffeeAnswer', name: to?.name ?? 'They', accepted: false });
     }
     this.selfPark(t);
+    for (const p of this.players.values()) {
+      if (p.status?.until != null && t >= p.status.until) {
+        p.status = null;
+        this.updated(p);
+        this.broadcastOnline();
+      }
+    }
     const done = [...this.players.values()].filter((p) => p.meditateFrom !== null && t - p.meditateFrom >= MEDITATE_MS);
     const companions = done.map((p) => this.companionsOf(p)); // before anyone's breather is marked done
     done.forEach((p, i) => this.finishBreather(p, t, companions[i]));
@@ -321,6 +356,8 @@ export class World {
       return this.error(p, 'bad_slot', 'Get a little closer to that seat.');
     }
     if (this.slots.has(slotId)) return this.error(p, 'slot_taken', 'That seat is taken!');
+    const seatToy = slot.toyId ? this.findToy(slot.toyId) : undefined;
+    if (seatToy?.kind === 'truck' && slot.pose === 'drive' && !this.features.trucks) return this.error(p, 'feature_off', 'The trucks are parked for now.');
     this.golfClear(p);
     this.slots.set(slotId, p.id);
     p.slotId = slotId;
@@ -406,6 +443,7 @@ export class World {
 
   /** Anyone on the stage can put up to a line on the stage screen; it clears itself after two hours. */
   private stageText(p: Player, text: string): void {
+    if (!this.features.stageScreen) return this.error(p, 'feature_off', 'The stage screen is switched off right now.');
     const def = this.scene(p.scene);
     const screen = def.toys.find((toy) => toy.kind === 'stageScreen');
     if (!def.stage || !screen || !inBox(def.stage.stage, p.x, p.z, 0.3)) return this.error(p, 'bad_stage', 'Hop up on the stage to change the screen.');
@@ -589,6 +627,7 @@ export class World {
   }
 
   private golfTee(p: Player, n: number): void {
+    if (!this.features.golf) return this.error(p, 'feature_off', 'Mini-golf is closed right now.');
     const hole = HOLES[n - 1];
     const tee = this.scene(p.scene).toys.find((x) => x.id === `golf-tee-${n}`);
     if (!hole || !tee || p.slotId || dist(p.x, p.z, hole.tee.x, hole.tee.z) > GOLF_TEE_RANGE) return this.error(p, 'bad_golf', 'Stand on the tee to start this hole.');
@@ -672,7 +711,7 @@ export class World {
   private buySeed(p: Player, flower: Flower): void {
     const price = FLOWERS[flower].price;
     if (!price || p.wallet.owned.includes(seedItem(flower))) return;
-    if (p.wallet.kp < price || !this.store.buy(p.id, seedItem(flower), price)) {
+    if (p.wallet.kp < this.priceFor(p, price) || !this.store.buy(p.id, seedItem(flower), this.priceFor(p, price))) {
       return this.error(p, 'no_kp', `You need ${price} ✨ KP for ${FLOWERS[flower].plural}.`);
     }
     p.wallet = this.store.wallet(p.id);
@@ -681,14 +720,23 @@ export class World {
 
   private publicWallet(p: Player): Wallet {
     const { kp, streak, owned, pets, pet } = p.wallet;
-    return { kp, streak, owned, pets, pet };
+    return { kp, streak, owned, pets, pet, ...(this.isAdmin(p) ? { admin: true } : {}) };
+  }
+
+  private isAdmin(p: Player): boolean {
+    return this.admins.has(p.id);
+  }
+
+  /** What something costs this player: admins pay nothing. */
+  private priceFor(p: Player, price: number): number {
+    return this.isAdmin(p) ? 0 : price;
   }
 
   private buy(p: Player, itemId: string): void {
     const item = itemById(itemId);
     if (!item || isFree(itemId)) return this.error(p, 'bad_item', "That isn't for sale.");
     if (p.wallet.owned.includes(itemId)) return;
-    if (p.wallet.kp < item.price || !this.store.buy(p.id, itemId, item.price)) {
+    if (p.wallet.kp < this.priceFor(p, item.price) || !this.store.buy(p.id, itemId, this.priceFor(p, item.price))) {
       return this.error(p, 'no_kp', `You need ${item.price} ✨ KP for that. Study a little more!`);
     }
     p.wallet = this.store.wallet(p.id);
@@ -719,7 +767,7 @@ export class World {
 
   private adoptPet(p: Player, kind: PetKind, name: string): void {
     const owned = p.wallet.pets.includes(kind);
-    const price = owned ? 0 : petPrice(kind);
+    const price = owned ? 0 : this.priceFor(p, petPrice(kind));
     if (p.wallet.kp < price || !this.store.adoptPet(p.id, { kind, name }, price)) {
       return this.error(p, 'no_kp', `A ${kind} needs ${price} ✨ KP. Keep studying!`);
     }
@@ -744,6 +792,10 @@ export class World {
 
   private chat(p: Player, text: string, to?: string): void {
     const t = this.now();
+    if (to === undefined && !this.features.globalChat) return this.error(p, 'feature_off', 'Everyone chat is switched off right now.');
+    if (to !== undefined && !this.features.dms) return this.error(p, 'feature_off', 'Private messages are switched off right now.');
+    const muted = this.store.restriction(p.id, 'mute');
+    if (muted !== null && muted > t) return this.error(p, 'muted', `An admin muted your chat until ${new Date(muted).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`);
     p.chatTimes = p.chatTimes.filter((at) => t - at < CHAT_WINDOW_MS);
     const last = p.chatTimes.at(-1);
     if ((last !== undefined && t - last < CHAT_GAP_MS) || p.chatTimes.length >= CHAT_BURST) {
@@ -806,8 +858,12 @@ export class World {
       : this.offers.has(to.id) ? `${to.name} is already deciding on a gift.`
       : null;
     if (why || !to || !p.holding) return this.error(p, 'bad_gift', why ?? 'There is nobody there.');
+    if (p.holding.item === 'gift' && !this.features.gifts) return this.error(p, 'feature_off', 'Gifts are switched off right now.');
     this.offers.set(to.id, { fromId: p.id, at: this.now() });
-    to.conn!.send({ t: 'coffeeOffer', fromId: p.id, name: p.name, drink: p.holding.item, stars: p.holding.stars, ...(p.holding.flower ? { flower: p.holding.flower } : {}) });
+    to.conn!.send({
+      t: 'coffeeOffer', fromId: p.id, name: p.name, drink: p.holding.item, stars: p.holding.stars,
+      ...(p.holding.flower ? { flower: p.holding.flower } : {}), ...(p.holding.gift ? { gift: p.holding.gift } : {}),
+    });
   }
 
   private answerCoffee(p: Player, fromId: string, accept: boolean): void {
@@ -817,18 +873,23 @@ export class World {
     const from = this.players.get(fromId);
     if (!from) return;
     const cup = from.holding;
-    const ok = accept && cup && !p.holding && this.now() - o.at < GIFT_TTL_MS;
+    const ok = accept && cup && (!p.holding || cup.item === 'gift') && this.now() - o.at < GIFT_TTL_MS;
     if (!ok) {
       from.conn?.send({ t: 'coffeeAnswer', name: p.name, accepted: false });
       if (accept && !cup) this.error(p, 'bad_gift', `${from.name} doesn't have it any more.`);
       return;
     }
-    p.holding = cup;
     from.holding = null;
-    this.updated(p);
+    if (cup.item === 'gift' && cup.gift) {
+      // A stall gift goes straight onto the keepsakes shelf instead of into their hands.
+      this.giveKeepsake(from, p.id, cup.gift);
+    } else {
+      p.holding = cup;
+      this.updated(p);
+      this.pushFeed('gift', feedText.gift(from.name, p.name, cup.stars, holdName(cup)));
+    }
     this.updated(from);
     from.conn?.send({ t: 'coffeeAnswer', name: p.name, accepted: true });
-    this.pushFeed('gift', feedText.gift(from.name, p.name, cup.stars, holdName(cup)));
   }
 
   private brew(p: Player, drink: Drink, stars: number): void {
@@ -837,6 +898,7 @@ export class World {
       return this.error(p, 'bad_toy', 'Stand at the coffee machine to brew.');
     }
     if (p.holding?.item === 'bouquet') return this.error(p, 'bad_toy', 'Put your bouquet in your vase or give it away first.');
+    if (p.holding?.item === 'gift') return this.error(p, 'bad_toy', 'Give your gift away first.');
     const t = this.now();
     if (t - p.lastBrewAt < BREW_COOLDOWN_MS) return;
     p.lastBrewAt = t;
@@ -848,6 +910,7 @@ export class World {
   // ---------- notice board ----------
 
   private postNote(p: Player, raw: string): void {
+    if (!this.features.notes) return this.error(p, 'feature_off', 'The notice board is closed right now.');
     const text = raw.replace(/\s+/g, ' ').trim();
     const t = this.now();
     if (!text || [...text].length > NOTE_MAX) return this.error(p, 'bad_note', `Notes are 1–${NOTE_MAX} characters.`);
@@ -1018,6 +1081,191 @@ export class World {
     this.setToyState(toyId, state, p.id);
   }
 
+  // ---------- gifts & keepsakes ----------
+
+  private loadKeepsakes(p: Player): void {
+    p.keepsakes = this.store.keepsakes(p.id, KEEPSAKES_SHOWN) as Keepsake[];
+    p.keepsakeCount = this.store.keepsakeCount(p.id);
+  }
+
+  /** Pays for a gift (admins don't), or says why not. */
+  private payForGift(p: Player, gift: Gift): boolean {
+    const price = this.priceFor(p, GIFTS[gift].price);
+    if (p.wallet.kp < price) {
+      this.error(p, 'no_kp', `${GIFTS[gift].emoji} ${GIFTS[gift].name} costs ${price} ✨ KP.`);
+      return false;
+    }
+    if (price) this.store.addKp(p.id, -price);
+    p.wallet = this.store.wallet(p.id);
+    p.conn?.send({ t: 'wallet', wallet: this.publicWallet(p) });
+    return true;
+  }
+
+  /** The stall: buy a gift to carry over and hand to someone (G). */
+  private buyGift(p: Player, gift: Gift): void {
+    if (!this.features.gifts) return this.error(p, 'feature_off', 'Gifts are switched off right now.');
+    const stall = this.scene(p.scene).toys.find((x) => x.kind === 'giftShop');
+    if (!stall || p.slotId || dist(p.x, p.z, stall.x, stall.z) > stall.radius + 0.5) return this.error(p, 'bad_gift', 'Visit the gift stall in the square.');
+    if (p.holding) return this.error(p, 'bad_gift', 'Your hands are full.');
+    if (!this.payForGift(p, gift)) return;
+    p.holding = { item: 'gift', gift, stars: 0, sips: 0 };
+    this.updated(p);
+  }
+
+  /** From the player card: a gift straight to anyone, online or not. */
+  private sendGift(p: Player, toId: string, gift: Gift): void {
+    if (!this.features.gifts) return this.error(p, 'feature_off', 'Gifts are switched off right now.');
+    const toName = this.store.profileName(toId);
+    if (!toName || toId === p.id) return this.error(p, 'bad_gift', "That gift couldn't be delivered.");
+    const t = this.now();
+    if (t - p.lastGiftSentAt < GIFT_SEND_GAP_MS) return this.error(p, 'bad_gift', 'One gift at a time 🎁 try again in a few seconds.');
+    if (!this.payForGift(p, gift)) return;
+    p.lastGiftSentAt = t;
+    this.giveKeepsake(p, toId, gift);
+  }
+
+  /** Saves the gift on the receiver's shelf, tells them (and their scene), and makes the feed. */
+  private giveKeepsake(from: Player, toId: string, gift: Gift): void {
+    const toName = this.store.profileName(toId) ?? 'someone';
+    this.store.addKeepsake(toId, from.id, from.name, gift, this.now());
+    const to = this.players.get(toId);
+    if (to) {
+      this.loadKeepsakes(to);
+      this.updated(to);
+      this.toScene(to.scene, { t: 'giftReceived', fromId: from.id, fromName: from.name, toId, gift });
+    }
+    this.pushFeed('giftSent', `${GIFTS[gift].emoji} ${from.name} gave ${toName} ${aGift(gift)}`);
+  }
+
+  /** Eat a cupcake or cookie, or let a balloon go. */
+  private useKeepsake(p: Player, id: number): void {
+    const own = p.keepsakes.find((k) => k.id === id);
+    const use = own && GIFTS[own.gift].use;
+    if (!own || !use) return;
+    if (this.store.takeKeepsake(p.id, id) === null) return;
+    this.loadKeepsakes(p);
+    this.updated(p);
+    if (use === 'eat') this.toScene(p.scene, { t: 'act', fromId: p.id, kind: 'love' });
+    else this.toScene(p.scene, { t: 'balloonUp', x: p.x, z: p.z, color: GIFTS[own.gift].color });
+  }
+
+  // ---------- status ----------
+
+  private setStatus(p: Player, emoji: string, text: string, minutes: number | null): void {
+    const e = [...emoji].slice(0, 4).join('');
+    const tx = text.slice(0, STATUS_TEXT_MAX);
+    p.status = !e && !tx ? null : { emoji: e, text: tx, until: minutes === null ? null : this.now() + minutes * 60_000 };
+    this.updated(p);
+    this.broadcastOnline();
+  }
+
+  // ---------- admin ----------
+
+  private admin(p: Player, a: AdminAction): void {
+    if (!this.isAdmin(p)) return this.error(p, 'not_admin', 'Only admins can do that.');
+    const t = this.now();
+    const target = 'id' in a && typeof a.id === 'string' ? this.players.get(a.id) : undefined;
+    switch (a.action) {
+      case 'list':
+        break;
+      case 'kick':
+        if (target?.conn) target.conn.close('kicked', 'An admin sent you home for now. You can come back in a bit.');
+        if (target) this.remove(target);
+        break;
+      case 'ban': {
+        const until = a.minutes === null ? FOREVER : t + a.minutes * 60_000;
+        this.store.setRestriction(a.id, 'ban', until);
+        if (target?.conn) target.conn.close('banned', a.minutes === null ? 'An admin has closed the town to you.' : `You're on a break from the town until ${new Date(until).toLocaleString()}.`);
+        if (target) this.remove(target);
+        break;
+      }
+      case 'unban':
+        this.store.setRestriction(a.id, 'ban', null);
+        break;
+      case 'mute':
+        this.store.setRestriction(a.id, 'mute', t + a.minutes * 60_000);
+        if (target) this.error(target, 'muted', `An admin muted your chat for ${a.minutes >= 60 ? `${a.minutes / 60} h` : `${a.minutes} min`}.`);
+        break;
+      case 'unmute':
+        this.store.setRestriction(a.id, 'mute', null);
+        break;
+      case 'goto':
+        if (target) this.placeNear(p, target.scene, target.x + 1.2, target.z + 0.6);
+        break;
+      case 'sendHome':
+        if (target) {
+          const spawn = this.scene(START_SCENE).spawns.find((s) => s.id === START_SPAWN)!;
+          this.placeNear(target, START_SCENE, spawn.x, spawn.z);
+        }
+        break;
+      case 'feature':
+        this.features = { ...this.features, [a.feature]: a.on };
+        this.store.setKv('features', JSON.stringify(this.features));
+        this.toAll({ t: 'features', features: { ...this.features } });
+        if (a.feature === 'voice' && !a.on) for (const q of this.players.values()) if (q.voice) {
+          q.voice = false;
+          this.updated(q);
+        }
+        break;
+      case 'announce':
+        this.toAll({ t: 'announce', text: a.text });
+        break;
+      case 'deleteChat':
+        if (this.store.deleteChat(a.id)) this.toAll({ t: 'chatDelete', id: a.id });
+        break;
+      case 'deleteNote':
+        if (this.store.deleteNoteAny(a.id)) this.toAll({ t: 'notes', list: this.store.notes(NOTES_SHOWN) });
+        break;
+      case 'clearStage': {
+        const screen = Object.values(this.scenes).flatMap((d) => d.toys).find((x) => x.kind === 'stageScreen');
+        if (screen) this.saveToyState(screen.id, { kind: 'stageScreen', text: null, by: null, until: 0 });
+        break;
+      }
+    }
+    p.conn?.send({ t: 'adminList', players: this.adminList() });
+  }
+
+  /** Everyone online (and anyone banned or muted), for the admin panel. */
+  private adminList(): AdminPlayer[] {
+    const t = this.now();
+    const live = (u: number | null) => (u !== null && u > t ? u : null);
+    const out = new Map<string, AdminPlayer>();
+    for (const q of this.players.values()) {
+      out.set(q.id, {
+        id: q.id, name: q.name, scene: q.scene, online: q.conn !== null, kp: q.wallet.kp, status: q.status,
+        mutedUntil: live(this.store.restriction(q.id, 'mute')), bannedUntil: live(this.store.restriction(q.id, 'ban')),
+      });
+    }
+    for (const kind of ['ban', 'mute'] as const) {
+      for (const r of this.store.restrictions(kind)) {
+        if (r.until <= t) continue;
+        const e = out.get(r.id) ?? { id: r.id, name: r.name, scene: '', online: false, kp: 0, status: null, mutedUntil: null, bannedUntil: null };
+        if (kind === 'ban') e.bannedUntil = r.until;
+        else e.mutedUntil = r.until;
+        out.set(r.id, e);
+      }
+    }
+    return [...out.values()];
+  }
+
+  /** Moves a player (seat, golf hole and all) to a spot, across scenes if needed. */
+  private placeNear(q: Player, scene: string, x: number, z: number): void {
+    if (q.slotId) this.freeSlot(q);
+    this.golfClear(q);
+    const from = q.scene;
+    if (from !== scene) this.toScene(from, { t: 'playerLeft', id: q.id }, q.id);
+    q.scene = scene;
+    q.x = x;
+    q.z = z;
+    q.anim = 'idle';
+    q.lastMoveAt = this.now();
+    if (q.pet) this.spawnPet(q);
+    q.conn?.send({ t: 'sceneSnapshot', scene, you: this.toView(q), players: this.scenePlayers(scene, q.id), toys: this.sceneToys(scene) });
+    if (from !== scene) this.toScene(scene, { t: 'playerJoined', player: this.toView(q) }, q.id);
+    else this.toScene(scene, { t: 'playerMoved', id: q.id, x, z, facing: q.facing, anim: 'idle' }, q.id);
+    this.broadcastOnline();
+  }
+
   // ---------- messaging ----------
 
   private sendWelcome(p: Player, token?: string): void {
@@ -1033,7 +1281,8 @@ export class World {
       wallet: this.publicWallet(p),
       treeMinutes: this.store.dailyMinutes(dayOf(this.now())),
       ice: this.ice,
-      chat: this.store.chatFor(p.id, CHAT_KEEP, CHAT_DM_HISTORY),
+      chat: this.store.chatFor(p.id, CHAT_KEEP, CHAT_DM_HISTORY, this.store.createdAt(p.id)),
+      features: { ...this.features },
     });
   }
 
@@ -1055,7 +1304,7 @@ export class World {
   }
 
   private online(): OnlineEntry[] {
-    return [...this.players.values()].map((q) => ({ id: q.id, name: q.name, scene: q.scene }));
+    return [...this.players.values()].map((q) => ({ id: q.id, name: q.name, scene: q.scene, status: q.status }));
   }
 
   private broadcastOnline(): void {
@@ -1076,6 +1325,7 @@ export class World {
       x: p.x, z: p.z, facing: p.facing, anim: p.anim,
       slotId: p.slotId, session: p.session, connected: p.conn !== null, rainUntil: p.rainUntil,
       dnd: p.dnd, voice: p.voice, holding: p.holding, pet: p.pet && { ...p.pet },
+      status: p.status, keepsakes: p.keepsakes, keepsakeCount: p.keepsakeCount,
     };
   }
 }
