@@ -4,6 +4,7 @@ import type { EmoteKind, FeedEvent, OnlineEntry, PlayerView } from '../../../sha
 import type { ConnStatus } from '../net/connection';
 import { byId, h } from './dom';
 import { formatClock, sessionLeftMs } from './format';
+import { toggleFullscreen } from '../touch/fullscreen';
 
 const FEED_SHOWN = 6;
 const FEED_FADE_MS = 30_000;
@@ -71,6 +72,7 @@ export class Hud {
           h('button', { className: `mini${me.dnd ? ' on' : ''}`, title: me.dnd ? 'Do not disturb is on (N)' : 'Do not disturb (N)', textContent: me.dnd ? '🔕' : '🔔', onclick: () => this.onToggleDnd() }),
           h('button', { className: 'mini', title: this.muted ? 'Sound off' : 'Sound on', textContent: this.muted ? '🔇' : '🔊', onclick: () => this.onToggleMute() }),
           h('button', { className: 'mini', title: this.quality === 'high' ? 'Graphics: High (click for Lite)' : 'Graphics: Lite (click for High)', textContent: this.quality === 'high' ? '✨' : '🍃', onclick: () => this.onToggleQuality() }),
+          h('button', { className: 'mini', title: 'Full screen (F)', textContent: '⛶', onclick: () => toggleFullscreen() }),
           h('button', { className: 'mini', title: 'Change your look', textContent: '✏️', onclick: () => this.onEditLook() }))),
       h('div', { className: s ? `timer ${s.phase}` : 'sub', textContent: line }),
       ...(s?.phase === 'break' ? [h('button', { className: 'mini', textContent: 'End break', onclick: () => this.onEndBreak() })] : []),

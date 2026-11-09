@@ -3,6 +3,7 @@ import type { Input } from '../game/input';
 import { h } from '../hud/dom';
 import type { Hud } from '../hud/hud';
 import { promptActions } from './actions';
+import { canFullscreen, enterFullscreen, isFullscreen, isIPhone, isStandalone, toggleFullscreen } from './fullscreen';
 import { Joystick } from './stick';
 
 export interface TouchHost {
@@ -76,6 +77,7 @@ export class TouchUI {
           item(hud.voiceState === 'off' ? '🎙️ Voice' : hud.voiceState === 'muted' ? '🤐 Unmute' : '🎙️ Leave voice', () => hud.onToggleVoice()),
           item(hud.muted ? '🔇 Sound off' : '🔊 Sound on', () => hud.onToggleMute()),
           item(hud.quality === 'high' ? '✨ Graphics: High' : '🍃 Graphics: Lite', () => hud.onToggleQuality()),
+          ...(canFullscreen() ? [item(isFullscreen() ? '⛶ Exit full screen' : '⛶ Full screen', () => toggleFullscreen())] : []),
           item('✏️ Look', () => {
             this.toggleMenu(false);
             hud.onEditLook();
@@ -84,6 +86,17 @@ export class TouchUI {
       );
     };
     this.renderMenu();
+    // Hide the browser's address bar: full screen on the first tap (and again after swiping out of it).
+    host.canvas.addEventListener('pointerdown', () => {
+      if (!isFullscreen() && !isStandalone()) void enterFullscreen();
+    });
+    if (!canFullscreen() && !isStandalone() && isIPhone(navigator.userAgent, navigator.platform, navigator.maxTouchPoints)) {
+      const shown = Number(localStorage.getItem('sv-a2hs') ?? 0);
+      if (shown < 3) {
+        localStorage.setItem('sv-a2hs', String(shown + 1));
+        setTimeout(() => host.hud.toast('📱 For full screen on iPhone: tap Share ⬆️ then "Add to Home Screen"', 8000), 4000);
+      }
+    }
     const portrait = h('div', { className: 'touch-portrait' }, h('div', { textContent: '🔄' }), h('p', { textContent: 'Turn your phone sideways to play' }));
     document.body.append(
       this.actionsEl, this.pianoEl, this.menu, portrait,

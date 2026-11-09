@@ -37,6 +37,7 @@ import type { Voice } from '../voice/voice';
 import { LocalPet } from '../pets/controller';
 import { BreathOverlay } from '../hud/breath';
 import { floorY } from '../toys/parkMath';
+import { toggleFullscreen } from '../touch/fullscreen';
 import { FLOWERS } from '../../../shared/garden';
 import { StageFx } from '../world/stageFx';
 import { Post } from '../world/post';
@@ -100,6 +101,9 @@ export class Game {
   onOpenGarden: (toyId: string) => void = () => {};
   /** Called once per frame after the HUD updates (the touch controls follow the hint). */
   onFrame: () => void = () => {};
+  /** Called once, after the town has been drawn for the first time (the loading screen fades then). */
+  onFirstFrame: () => void = () => {};
+  private drawnOnce = false;
   onToggleDnd: () => void = () => {};
   onVoiceKey: () => void = () => {};
   voice: Voice | null = null;
@@ -191,6 +195,9 @@ export class Game {
       if (!this.hud.modalOpen()) this.golf.quit();
     });
     this.input.on('e', () => this.interact());
+    this.input.on('f', () => {
+      if (!this.hud.modalOpen()) toggleFullscreen();
+    });
     this.input.on(' ', () => this.openSessionPicker());
     this.input.on('m', () => {
       if (!this.hud.modalOpen()) this.minimap.toggle();
@@ -1150,6 +1157,10 @@ export class Game {
     CLOUDS.t.value = nowP / 1000;
     CLOUDS.k.value = this.quality === 'high' && !this.def.theme.indoor ? 0.2 * (1 - this.night) : 0;
     this.post.render(this.scene, this.rig.camera, this.night);
+    if (!this.drawnOnce) {
+      this.drawnOnce = true;
+      requestAnimationFrame(() => this.onFirstFrame()); // after it's actually on screen
+    }
     if (this.slowFrames.update(dt, nowP, this.quality)) this.hud.toast('Running a bit slow? The ✨ button switches to Lite graphics 🍃', 6000);
     if (this.fps) {
       this.fps.frames++;

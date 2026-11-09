@@ -11,6 +11,9 @@ import { openStageScreen } from './hud/stageScreen';
 import { GardenPanel } from './hud/garden';
 import { isTouchDevice } from './touch/detect';
 import { TouchUI } from './touch/ui';
+import { loadDone, loadStep } from './loader';
+
+loadStep(0.35); // the game's code has arrived
 import { NotesBoard } from './hud/notes';
 import { Wardrobe } from './hud/wardrobe';
 import { Voice } from './voice/voice';
@@ -99,18 +102,21 @@ function setWallet(w: Wallet): void {
 }
 
 async function askJoin(error?: string): Promise<void> {
+  loadDone(); // newcomers see the join form instead
   const r = await showJoin({ mode: 'join', look: DEFAULT_LOOK, error });
   hello = { t: 'hello', inviteCode: r.inviteCode, name: r.name, look: r.look };
   conn.send(hello); // if the socket isn't open yet, onOpen sends it
 }
 
 conn.onOpen = () => {
+  loadStep(0.55);
   if (hello) conn.send(hello);
 };
 const gone = () => {
   conn.stop();
   game?.stop();
   byId('gone').hidden = false;
+  loadDone();
 };
 conn.onClose = (code) => {
   if (code === 4001) gone();
@@ -128,6 +134,7 @@ conn.onMessage = (m) => {
   if (m.t === 'chatReact') chat.setReactions(m.id, m.reactions);
   if (m.t === 'online') for (const p of m.list) chat.setName(p.id, p.name);
   if (m.t === 'welcome') {
+    loadStep(0.75);
     setWallet(m.wallet);
     voice.ice = m.ice;
     hud.meId = m.you.id;
@@ -185,6 +192,7 @@ conn.onMessage = (m) => {
         g.onFrame = () => touchUI?.update(g.currentPrompt());
       }
       setTimeout(() => (hud.feedLive = true), 3000);
+      game.onFirstFrame = () => loadDone();
       game.onToggleDnd = toggleDnd;
       game.onChatKey = () => chat.focus();
       game.voice = voice;

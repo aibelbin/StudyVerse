@@ -43,6 +43,7 @@ One process serves the page and the WebSocket (`/ws`). Profiles are stored in `d
 | T | emote wheel (hold, point, let go; or click) |
 | drag (mouse) | mini-golf: drag back from anywhere and let go to putt |
 | Q | leave the mini-golf hole you're on |
+| F | full screen |
 | M | big map |
 | N | do not disturb |
 | V | mute / unmute your mic (when on voice) |
@@ -52,8 +53,8 @@ One process serves the page and the WebSocket (`/ws`). Profiles are stored in `d
 On phones and tablets (held sideways) the town switches to touch controls: put a thumb on the left of the screen
 for a joystick (it drives the truck and rows the boat too), tap the big button on the right for whatever the hint
 says (sit, feed, drive, hop out…), small buttons appear for study, sip, give and honk, and instruments get 8 note
-keys. 💬 opens chat, 😊 the emotes, ☰ the map, settings and who's online. Phones start on Lite graphics. Add the page
-to your home screen to play full screen. `?touch` forces touch mode on a computer (`?touch=0` turns it off).
+keys. 💬 opens chat, 😊 the emotes, ☰ the map, settings and who's online. Phones start on Lite graphics. On Android and iPads the game goes full screen (no
+address bar) on your first tap; on iPhone, add the page to your home screen for that. `?touch` forces touch mode on a computer (`?touch=0` turns it off).
 
 ## Knowledge Points, wardrobe and pets
 
