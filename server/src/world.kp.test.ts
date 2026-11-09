@@ -211,6 +211,52 @@ describe('trucks', () => {
     expect(truckState(a.c)).toMatchObject({ kind: 'truck', x: truck.x, z: truck.z + 4 });
   });
 
+  it('an abandoned truck parks itself in the nearest free bay after 10 minutes', () => {
+    const a = joinNew('Sam');
+    const b = joinNew('Jo');
+    board(a.id);
+    const truck = SCENES.town.toys.find((x) => x.id === 'truck-1')!;
+    t += 1000;
+    w.handle(a.id, { t: 'move', x: truck.x + 1, z: truck.z + 5, facing: 0.6, anim: 'sit' });
+    w.handle(a.id, { t: 'stand' });
+    t += 9 * MIN;
+    w.tick();
+    expect(truckState(b.c)).toMatchObject({ x: truck.x + 1, z: truck.z + 5 });
+    t += 2 * MIN;
+    w.tick();
+    expect(truckState(b.c)).toMatchObject({ x: truck.x, z: truck.z, heading: 0 }); // back in its own bay
+  });
+
+  it('does not park itself with someone aboard, or when it is already in a bay', () => {
+    const a = joinNew('Sam');
+    const b = joinNew('Jo');
+    board(a.id);
+    const truck = SCENES.town.toys.find((x) => x.id === 'truck-1')!;
+    const bay2 = SCENES.town.parking!.find((x) => x.id === 'lot-w-2')!;
+    t += 1000;
+    w.handle(a.id, { t: 'move', x: truck.x, z: truck.z + 4, facing: 0, anim: 'sit' });
+    const bed = SCENES.town.slots.find((x) => x.id === 'truck-1-bed-l')!;
+    t += 10_000;
+    w.handle(b.id, { t: 'move', x: bed.x - 1, z: bed.z + 4, facing: 0, anim: 'idle' }); // the truck moved 4 m south
+    w.handle(b.id, { t: 'sit', slotId: 'truck-1-bed-l' });
+    expect(w.view(b.id)!.slotId).toBe('truck-1-bed-l');
+    w.handle(a.id, { t: 'stand' });
+    t += 11 * MIN;
+    w.tick();
+    expect(truckState(a.c)).toMatchObject({ z: truck.z + 4 }); // Jo is still in the back
+    w.handle(b.id, { t: 'stand' });
+    const seat = SCENES.town.slots.find((x) => x.id === 'truck-1-drive')!;
+    t += 10_000;
+    w.handle(a.id, { t: 'move', x: seat.x, z: seat.z + 5, facing: 0, anim: 'idle' });
+    w.handle(a.id, { t: 'sit', slotId: 'truck-1-drive' });
+    t += 1000;
+    w.handle(a.id, { t: 'move', x: bay2.x, z: bay2.z, facing: Math.PI, anim: 'sit' }); // parked nose-in in bay 2
+    w.handle(a.id, { t: 'stand' });
+    t += 11 * MIN;
+    w.tick();
+    expect(truckState(b.c)).toMatchObject({ x: bay2.x, z: bay2.z });
+  });
+
   it('anyone in the truck can honk, people outside cannot', () => {
     const a = joinNew('Sam');
     const b = joinNew('Jo');

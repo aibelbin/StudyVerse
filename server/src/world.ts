@@ -1,6 +1,6 @@
 import {
   CHEER_FEED_COOLDOWN_MS, DOOR_PAD, FEED_ON_WELCOME, GRACE_MS, MAX_SPEED, NOTE_COOLDOWN_MS, NOTE_MAX, NOTES_PER_AUTHOR,
-  NOTES_SHOWN, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS, BREW_COOLDOWN_MS, HOLD_MS,
+  NOTES_SHOWN, PLAYER_RADIUS, RAIN_MS, SEAT_RADIUS, BREW_COOLDOWN_MS, HOLD_MS, SELF_PARK_MS,
 } from '../../shared/constants';
 import { clampToBounds, dist, inBox, pointInPolygon } from '../../shared/geometry';
 import type { ClientMsg, ErrorCode, IceServer, ServerMsg } from '../../shared/protocol';
@@ -20,6 +20,7 @@ import { awardFor, dayOf } from './rewards';
 import { Feed, feedText } from './feed';
 import { elapsedMin, newSession, stepSession, validLengths } from './sessions';
 import { COOLDOWN_MS, HANDLERS } from './toys';
+import { freeBay, inBay } from '../../shared/parking';
 
 /** What the World needs from a network connection. */
 export interface Conn {
@@ -62,6 +63,7 @@ export class World {
   private slots = new Map<string, string>(); // slotId -> playerId
   private feed = new Feed();
   private toyStates = new Map<string, ToyState>(); // toyId -> state (toy ids are unique across scenes)
+  private lastDrivenAt = new Map<string, number>(); // truck toyId -> when someone last drove it (absent = never)
   private toySceneOf = new Map<string, string>(); // toyId -> scene id
   /** STUN/TURN servers handed to clients for voice chat. */
   ice: IceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
@@ -186,6 +188,28 @@ export class World {
       }
       if (!p.conn && p.disconnectedAt !== null && t - p.disconnectedAt >= GRACE_MS) this.remove(p);
     }
+    this.selfPark(t);
+  }
+
+  /** Trucks left out of a bay with nobody aboard for SELF_PARK_MS pop back to the nearest free bay. */
+  private selfPark(t: number): void {
+    for (const def of Object.values(this.scenes)) {
+      const bays = def.parking;
+      if (!bays?.length) continue;
+      const trucks = def.toys.filter((toy) => toy.kind === 'truck');
+      for (const toy of trucks) {
+        const since = this.lastDrivenAt.get(toy.id);
+        if (since === undefined || t - since < SELF_PARK_MS) continue;
+        if ((toy.slotIds ?? []).some((id) => this.slots.has(id))) continue;
+        const s = this.toyStates.get(toy.id);
+        if (s?.kind !== 'truck') continue;
+        this.lastDrivenAt.delete(toy.id);
+        if (bays.some((b) => inBay(b, s.x, s.z, s.heading))) continue;
+        const others = trucks.filter((o) => o.id !== toy.id).map((o) => this.toyStates.get(o.id)).filter((o) => o?.kind === 'truck') as { x: number; z: number }[];
+        const bay = freeBay(bays, others, s.x, s.z);
+        if (bay) this.setToyState(toy.id, { kind: 'truck', x: bay.x, z: bay.z, heading: bay.rot, returnFrom: null });
+      }
+    }
   }
 
   // ---------- rules ----------
@@ -257,6 +281,7 @@ export class World {
     if (slot && isController(slot.pose) && slot.toyId) {
       const s = this.toyStates.get(slot.toyId);
       if (s) p.conn?.send({ t: 'toyState', toyId: slot.toyId, state: s }); // the driver was never echoed its own pose
+      if (s?.kind === 'truck' && this.lastDrivenAt.has(slot.toyId)) this.lastDrivenAt.set(slot.toyId, this.now());
     }
     if (off) {
       p.x = off.x;
@@ -574,6 +599,7 @@ export class World {
     p.lastMoveAt = t;
     p.x = x;
     p.z = z;
+    if (b.toy.kind === 'truck') this.lastDrivenAt.set(toyId, t);
     const state: ToyState = b.s.kind === 'rowboat'
       ? { kind: 'rowboat', x, z, heading, returnFrom: null }
       : { kind: 'truck', x, z, heading, returnFrom: null, ...(tilt ? { tilt } : {}) };

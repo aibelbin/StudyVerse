@@ -18,3 +18,4 @@ export const NOTES_PER_AUTHOR = 5;
 export const NOTES_SHOWN = 30;
 export const BREW_COOLDOWN_MS = 20_000;
 export const HOLD_MS = 10 * 60_000;         // how long you carry a drink
+export const SELF_PARK_MS = 10 * 60_000;    // an abandoned truck parks itself after this
