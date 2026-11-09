@@ -249,7 +249,7 @@ function makeStep(kind: StepKind, drink: Drink): StepRun {
         tick(dt) {
           idle = m.fill === lastFill ? idle + dt : 0;
           lastFill = m.fill;
-          return m.fill > 0.25 && idle > 0.8 ? m.score() : null;
+          return m.fill > 0.7 && idle > 0.8 ? m.score() : null; // a pause to re-grip early on doesn't end it
         },
         finish: () => m.score(),
         draw(g) {

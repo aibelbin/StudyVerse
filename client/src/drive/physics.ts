@@ -215,6 +215,7 @@ export class DriveWorld {
   }
 
   dispose(): void {
+    this.car.free();
     this.world.free();
   }
 

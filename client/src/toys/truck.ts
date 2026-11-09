@@ -41,8 +41,8 @@ export function truckView(toy: Toy, fx: ToyFx): VehicleView {
   for (const x of [-0.6, 0.6]) body.add(mesh(new THREE.BoxGeometry(0.16, 0.1, 0.04), glow('#ff6b6b', 0.8), x, 0.7, -1.56, false));
   root.add(body);
   const beams = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.4, 4).translate(0, 2, 0),
-    new THREE.MeshBasicMaterial({ color: '#fff3b0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }),
+    new THREE.PlaneGeometry(2.6, 5).translate(0, -2.5, 0), // after the -90° tilt, -y points forward (+z)
+    new THREE.MeshBasicMaterial({ map: beamTexture(), color: '#fff3b0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }),
   );
   beams.rotation.x = -Math.PI / 2;
   beams.position.set(0, 0.03, 1.6);
@@ -63,6 +63,7 @@ export function truckView(toy: Toy, fx: ToyFx): VehicleView {
   let localTilt: Tilt = FLAT;
   const tilt: Tilt = { ...FLAT };
   let speed = 0;
+  let seen = false;
   let steer = 0;
   let roll = 0;
   let lastDust = 0;
@@ -79,11 +80,15 @@ export function truckView(toy: Toy, fx: ToyFx): VehicleView {
       const target = local ?? (st?.kind === 'truck' ? boatPoseAt(st, rest, ctx.now) : rest);
       const wantTilt = local ? localTilt : st?.kind === 'truck' && st.tilt ? st.tilt : FLAT;
       if (!local && Math.hypot(target.x - cur.x, target.z - cur.z) > 6) {
-        // A big jump (it parked itself, or a late snapshot): poof here, poof there, no gliding through trees.
-        poof(cur.x, cur.z, ctx.now);
-        poof(target.x, target.z, ctx.now);
+        // A big jump (it parked itself): poof here, poof there, no gliding through trees. The first
+        // frame after arriving in town just places it.
+        if (seen) {
+          poof(cur.x, cur.z, ctx.now);
+          poof(target.x, target.z, ctx.now);
+        }
         Object.assign(cur, target);
       }
+      seen = true;
       const k = local ? 1 : 1 - Math.exp(-ctx.dt * 10);
       const kt = local ? 1 : 1 - Math.exp(-ctx.dt * 12);
       tilt.y += (wantTilt.y - tilt.y) * kt;
@@ -109,7 +114,7 @@ export function truckView(toy: Toy, fx: ToyFx): VehicleView {
         w.tire.rotation.x = roll;
         w.g.rotation.y = w.front ? steer : 0;
       }
-      (beams.material as THREE.MeshBasicMaterial).opacity = 0.18 * ctx.night;
+      (beams.material as THREE.MeshBasicMaterial).opacity = 0.35 * ctx.night;
       if (speed > 3 && ctx.now - lastDust > 90) {
         lastDust = ctx.now;
         {
@@ -138,6 +143,31 @@ export function truckView(toy: Toy, fx: ToyFx): VehicleView {
 /** Dust lives in world space (not on the truck), so it hangs in the air behind it. */
 const dustRoot = new THREE.Group();
 const dust = new Floaters(dustRoot);
+
+let beamTex: THREE.CanvasTexture | null = null;
+
+/** A soft fan of light, brightest at the lamps and fading out ahead. */
+function beamTexture(): THREE.CanvasTexture {
+  if (beamTex) return beamTex;
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 128;
+  const g = c.getContext('2d')!;
+  const grad = g.createLinearGradient(0, 0, 0, 128);
+  grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grad;
+  g.beginPath();
+  g.moveTo(22, 0);
+  g.lineTo(42, 0);
+  g.lineTo(64, 128);
+  g.lineTo(0, 128);
+  g.closePath();
+  g.filter = 'blur(4px)';
+  g.fill();
+  beamTex = new THREE.CanvasTexture(c);
+  return beamTex;
+}
 
 /** A burst of dust puffs at (x, z). */
 function poof(x: number, z: number, now: number): void {

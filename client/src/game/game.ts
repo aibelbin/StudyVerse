@@ -114,6 +114,7 @@ export class Game {
   private rapierReady = false;
   /** E was pressed while rolling: brake, then hop out. */
   private exiting = false;
+  private sippedAt = 0;
   private night = 0;
   private timeOverride = new URLSearchParams(location.search).get('time');
   private sliding = new Map<string, { start: number; toy: Toy }>();
@@ -144,7 +145,9 @@ export class Game {
     });
     for (let i = 1; i <= 8; i++) this.input.on(String(i), () => this.playNote(i - 1));
     this.input.on('c', () => {
-      if (this.me?.holding && !this.hud.modalOpen()) this.send({ t: 'sip' });
+      if (!this.me?.holding || this.hud.modalOpen()) return;
+      this.sippedAt = performance.now();
+      this.send({ t: 'sip' });
     });
     this.input.on('g', () => {
       if (this.hud.modalOpen() || !this.me) return;
@@ -361,7 +364,7 @@ export class Game {
     }
     this.syncRowing(p);
     this.myChar!.setLook(p.look);
-    if (prev.holding?.sips === 1 && !p.holding) this.hud.toast('All gone ☕', 2500);
+    if (prev.holding?.sips === 1 && !p.holding && performance.now() - this.sippedAt < 3000) this.hud.toast('All gone ☕', 2500);
     if (prev.session?.phase === 'focus' && p.session?.phase === 'break') {
       chime();
       this.hud.toast('✨ Session done! Break time ☕ Stretch, wander, grab a coffee.', 6000);

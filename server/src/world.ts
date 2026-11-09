@@ -287,8 +287,9 @@ export class World {
     if (slot && isController(slot.pose) && slot.toyId) {
       const s = this.toyStates.get(slot.toyId);
       if (s) p.conn?.send({ t: 'toyState', toyId: slot.toyId, state: s }); // the driver was never echoed its own pose
-      if (s?.kind === 'truck' && this.lastDrivenAt.has(slot.toyId)) this.lastDrivenAt.set(slot.toyId, this.now());
     }
+    // Anyone hopping out of a truck restarts its self-park clock, so it never vanishes from under their nose.
+    if (slot?.toyId && this.lastDrivenAt.has(slot.toyId)) this.lastDrivenAt.set(slot.toyId, this.now());
     if (off) {
       p.x = off.x;
       p.z = off.z;
