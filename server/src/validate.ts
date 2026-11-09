@@ -58,6 +58,13 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     }
     case 'move':
       if (!isNum(m.x) || !isNum(m.z) || !isNum(m.facing) || !ANIMS.includes(m.anim as Anim)) return null;
+      if (m.tilt !== undefined) {
+        const tl = m.tilt as Record<string, unknown> | null;
+        const ok = typeof tl === 'object' && tl !== null && isNum(tl.y) && isNum(tl.pitch) && isNum(tl.roll)
+          && tl.y >= -1 && tl.y <= 3 && Math.abs(tl.pitch) <= Math.PI && Math.abs(tl.roll) <= Math.PI;
+        if (!ok) return null;
+        return { t: 'move', x: m.x, z: m.z, facing: m.facing, anim: m.anim as Anim, tilt: { y: tl.y as number, pitch: tl.pitch as number, roll: tl.roll as number } };
+      }
       return { t: 'move', x: m.x, z: m.z, facing: m.facing, anim: m.anim as Anim };
     case 'enterScene':
       return isStr(m.doorId, 64) ? { t: 'enterScene', doorId: m.doorId } : null;

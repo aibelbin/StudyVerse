@@ -9,7 +9,7 @@ const pillars = Array.from({ length: 8 }, (_, k) => {
   return { x: BANDSTAND.x + Math.sin(a) * 3, z: BANDSTAND.z + Math.cos(a) * 3, w: 0.25, d: 0.25 };
 });
 
-const lamps = [-66, -56, -36, -20, -10, 10, 20, 36, 56, 66].map((x) => lampPost(x, 3.3));
+const lamps = [-66, -54, -16, -8, 8, 16, 54, 66].map((x) => lampPost(x, 3.3));
 
 export const square: Parts = merge(
   building(-12, -6, 9, 7, 4.4, '#f2dcc0', '#8c5a6e', 'Library'),

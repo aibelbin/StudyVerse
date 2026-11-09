@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Toy } from '../../../shared/scenes/types';
-import { angleDelta, boatPoseAt, type BoatPose } from '../../../shared/toys';
+import { angleDelta, boatPoseAt, type BoatPose, type Tilt } from '../../../shared/toys';
 import { glow, mat, mesh } from '../world/materials';
 import { PALETTE as P } from '../world/palette';
 import { Floaters } from './floaters';
@@ -8,8 +8,13 @@ import type { ToyFx, ToyView } from './registry';
 
 export interface VehicleView extends ToyView {
   /** The local driver steers directly; null hands control back to the server state. */
-  setLocal(p: BoatPose | null, speed?: number): void;
+  setLocal(p: BoatPose | null, speed?: number, tilt?: Tilt): void;
+  /** Ground speed as rendered, m/s. */
+  speedNow(): number;
 }
+
+const PAINT = ['#ff9e7a', '#7ab8ff', '#8fd694', '#ffd36e'];
+const FLAT: Tilt = { y: 0, pitch: 0, roll: 0 };
 
 const WHEEL_R = 0.3;
 
@@ -18,7 +23,7 @@ export function truckView(toy: Toy, fx: ToyFx): VehicleView {
   const rest: BoatPose = { x: toy.x, z: toy.z, heading: toy.rot ?? 0 };
   const root = new THREE.Group();
   const body = new THREE.Group();
-  const paint = mat(['#ff9e7a', '#7ab8ff'][toy.id.endsWith('2') ? 1 : 0], 0.6);
+  const paint = mat(PAINT[(Number(toy.id.match(/(\d+)$/)?.[1] ?? 1) - 1) % PAINT.length], 0.6);
   body.add(mesh(new THREE.BoxGeometry(1.55, 0.45, 3.1), paint, 0, 0.6, 0));
   // Open-top, so you can see who's driving: a rounded hood, a windscreen and a little seat.
   body.add(mesh(new THREE.BoxGeometry(1.45, 0.28, 0.85), paint, 0, 0.96, 1.1));
@@ -55,20 +60,35 @@ export function truckView(toy: Toy, fx: ToyFx): VehicleView {
   }
   const cur: BoatPose = { ...rest };
   let local: BoatPose | null = null;
+  let localTilt: Tilt = FLAT;
+  const tilt: Tilt = { ...FLAT };
   let speed = 0;
   let steer = 0;
   let roll = 0;
   let lastDust = 0;
   return {
     root,
-    setLocal(p, s = 0) {
+    setLocal(p, s = 0, t = FLAT) {
       local = p ? { ...p } : null;
+      localTilt = t;
       if (p) speed = s;
     },
+    speedNow: () => speed,
     update(ctx) {
       const st = ctx.state;
       const target = local ?? (st?.kind === 'truck' ? boatPoseAt(st, rest, ctx.now) : rest);
+      const wantTilt = local ? localTilt : st?.kind === 'truck' && st.tilt ? st.tilt : FLAT;
+      if (!local && Math.hypot(target.x - cur.x, target.z - cur.z) > 6) {
+        // A big jump (it parked itself, or a late snapshot): poof here, poof there, no gliding through trees.
+        poof(cur.x, cur.z, ctx.now);
+        poof(target.x, target.z, ctx.now);
+        Object.assign(cur, target);
+      }
       const k = local ? 1 : 1 - Math.exp(-ctx.dt * 10);
+      const kt = local ? 1 : 1 - Math.exp(-ctx.dt * 12);
+      tilt.y += (wantTilt.y - tilt.y) * kt;
+      tilt.pitch += (wantTilt.pitch - tilt.pitch) * kt;
+      tilt.roll += (wantTilt.roll - tilt.roll) * kt;
       const px = cur.x;
       const pz = cur.z;
       const ph = cur.heading;
@@ -82,8 +102,9 @@ export function truckView(toy: Toy, fx: ToyFx): VehicleView {
       roll += moved / WHEEL_R;
       root.position.set(cur.x, 0, cur.z);
       root.rotation.y = cur.heading;
-      body.position.y = Math.sin(ctx.now / 90) * 0.01 * Math.min(1, speed / 3);
-      body.rotation.z = -steer * 0.08 * Math.min(1, speed / 4);
+      // The body rides its springs; the wheels stay on the ground, which reads as suspension.
+      body.position.y = Math.max(-0.25, Math.min(0.6, tilt.y));
+      body.rotation.set(-tilt.pitch, 0, -tilt.roll);
       for (const w of wheels) {
         w.tire.rotation.x = roll;
         w.g.rotation.y = w.front ? steer : 0;
@@ -117,4 +138,17 @@ export function truckView(toy: Toy, fx: ToyFx): VehicleView {
 /** Dust lives in world space (not on the truck), so it hangs in the air behind it. */
 const dustRoot = new THREE.Group();
 const dust = new Floaters(dustRoot);
+
+/** A burst of dust puffs at (x, z). */
+function poof(x: number, z: number, now: number): void {
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(0.3, 0), new THREE.MeshLambertMaterial({ color: '#efe3cc', transparent: true, opacity: 0.8 }));
+    dust.add(puff, now, 900, (o, k) => {
+      o.position.set(x + Math.cos(a) * (0.6 + k * 1.6), 0.3 + k * 0.9, z + Math.sin(a) * (0.6 + k * 1.6));
+      o.scale.setScalar(1 + k * 2.5);
+      ((o as THREE.Mesh).material as THREE.MeshLambertMaterial).opacity = 0.8 * (1 - k);
+    });
+  }
+}
 export const truckDustRoot = dustRoot;

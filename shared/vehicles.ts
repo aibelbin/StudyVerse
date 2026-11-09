@@ -14,7 +14,7 @@ export interface VehicleSpec {
 
 export const VEHICLES: Partial<Record<ToyKind, VehicleSpec>> = {
   rowboat: { speed: BOAT_SPEED, medium: 'water', home: true, radius: 0.7 },
-  truck: { speed: 7, medium: 'land', home: false, radius: 1.1 },
+  truck: { speed: 9, medium: 'land', home: false, radius: 1.1 }, // physics can overshoot its top speed of 5
 };
 
 /** Slot poses whose sitter steers the vehicle with their moves. */

@@ -8,6 +8,7 @@ import { SCENES, START_SCENE, START_SPAWN } from '../../shared/scenes';
 import type { SceneDef, Slot, Toy } from '../../shared/scenes/types';
 import {
   boatPoseAt, SEATED_ACTIONS, slotWorld, spinAt, type BoatPose, type ToyAction, type ToyState,
+  type Tilt,
 } from '../../shared/toys';
 import { CONTROLLER_POSES, VEHICLES, vehicleOk } from '../../shared/vehicles';
 import type { Anim, Drink, EmoteKind, FeedKind, Look, OnlineEntry, PetView, PlayerView, Session, Wallet } from '../../shared/types';
@@ -127,7 +128,7 @@ export class World {
     const p = this.players.get(id);
     if (!p || !p.conn) return;
     switch (msg.t) {
-      case 'move': return this.move(p, msg.x, msg.z, msg.facing, msg.anim);
+      case 'move': return this.move(p, msg.x, msg.z, msg.facing, msg.anim, msg.tilt);
       case 'enterScene': return this.enterScene(p, msg.doorId);
       case 'sit': return this.sit(p, msg.slotId);
       case 'stand': return this.stand(p);
@@ -189,10 +190,10 @@ export class World {
 
   // ---------- rules ----------
 
-  private move(p: Player, x: number, z: number, facing: number, anim: Anim): void {
+  private move(p: Player, x: number, z: number, facing: number, anim: Anim, tilt?: Tilt): void {
     if (p.slotId) {
       const slot = this.findSlot(p.scene, p.slotId);
-      if (slot && isController(slot.pose) && slot.toyId) this.driveVehicle(p, slot.toyId, x, z, facing);
+      if (slot && isController(slot.pose) && slot.toyId) this.driveVehicle(p, slot.toyId, x, z, facing, tilt);
       return;
     }
     const t = this.now();
@@ -560,7 +561,7 @@ export class World {
     this.setToyState(toyId, { kind: 'rowboat', ...pose, returnFrom: { ...pose, at: this.now() } });
   }
 
-  private driveVehicle(p: Player, toyId: string, x: number, z: number, heading: number): void {
+  private driveVehicle(p: Player, toyId: string, x: number, z: number, heading: number, tilt?: Tilt): void {
     const b = this.vehicleState(toyId);
     const spec = b && VEHICLES[b.toy.kind];
     if (!b || !spec) return;
@@ -575,7 +576,7 @@ export class World {
     p.z = z;
     const state: ToyState = b.s.kind === 'rowboat'
       ? { kind: 'rowboat', x, z, heading, returnFrom: null }
-      : { kind: 'truck', x, z, heading, returnFrom: null };
+      : { kind: 'truck', x, z, heading, returnFrom: null, ...(tilt ? { tilt } : {}) };
     this.setToyState(toyId, state, p.id);
   }
 

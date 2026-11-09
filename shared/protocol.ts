@@ -1,9 +1,10 @@
+import type { Tilt } from './toys';
 import type { ToyAction, ToyState } from './toys';
 import type { Anim, Drink, EmoteKind, FeedEvent, Look, Note, OnlineEntry, PetKind, PetView, PlayerView, Wallet } from './types';
 
 export type ClientMsg =
   | { t: 'hello'; token?: string; inviteCode?: string; name?: string; look?: Look }
-  | { t: 'move'; x: number; z: number; facing: number; anim: Anim }
+  | { t: 'move'; x: number; z: number; facing: number; anim: Anim; tilt?: Tilt }
   | { t: 'enterScene'; doorId: string }
   | { t: 'sit'; slotId: string }
   | { t: 'stand' }

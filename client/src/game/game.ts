@@ -6,7 +6,7 @@ import { getScene } from '../../../shared/scenes';
 import { SLIDE_RUN } from '../../../shared/scenes/kitToys';
 import type { SceneDef, Slot, Toy } from '../../../shared/scenes/types';
 import {
-  angleDelta, BOAT_SPEED, boatOnWater, boatPoseAt, LOCAL_TOYS, slotWorld, type BoatPose, type ToyAction, type ToyState,
+  angleDelta, BOAT_SPEED, boatOnWater, boatPoseAt, LOCAL_TOYS, slotWorld, type BoatPose, type Tilt, type ToyAction, type ToyState,
 } from '../../../shared/toys';
 import type { EmoteKind, PlayerView } from '../../../shared/types';
 import type { SoundKind } from '../audio/kinds';
@@ -19,7 +19,9 @@ import { slidePath, SLIDE_MS } from '../toys/playground';
 import { makeToyView, TOY_DEFAULT_ACTION, toyPrompt, type ToyCtx, type ToyFx, type ToyView } from '../toys/registry';
 import { truckDustRoot, type VehicleView } from '../toys/truck';
 import { clockHours, skyAt } from '../world/sky';
-import { CONTROLLER_POSES, VEHICLES, vehicleOk } from '../../../shared/vehicles';
+import { CONTROLLER_POSES } from '../../../shared/vehicles';
+import { DriveWorld, loadRapier } from '../drive/physics';
+import { PropsView } from '../world/props';
 import { Character } from '../world/character';
 import { buildScene, followSun, updateFades, type BuiltScene } from '../world/sceneBuilder';
 import { CameraRig } from './cameraRig';
@@ -43,6 +45,7 @@ interface Remote {
 interface SceneRuntime {
   built: BuiltScene;
   toys: Map<string, ToyView>;
+  props: PropsView | null;
 }
 
 /** Hooks later systems (audio, ambient life, sky) plug into. */
@@ -68,9 +71,6 @@ export interface FrameInfo {
 const SEND_EVERY_MS = 80;
 const ROW_SEND_MS = 100;
 const ROW_TURN = 2.5; // rad/s
-const DRIVE_TURN = 2.2; // rad/s
-const DRIVE_ACCEL = 6;
-const DRIVE_BRAKE = 10;
 
 export class Game {
   hooks: GameHooks = { sound() {}, feedDucks() {}, frame() {}, enterScene() {} };
@@ -107,7 +107,12 @@ export class Game {
   private waitForRelease = false;
   private target: Target | null = null;
   private last = performance.now();
-  private driving: { toyId: string; kind: Toy['kind']; pose: BoatPose; speed: number } | null = null;
+  private driving: { toyId: string; kind: Toy['kind']; pose: BoatPose; speed: number; tilt?: Tilt } | null = null;
+  /** The driver's Rapier world, once the engine has loaded. */
+  private dw: DriveWorld | null = null;
+  private rapierReady = false;
+  /** E was pressed while rolling: brake, then hop out. */
+  private exiting = false;
   private night = 0;
   private timeOverride = new URLSearchParams(location.search).get('time');
   private sliding = new Map<string, { start: number; toy: Toy }>();
@@ -210,6 +215,7 @@ export class Game {
         if (this.driving?.toyId === m.toyId && (m.state.kind === 'rowboat' || m.state.kind === 'truck')) {
           this.driving.pose = { x: m.state.x, z: m.state.z, heading: m.state.heading }; // the server snapped us back
           this.driving.speed = 0;
+          this.dw?.teleport(this.driving.pose);
         }
         break;
       case 'petMoved': {
@@ -254,7 +260,9 @@ export class Game {
         toys.set(toy.id, v);
       }
       if (this.def.toys.some((t) => t.kind === 'truck')) built.scene.add(truckDustRoot);
-      rt = { built, toys };
+      const props = this.def.props?.length ? new PropsView(this.def.props) : null;
+      if (props) built.scene.add(props.root);
+      rt = { built, toys, props };
       this.runtimes.set(you.scene, rt);
       built.setTreeStage(treeStage(this.treeMinutes));
     }
@@ -271,6 +279,7 @@ export class Game {
     this.standPending = false;
     this.sliding.clear();
     this.setTelescope(false);
+    this.endDrive();
     this.driving = null;
     this.rig.zoomTo(1);
     this.syncRowing(you);
@@ -355,6 +364,7 @@ export class Game {
         (this.rt?.toys.get(toyId) as VehicleView | undefined)?.setLocal(null);
         if (this.driving.kind === 'truck') this.rig.zoomTo(1);
       }
+      this.endDrive();
       this.driving = null;
       return;
     }
@@ -363,7 +373,29 @@ export class Game {
     const st = this.toyStates[slot.toyId];
     const pose = st?.kind === 'rowboat' || st?.kind === 'truck' ? boatPoseAt(st, this.restPose(toy), serverNow()) : this.restPose(toy);
     this.driving = { toyId: slot.toyId, kind: toy.kind, pose: { ...pose }, speed: 0 };
-    if (toy.kind === 'truck') this.rig.zoomTo(1.35);
+    if (toy.kind === 'truck') {
+      this.rig.zoomTo(1.35);
+      this.startDrive(slot.toyId);
+    }
+  }
+
+  /** Loads Rapier (first time only) and builds this truck's physics world at its current pose. */
+  private startDrive(toyId: string): void {
+    if (!this.rapierReady) this.hud.toast('Warming up the engine… 🔧', 2500);
+    const def = this.def!;
+    void loadRapier().then((R) => {
+      this.rapierReady = true;
+      if (this.driving?.toyId !== toyId || this.def !== def) return; // hopped out while it loaded
+      this.dw?.dispose();
+      this.dw = new DriveWorld(R, def, this.driving.pose);
+    }).catch(() => this.hud.toast("The truck won't start right now 😕", 4000));
+  }
+
+  private endDrive(): void {
+    this.dw?.dispose();
+    this.dw = null;
+    this.exiting = false;
+    this.rt?.props?.resetAll();
   }
 
   private onError(code: ErrorCode, message: string): void {
@@ -553,34 +585,39 @@ export class Game {
     else this.row(dt, a, pressing, nowP);
   }
 
-  /** Driving: turn towards the key direction (faster when rolling), speed up as you line up, brake on release. */
-  private drive(dt: number, a: { x: number; z: number }, pressing: boolean, nowP: number): void {
+  /**
+   * Driving runs the Rapier truck: W/S throttle (S brakes, then reverses), A/D steer. Walkers and
+   * other trucks are blockers. Pose and spring tilt go to the server at the rowing rate.
+   */
+  private drive(dt: number, _a: { x: number; z: number }, _pressing: boolean, nowP: number): void {
     const v = this.driving!;
-    const spec = VEHICLES.truck!;
-    const def = this.def!;
+    const dw = this.dw;
+    if (!dw) return; // the engine is still loading
     const wasMoving = this.moving;
-    let want = 0;
-    if (pressing) {
-      const d = angleDelta(v.pose.heading, Math.atan2(a.x, a.z));
-      const turnK = 0.35 + 0.65 * Math.min(1, v.speed / 3);
-      v.pose.heading += Math.sign(d) * Math.min(Math.abs(d), DRIVE_TURN * turnK * dt);
-      want = spec.speed * Math.max(0, Math.cos(d)) * 0.95;
+    const keys = this.input.driveAxis();
+    dw.input = this.exiting ? { throttle: 0, steer: 0, brake: true } : { throttle: keys.throttle, steer: keys.steer, brake: false };
+    const walkers: { x: number; z: number }[] = [];
+    for (const r of this.remotes.values()) if (!r.view.slotId) walkers.push({ x: r.char.root.position.x, z: r.char.root.position.z });
+    const trucks: { id: string; x: number; z: number; heading: number }[] = [];
+    for (const toy of this.def!.toys) {
+      if (toy.kind !== 'truck' || toy.id === v.toyId) continue;
+      const p = this.rt?.toys.get(toy.id)?.pose?.(this.toyCtx(toy.id));
+      if (p) trucks.push({ id: toy.id, ...p });
     }
-    v.speed = v.speed < want ? Math.min(want, v.speed + DRIVE_ACCEL * dt) : Math.max(want, v.speed - DRIVE_BRAKE * dt);
-    if (v.speed > 0.01) {
-      const step = v.speed * dt;
-      const r = moveWithCollision(v.pose.x, v.pose.z, Math.sin(v.pose.heading) * step, Math.cos(v.pose.heading) * step, spec.radius, def.colliders, def.size);
-      if (vehicleOk('truck', def, r.x, r.z)) {
-        const moved = Math.hypot(r.x - v.pose.x, r.z - v.pose.z);
-        if (moved < step * 0.3) v.speed *= 0.5; // bumped into something
-        v.pose.x = r.x;
-        v.pose.z = r.z;
-      } else v.speed = 0;
+    dw.step(dt, walkers, trucks);
+    const p = dw.pose();
+    v.pose = { x: p.x, z: p.z, heading: p.heading };
+    v.speed = Math.abs(p.speed);
+    v.tilt = { y: p.y, pitch: p.pitch, roll: p.roll };
+    this.rt?.props?.applyPhysics(dw.props(), nowP);
+    if (this.exiting && v.speed < 1) {
+      this.exiting = false;
+      if (!this.standPending) this.requestStand();
     }
-    this.moving = v.speed > 0.05;
+    this.moving = v.speed > 0.05 || Math.abs(p.y) > 0.02;
     if ((this.moving && nowP - this.lastSent >= ROW_SEND_MS) || (wasMoving && !this.moving)) {
       this.lastSent = nowP;
-      this.send({ t: 'move', x: v.pose.x, z: v.pose.z, facing: v.pose.heading, anim: 'sit' });
+      this.send({ t: 'move', x: p.x, z: p.z, facing: p.heading, anim: 'sit', tilt: v.tilt });
     }
   }
 
@@ -636,6 +673,10 @@ export class Game {
     if (!this.me || this.transitioning || this.hud.modalOpen() || this.sliding.has(this.me.id)) return;
     if (this.telescope) return this.setTelescope(false);
     if (this.me.slotId) {
+      if (this.dw && this.driving && this.driving.speed > 1) {
+        this.exiting = true; // brake to a stop first, then hop out (see drive)
+        return;
+      }
       if (!this.standPending) this.requestStand();
       return;
     }
@@ -703,7 +744,7 @@ export class Game {
     if (me.slotId) {
       const slot = this.slotById(me.slotId);
       if (slot && !slot.deskId) {
-        if (this.driving) return this.driving.kind === 'truck' ? '[WASD] drive · [H] honk · [E] hop out' : '[WASD] row · [E] get out';
+        if (this.driving) return this.driving.kind === 'truck' ? '[W/S] drive · [A/D] steer · [H] honk · [E] hop out' : '[WASD] row · [E] get out';
         const toy = slot.toyId ? this.toyById(slot.toyId) : undefined;
         if (toy?.kind === 'piano') return '[1–8] play · [E] stand up';
         return '[E] hop off';
@@ -742,8 +783,18 @@ export class Game {
     for (const r of this.remotes.values()) if (r.view.slotId) this.occupied.add(r.view.slotId);
 
     for (const [id, view] of this.rt.toys) {
-      if (this.driving?.toyId === id) (view as VehicleView).setLocal(this.driving.pose, this.driving.speed);
+      if (this.driving?.toyId === id) (view as VehicleView).setLocal(this.driving.pose, this.driving.speed, this.driving.tilt);
       view.update(this.toyCtx(id));
+    }
+    if (this.rt.props && !this.dw) {
+      const trucks: { x: number; z: number; heading: number; speed: number }[] = [];
+      for (const toy of this.def.toys) {
+        if (toy.kind !== 'truck') continue;
+        const v = this.rt.toys.get(toy.id) as VehicleView | undefined;
+        const p = v?.pose?.(this.toyCtx(toy.id));
+        if (v && p) trucks.push({ ...p, speed: v.speedNow() });
+      }
+      this.rt.props.update(nowP, dt, trucks);
     }
 
     const others: { id: string; x: number; z: number }[] = [];

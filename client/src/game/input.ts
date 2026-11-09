@@ -25,6 +25,15 @@ export class Input {
     this.handlers.set(key, fn);
   }
 
+  /** Tank-style driving keys: W/↑ throttle, S/↓ brake-then-reverse, A/← steer left (+), D/→ right. */
+  driveAxis(): { throttle: number; steer: number } {
+    const d = (a: string, b: string) => this.down.has(a) || this.down.has(b);
+    return {
+      throttle: (d('w', 'arrowup') ? 1 : 0) - (d('s', 'arrowdown') ? 1 : 0),
+      steer: (d('a', 'arrowleft') ? 1 : 0) - (d('d', 'arrowright') ? 1 : 0),
+    };
+  }
+
   /** Normalised movement direction on the ground plane (+z = down the screen). */
   axis(): { x: number; z: number } {
     const d = (a: string, b: string) => this.down.has(a) || this.down.has(b);

@@ -34,9 +34,16 @@ export type ToyState =
   | { kind: 'jukebox'; track: number; startedAt: number }
   | { kind: 'campfire'; lit: boolean }
   | { kind: 'rowboat'; x: number; z: number; heading: number; returnFrom: (BoatPose & { at: number }) | null }
-  | { kind: 'truck'; x: number; z: number; heading: number; returnFrom: null };
+  | { kind: 'truck'; x: number; z: number; heading: number; returnFrom: null; tilt?: Tilt };
 
 export const BOAT_SPEED = 2.4;        // m/s while rowing
+/** How a truck's body sits on its springs: height above rest, nose-up pitch, right-down roll. */
+export interface Tilt {
+  y: number;
+  pitch: number;
+  roll: number;
+}
+
 export const BOAT_RETURN_SPEED = 1.5; // m/s gliding home
 export const SPIN_DECAY = 0.4;        // 1/s
 export const SPIN_PUSH = 1.2;         // rad/s per push

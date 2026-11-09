@@ -18,6 +18,14 @@ describe('parseClientMsg', () => {
     expect(parseClientMsg(JSON.stringify({ t: 'sit', slotId: 'a' }))).toEqual({ t: 'sit', slotId: 'a' });
     expect(parseClientMsg(JSON.stringify({ t: 'sit', seatId: 'a' }))).toBeNull();
   });
+  it('accepts a truck tilt within range and refuses a wild one', () => {
+    const base = { t: 'move', x: 1, z: 2, facing: 0, anim: 'sit' };
+    expect(parseClientMsg(JSON.stringify({ ...base, tilt: { y: 0.1, pitch: 0.2, roll: -0.1, extra: 1 } }))).toEqual({ ...base, tilt: { y: 0.1, pitch: 0.2, roll: -0.1 } });
+    expect(parseClientMsg(JSON.stringify({ ...base, tilt: { y: 9, pitch: 0, roll: 0 } }))).toBeNull();
+    expect(parseClientMsg(JSON.stringify({ ...base, tilt: { y: 0, pitch: 4, roll: 0 } }))).toBeNull();
+    expect(parseClientMsg(JSON.stringify({ ...base, tilt: 'flat' }))).toBeNull();
+  });
+
   it('parses a valid move and drops extra fields', () => {
     expect(parseClientMsg(JSON.stringify({ t: 'move', x: 1, z: 2, facing: 0.5, anim: 'walk', evil: true }))).toEqual({
       t: 'move', x: 1, z: 2, facing: 0.5, anim: 'walk',
