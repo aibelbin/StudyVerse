@@ -28,7 +28,8 @@ import { freeBay, inBay } from '../../shared/parking';
 import { emptyPlot, FLOWERS, grow, seedItem, stageOf, type Flower, type PlotState } from '../../shared/garden';
 import type { GardenAction } from '../../shared/protocol';
 import { BALL_R, COURSE_PAR, FELT, HOLES } from '../../shared/golf';
-import { aGift, allOn, GIFTS, STATUS_TEXT_MAX, type AdminPlayer, type Feature, type Features, type Gift, type Keepsake, type Status } from '../../shared/gifts';
+import { aGift, allOn, GIFTS, isGift, STATUS_TEXT_MAX, type AdminPlayer, type BagItem, type Feature, type Features, type Gift, type Keepsake, type Status } from '../../shared/gifts';
+import { isFlower } from '../../shared/garden';
 import type { AdminAction } from '../../shared/protocol';
 
 /** What the World needs from a network connection. */
@@ -77,6 +78,7 @@ interface Player {
   keepsakes: Keepsake[];
   keepsakeCount: number;
   lastGiftSentAt: number;
+  lastGiveAt: number;
 }
 
 const FOREVER = Number.MAX_SAFE_INTEGER;
@@ -163,7 +165,7 @@ export class World {
       dnd: false, voice: false, holding: null, pet: null, lastNoteAt: 0, lastBrewAt: 0, lastPetAt: 0,
       chatTimes: [], lastReactAt: 0, lastActAt: 0, meditateFrom: null, lastStageTextAt: 0,
       golf: { hole: null, strokes: 0, ball: null, lastBallAt: 0, card: Array(HOLES.length).fill(null) },
-      status: null, keepsakes: [], keepsakeCount: 0, lastGiftSentAt: 0,
+      status: null, keepsakes: [], keepsakeCount: 0, lastGiftSentAt: 0, lastGiveAt: 0,
     };
     this.loadKeepsakes(p);
     this.players.set(p.id, p);
@@ -218,6 +220,7 @@ export class World {
       case 'buyGift': return this.buyGift(p, msg.gift);
       case 'sendGift': return this.sendGift(p, msg.to, msg.gift);
       case 'useKeepsake': return this.useKeepsake(p, msg.id);
+      case 'giveItem': return this.giveItem(p, msg.id, msg.to);
       case 'setStatus': return this.setStatus(p, msg.emoji, msg.text, msg.minutes);
       case 'admin': return this.admin(p, msg);
       case 'offerCoffee': return this.offerCoffee(p, msg.to);
@@ -588,24 +591,24 @@ export class World {
         if (!mine) return this.error(p, 'bad_garden', 'Only the owner can pick these.');
         const sp = spot === undefined ? null : s.spots[spot];
         if (!sp || stageOf(sp.progress, FLOWERS[sp.flower].growMin) !== 'bloom') return this.error(p, 'bad_garden', "That one isn't in bloom yet.");
-        if (p.holding) return this.error(p, 'bad_garden', 'Your hands are full.');
         const spots = s.spots.slice();
         spots[spot!] = null;
         save({ ...s, spots, lastActive: t });
-        p.holding = { item: 'bouquet', flower: sp.flower, stars: 0, sips: 0 };
+        this.store.addBagItem(p.id, 'bouquet', sp.flower, t); // straight into the bag
+        this.sendBag(p);
         this.store.addKp(p.id, FLOWERS[sp.flower].harvestKp);
         p.wallet = this.store.wallet(p.id);
         p.conn?.send({ t: 'wallet', wallet: this.publicWallet(p) });
-        this.updated(p);
-        this.pushFeed('garden', feedText.harvest(p.name, holdName(p.holding)));
+        this.pushFeed('garden', feedText.harvest(p.name, holdName({ item: 'bouquet', flower: sp.flower })));
         return;
       }
       case 'vase': {
         if (!mine) return this.error(p, 'bad_garden', 'That vase belongs to someone else.');
-        if (p.holding?.item !== 'bouquet' || !p.holding.flower) return this.error(p, 'bad_garden', 'Bring a bouquet for the vase.');
-        save({ ...s, vase: p.holding.flower, lastActive: t });
-        p.holding = null;
-        this.updated(p);
+        const item = this.bagOf(p).find((b) => b.kind === 'bouquet' && (!flower || b.flower === flower));
+        if (!item || item.kind !== 'bouquet') return this.error(p, 'bad_garden', 'Pick a bouquet from your garden first.');
+        this.store.takeBagItem(p.id, item.id);
+        this.sendBag(p);
+        save({ ...s, vase: item.flower, lastActive: t });
       }
     }
   }
@@ -1106,10 +1109,9 @@ export class World {
     if (!this.features.gifts) return this.error(p, 'feature_off', 'Gifts are switched off right now.');
     const stall = this.scene(p.scene).toys.find((x) => x.kind === 'giftShop');
     if (!stall || p.slotId || dist(p.x, p.z, stall.x, stall.z) > stall.radius + 0.5) return this.error(p, 'bad_gift', 'Visit the gift stall in the square.');
-    if (p.holding) return this.error(p, 'bad_gift', 'Your hands are full.');
     if (!this.payForGift(p, gift)) return;
-    p.holding = { item: 'gift', gift, stars: 0, sips: 0 };
-    this.updated(p);
+    this.store.addBagItem(p.id, 'gift', gift, this.now());
+    this.sendBag(p);
   }
 
   /** From the player card: a gift straight to anyone, online or not. */
@@ -1125,16 +1127,44 @@ export class World {
   }
 
   /** Saves the gift on the receiver's shelf, tells them (and their scene), and makes the feed. */
-  private giveKeepsake(from: Player, toId: string, gift: Gift): void {
+  private giveKeepsake(from: Player, toId: string, gift: Gift, flower?: Flower): void {
     const toName = this.store.profileName(toId) ?? 'someone';
-    this.store.addKeepsake(toId, from.id, from.name, gift, this.now());
+    this.store.addKeepsake(toId, from.id, from.name, gift, this.now(), flower);
     const to = this.players.get(toId);
     if (to) {
       this.loadKeepsakes(to);
       this.updated(to);
-      this.toScene(to.scene, { t: 'giftReceived', fromId: from.id, fromName: from.name, toId, gift });
+      this.toScene(to.scene, { t: 'giftReceived', fromId: from.id, fromName: from.name, toId, gift, ...(flower ? { flower } : {}) });
     }
-    this.pushFeed('giftSent', `${GIFTS[gift].emoji} ${from.name} gave ${toName} ${aGift(gift)}`);
+    const what = flower ? `a ${holdName({ item: 'bouquet', flower })}` : aGift(gift);
+    this.pushFeed('giftSent', `${GIFTS[gift].emoji} ${from.name} gave ${toName} ${what}`);
+  }
+
+  private bagOf(p: Player): BagItem[] {
+    const out: BagItem[] = [];
+    for (const r of this.store.bag(p.id)) {
+      if (r.kind === 'gift' && isGift(r.value)) out.push({ id: r.id, kind: 'gift', gift: r.value });
+      else if (r.kind === 'bouquet' && isFlower(r.value)) out.push({ id: r.id, kind: 'bouquet', flower: r.value });
+    }
+    return out;
+  }
+
+  private sendBag(p: Player): void {
+    p.conn?.send({ t: 'bag', items: this.bagOf(p) });
+  }
+
+  /** From the bag to anyone's keepsakes (a bouquet keeps its flowers). */
+  private giveItem(p: Player, id: number, toId: string): void {
+    if (!this.features.gifts) return this.error(p, 'feature_off', 'Gifts are switched off right now.');
+    if (toId === p.id || !this.store.profileName(toId)) return this.error(p, 'bad_gift', "That gift couldn't be delivered.");
+    const t = this.now();
+    if (t - p.lastGiveAt < 2000) return this.error(p, 'bad_gift', 'One gift at a time 🎁');
+    const item = this.store.takeBagItem(p.id, id);
+    if (!item) return this.sendBag(p);
+    p.lastGiveAt = t;
+    this.sendBag(p);
+    if (item.kind === 'bouquet' && isFlower(item.value)) this.giveKeepsake(p, toId, 'bouquet', item.value);
+    else if (isGift(item.value)) this.giveKeepsake(p, toId, item.value);
   }
 
   /** Eat a cupcake or cookie, or let a balloon go. */
@@ -1283,6 +1313,7 @@ export class World {
       ice: this.ice,
       chat: this.store.chatFor(p.id, CHAT_KEEP, CHAT_DM_HISTORY, this.store.createdAt(p.id)),
       features: { ...this.features },
+      bag: this.bagOf(p),
     });
   }
 

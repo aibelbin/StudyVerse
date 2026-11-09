@@ -62,7 +62,7 @@ export class Wardrobe {
     else this.grid.replaceChildren(...this.itemCells(this.tab as OutfitSlot, w));
     const unowned = this.unowned(w);
     this.footer.replaceChildren(
-      h('span', { className: 'kp', textContent: `✨ ${w?.kp ?? 0} KP` }),
+      h('span', { className: 'kp', textContent: `✨ ${w?.admin ? '∞' : w?.kp ?? 0} KP` }),
       h('span', { className: 'hint', textContent: unowned.length ? `Trying on: buy ${unowned.map((i) => i.name).join(', ')} to keep` : '' }),
       h('button', { type: 'button', textContent: 'Close', onclick: () => this.d.hud.closeModals() }),
       h('button', {
@@ -105,7 +105,7 @@ export class Wardrobe {
       swatch.style.background = item?.color ?? 'transparent';
       const kids: (HTMLElement | string)[] = [swatch, h('b', { textContent: name }), h('small', { textContent: tag })];
       if (!owned && item) {
-        const afford = (w?.kp ?? 0) >= item.price;
+        const afford = !!w?.admin || (w?.kp ?? 0) >= item.price;
         kids.push(h('button', {
           type: 'button', className: 'mini buy', textContent: afford ? 'Buy' : 'Need KP', disabled: !afford,
           onclick: (e: MouseEvent) => { e.stopPropagation(); this.d.buy(id); },

@@ -43,8 +43,13 @@ export interface Store {
   deleteChat(id: number): boolean;
   /** When the profile was created (0 if unknown). */
   createdAt(id: string): number;
-  addKeepsake(toId: string, fromId: string, fromName: string, gift: string, at: number): number;
-  keepsakes(toId: string, limit: number): { id: number; gift: string; fromName: string }[];
+  addKeepsake(toId: string, fromId: string, fromName: string, gift: string, at: number, flower?: string): number;
+  keepsakes(toId: string, limit: number): { id: number; gift: string; fromName: string; flower?: string }[];
+  /** The bag: kind 'gift' (value = gift) or 'bouquet' (value = flower). */
+  addBagItem(owner: string, kind: 'gift' | 'bouquet', value: string, at: number): number;
+  bag(owner: string): { id: number; kind: string; value: string }[];
+  /** Takes an item out of the bag (null if it isn't theirs). */
+  takeBagItem(owner: string, id: number): { kind: string; value: string } | null;
   keepsakeCount(toId: string): number;
   /** Removes one of this profile's keepsakes and says which gift it was (null if not theirs). */
   takeKeepsake(toId: string, id: number): string | null;
@@ -98,8 +103,12 @@ export class ProfileStore implements Store {
       CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS keepsakes (id INTEGER PRIMARY KEY AUTOINCREMENT, to_id TEXT NOT NULL, from_id TEXT NOT NULL, from_name TEXT NOT NULL, gift TEXT NOT NULL, at INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS keepsakes_to ON keepsakes (to_id, id);
+      CREATE TABLE IF NOT EXISTS bag (id INTEGER PRIMARY KEY AUTOINCREMENT, owner TEXT NOT NULL, kind TEXT NOT NULL, value TEXT NOT NULL, at INTEGER NOT NULL);
+      CREATE INDEX IF NOT EXISTS bag_owner ON bag (owner, id);
       CREATE TABLE IF NOT EXISTS restrictions (profile_id TEXT NOT NULL, kind TEXT NOT NULL, until INTEGER NOT NULL, PRIMARY KEY (profile_id, kind));
     `);
+    const kcols = new Set((this.db.prepare('PRAGMA table_info(keepsakes)').all() as { name: string }[]).map((c) => c.name));
+    if (!kcols.has('flower')) this.db.exec('ALTER TABLE keepsakes ADD COLUMN flower TEXT');
   }
 
   create(name: string, look: Look, now = Date.now()): { profile: Profile; token: string } {
@@ -227,13 +236,29 @@ export class ProfileStore implements Store {
     return (this.db.prepare('SELECT created_at FROM profiles WHERE id = ?').get(id) as { created_at: number } | undefined)?.created_at ?? 0;
   }
 
-  addKeepsake(toId: string, fromId: string, fromName: string, gift: string, at: number): number {
-    return Number(this.db.prepare('INSERT INTO keepsakes (to_id, from_id, from_name, gift, at) VALUES (?, ?, ?, ?, ?)').run(toId, fromId, fromName, gift, at).lastInsertRowid);
+  addKeepsake(toId: string, fromId: string, fromName: string, gift: string, at: number, flower?: string): number {
+    return Number(this.db.prepare('INSERT INTO keepsakes (to_id, from_id, from_name, gift, at, flower) VALUES (?, ?, ?, ?, ?, ?)').run(toId, fromId, fromName, gift, at, flower ?? null).lastInsertRowid);
   }
 
-  keepsakes(toId: string, limit: number): { id: number; gift: string; fromName: string }[] {
-    return (this.db.prepare('SELECT id, gift, from_name FROM keepsakes WHERE to_id = ? ORDER BY id DESC LIMIT ?').all(toId, limit) as { id: number; gift: string; from_name: string }[])
-      .map((r) => ({ id: Number(r.id), gift: r.gift, fromName: r.from_name }));
+  keepsakes(toId: string, limit: number): { id: number; gift: string; fromName: string; flower?: string }[] {
+    return (this.db.prepare('SELECT id, gift, from_name, flower FROM keepsakes WHERE to_id = ? ORDER BY id DESC LIMIT ?').all(toId, limit) as { id: number; gift: string; from_name: string; flower: string | null }[])
+      .map((r) => ({ id: Number(r.id), gift: r.gift, fromName: r.from_name, ...(r.flower ? { flower: r.flower } : {}) }));
+  }
+
+  addBagItem(owner: string, kind: 'gift' | 'bouquet', value: string, at: number): number {
+    return Number(this.db.prepare('INSERT INTO bag (owner, kind, value, at) VALUES (?, ?, ?, ?)').run(owner, kind, value, at).lastInsertRowid);
+  }
+
+  bag(owner: string): { id: number; kind: string; value: string }[] {
+    return (this.db.prepare('SELECT id, kind, value FROM bag WHERE owner = ? ORDER BY id').all(owner) as { id: number; kind: string; value: string }[])
+      .map((r) => ({ id: Number(r.id), kind: r.kind, value: r.value }));
+  }
+
+  takeBagItem(owner: string, id: number): { kind: string; value: string } | null {
+    const r = this.db.prepare('SELECT kind, value FROM bag WHERE id = ? AND owner = ?').get(id, owner) as { kind: string; value: string } | undefined;
+    if (!r) return null;
+    this.db.prepare('DELETE FROM bag WHERE id = ?').run(id);
+    return r;
   }
 
   keepsakeCount(toId: string): number {

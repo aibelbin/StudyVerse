@@ -1,3 +1,4 @@
+import type { Flower } from './garden';
 export type Gift = 'letter' | 'cookie' | 'balloon' | 'cupcake' | 'cactus' | 'bouquet' | 'duck' | 'box' | 'bear' | 'starJar';
 
 export interface GiftInfo {
@@ -32,7 +33,12 @@ export interface Keepsake {
   id: number;
   gift: Gift;
   fromName: string;
+  /** For a bouquet from someone's garden: which flowers. */
+  flower?: Flower;
 }
+
+/** Something in your bag: a gift from the stall, or a bouquet you picked. */
+export type BagItem = { id: number; kind: 'gift'; gift: Gift } | { id: number; kind: 'bouquet'; flower: Flower };
 
 export interface Status {
   emoji: string;

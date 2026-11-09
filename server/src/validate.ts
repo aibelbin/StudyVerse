@@ -141,6 +141,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return isGift(m.gift) ? { t: 'buyGift', gift: m.gift } : null;
     case 'sendGift':
       return isStr(m.to, 64) && isGift(m.gift) ? { t: 'sendGift', to: m.to, gift: m.gift } : null;
+    case 'giveItem':
+      return Number.isInteger(m.id) && isStr(m.to, 64) ? { t: 'giveItem', id: m.id as number, to: m.to } : null;
     case 'useKeepsake':
       return Number.isInteger(m.id) ? { t: 'useKeepsake', id: m.id as number } : null;
     case 'setStatus': {

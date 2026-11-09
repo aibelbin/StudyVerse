@@ -70,7 +70,7 @@ export function showJoin(opts: JoinOpts): Promise<JoinResult> {
         finish({ inviteCode: code.value.trim(), name: n, look });
       },
     },
-      h('h1', { textContent: opts.mode === 'join' ? '📚 Virtual Study World' : '✏️ Your look' }),
+      h('h1', { textContent: opts.mode === 'join' ? '📚 StudyVerse' : '✏️ Your look' }),
       opts.mode === 'join' ? h('div', { className: 'sub', textContent: 'A cozy little town for studying together.' }) : '',
       opts.mode === 'join' ? h('label', { className: 'field' }, 'Invite code', code) : '',
       h('label', { className: 'field' }, 'Name', name),

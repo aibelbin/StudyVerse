@@ -156,32 +156,34 @@ describe('harvest and bouquets', () => {
     expect(lastError(a.c)).toMatch(/isn't in bloom/);
     const before = store.wallet(a.id).kp;
     act(a.id, 0, 'harvest', { spot: 2 });
-    expect(w.view(a.id)!.holding).toEqual({ item: 'bouquet', flower: 'tulip', stars: 0, sips: 0 });
+    expect(w.view(a.id)!.holding).toBeNull(); // into the bag, not the hands
+    expect(a.c.of('bag').at(-1)!.items).toMatchObject([{ kind: 'bouquet', flower: 'tulip' }]);
     expect(store.wallet(a.id).kp).toBe(before + 5);
     expect(plot(a.c, 0)!.spots[2]).toBeNull();
     expect(a.c.of('feed').at(-1)!.event.text).toBe('🌷 Sam picked a bouquet of tulips');
   });
 
-  it('puts a bouquet in the vase, and a bouquet cannot be sipped', () => {
+  it('puts a bouquet from the bag in the vase', () => {
     const a = bloomTulip();
-    act(a.id, 0, 'harvest', { spot: 2 });
-    w.handle(a.id, { t: 'sip' });
-    expect(w.view(a.id)!.holding).toMatchObject({ item: 'bouquet' });
     act(a.id, 0, 'vase');
+    expect(lastError(a.c)).toMatch(/Pick a bouquet/);
+    act(a.id, 0, 'harvest', { spot: 2 });
+    act(a.id, 0, 'vase', { flower: 'tulip' });
     expect(plot(a.c, 0)!.vase).toBe('tulip');
-    expect(w.view(a.id)!.holding).toBeNull();
+    expect(a.c.of('bag').at(-1)!.items).toEqual([]);
   });
 
-  it('gifts a bouquet like a coffee', () => {
+  it('gives a bouquet from the bag to anyone, flowers and all', () => {
     const a = bloomTulip();
     act(a.id, 0, 'harvest', { spot: 2 });
     const b = joinNew('Jo');
-    go(b.id, plots[0].x + 1, plots[0].z + 1.2);
-    w.handle(a.id, { t: 'offerCoffee', to: b.id });
-    expect(b.c.of('coffeeOffer').at(-1)).toMatchObject({ drink: 'bouquet', flower: 'tulip', name: 'Sam' });
-    w.handle(b.id, { t: 'answerCoffee', fromId: a.id, accept: true });
-    expect(w.view(b.id)!.holding).toMatchObject({ item: 'bouquet', flower: 'tulip' });
-    expect(b.c.of('feed').at(-1)!.event.text).toBe('🎁 Sam gave Jo a bouquet of tulips');
+    const id = a.c.of('bag').at(-1)!.items[0].id;
+    w.handle(a.id, { t: 'giveItem', id, to: b.id });
+    expect(w.view(b.id)).toMatchObject({ keepsakeCount: 1, keepsakes: [{ gift: 'bouquet', flower: 'tulip', fromName: 'Sam' }] });
+    expect(b.c.of('feed').at(-1)!.event.text).toBe('💐 Sam gave Jo a bouquet of tulips');
+    expect(a.c.of('bag').at(-1)!.items).toEqual([]);
+    w.handle(a.id, { t: 'giveItem', id, to: b.id }); // already given: nothing more happens
+    expect(w.view(b.id)!.keepsakeCount).toBe(1);
   });
 
   it('keeps gardens across a restart', () => {

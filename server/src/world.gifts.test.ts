@@ -40,19 +40,19 @@ beforeEach(() => {
 });
 
 describe('gifts', () => {
-  it('buys a gift at the stall and hands it over in person onto their keepsakes shelf', () => {
-    const a = joinNew('Sam', 30);
+  it('buys gifts into the bag and gives them from it onto the keepsakes shelf', () => {
+    const a = joinNew('Sam', 40);
     const b = joinNew('Jo');
     go(a.id, stall.x, stall.z + 1.2);
     w.handle(a.id, { t: 'buyGift', gift: 'bear' });
-    expect(w.view(a.id)!.holding).toMatchObject({ item: 'gift', gift: 'bear' });
-    expect(store.wallet(a.id).kp).toBe(5);
-    go(b.id, stall.x + 1, stall.z + 1.2);
-    w.handle(a.id, { t: 'offerCoffee', to: b.id });
-    expect(b.c.of('coffeeOffer').at(-1)).toMatchObject({ drink: 'gift', gift: 'bear' });
-    w.handle(b.id, { t: 'answerCoffee', fromId: a.id, accept: true });
-    expect(w.view(a.id)!.holding).toBeNull();
-    expect(w.view(b.id)!.holding).toBeNull(); // it goes on the shelf, not in their hands
+    w.handle(a.id, { t: 'buyGift', gift: 'letter' });
+    expect(w.view(a.id)!.holding).toBeNull(); // nothing to carry
+    expect(a.c.of('bag').at(-1)!.items.map((i) => i.kind === 'gift' && i.gift)).toEqual(['bear', 'letter']);
+    expect(store.wallet(a.id).kp).toBe(10);
+    const bear = a.c.of('bag').at(-1)!.items[0];
+    w.handle(a.id, { t: 'giveItem', id: bear.id, to: b.id });
+    expect(a.c.of('bag').at(-1)!.items.map((i) => i.kind === 'gift' && i.gift)).toEqual(['letter']);
+    expect(w.view(b.id)!.holding).toBeNull();
     expect(w.view(b.id)).toMatchObject({ keepsakeCount: 1, keepsakes: [{ gift: 'bear', fromName: 'Sam' }] });
     expect(b.c.of('giftReceived').at(-1)).toMatchObject({ fromName: 'Sam', gift: 'bear' });
     expect(b.c.of('feed').at(-1)!.event.text).toBe('🧸 Sam gave Jo a plushie bear');
@@ -138,7 +138,7 @@ describe('admin', () => {
     const a = admin();
     go(a.id, stall.x, stall.z + 1.2);
     w.handle(a.id, { t: 'buyGift', gift: 'starJar' });
-    expect(w.view(a.id)!.holding).toMatchObject({ gift: 'starJar' });
+    expect(a.c.of('bag').at(-1)!.items).toMatchObject([{ kind: 'gift', gift: 'starJar' }]);
     w.handle(a.id, { t: 'buy', itemId: 'frogHood' });
     expect(store.wallet(a.id).owned).toContain('frogHood');
     expect(a.c.of('wallet').at(-1)!.wallet).toMatchObject({ kp: 0, admin: true });

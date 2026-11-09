@@ -1,6 +1,9 @@
 import { GIFT_KINDS, GIFTS, STATUS_MINUTES, STATUS_PRESETS, STATUS_TEXT_MAX, type Gift, type Keepsake, type Status } from '../../../shared/gifts';
 import type { PlayerView, Wallet } from '../../../shared/types';
+import type { BagItem } from '../../../shared/gifts';
+import { bagFor } from './bag';
 import { h } from './dom';
+import { FLOWER_EMOJI } from './garden';
 import type { Hud } from './hud';
 
 const price = (g: Gift, w: Wallet | null) => (w?.admin ? 'free' : `${GIFTS[g].price} ✨`);
@@ -12,26 +15,32 @@ function giftGrid(w: Wallet | null, label: string, onPick: (g: Gift) => void): H
   }, h('span', { className: 'gift-emoji', textContent: GIFTS[g].emoji }), h('b', { textContent: GIFTS[g].name }), h('span', { textContent: `${label} · ${price(g, w)}` }))));
 }
 
-/** The gift stall: buy one to carry over and hand to someone with G. */
-export function openGiftShop(hud: Hud, wallet: Wallet | null, holding: boolean, onBuy: (g: Gift) => void): void {
+/** The gift stall: gifts go into your bag (🎒, or I) to give whenever you like. */
+export function openGiftShop(hud: Hud, wallet: Wallet | null, onBuy: (g: Gift) => void): void {
   hud.openModal(h('div', {},
     h('h2', { textContent: '🎁 Gift stall' }),
-    h('p', { className: 'sub', textContent: holding ? 'Your hands are full: give away what you are holding first.' : 'Pick a gift to carry, then walk up to someone and press G (or Give).' }),
-    giftGrid(wallet, 'Carry', (g) => {
-      hud.finishModal();
+    h('p', { className: 'sub', textContent: 'Gifts go into your 🎒 bag (I). Give them to anyone from there, or from their player card.' }),
+    giftGrid(wallet, 'Add to bag', (g) => {
       onBuy(g);
+      hud.toast(`${GIFTS[g].emoji} ${GIFTS[g].name} added to your bag 🎒`, 2500);
     }),
   ), undefined, true);
 }
 
-/** From a player card: send a gift straight to them, wherever they are. */
-export function openGiftPicker(hud: Hud, name: string, wallet: Wallet | null, onPick: (g: Gift) => void): void {
+/** From a player card: give them something from your bag, or buy one and send it right away. */
+export function openGiftPicker(hud: Hud, name: string, wallet: Wallet | null, bag: BagItem[], onGive: (id: number) => void, onBuySend: (g: Gift) => void): void {
+  const fromBag = bagFor(bag, (id) => {
+    hud.finishModal();
+    onGive(id);
+  });
   hud.openModal(h('div', {},
-    h('h2', { textContent: `🎁 Send ${name} a gift` }),
+    h('h2', { textContent: `🎁 A gift for ${name}` }),
     h('p', { className: 'sub', textContent: 'It lands on their keepsakes shelf right away, even if they are somewhere else in town.' }),
+    ...(fromBag ? [fromBag] : []),
+    h('h3', { textContent: fromBag ? 'Or buy one and send it now' : 'Buy one and send it now' }),
     giftGrid(wallet, 'Send', (g) => {
       hud.finishModal();
-      onPick(g);
+      onBuySend(g);
     }),
   ), undefined, true);
 }
@@ -43,8 +52,9 @@ export function keepsakeShelf(list: Keepsake[], count: number, onUse?: (k: Keeps
     h('div', { className: 'sub', textContent: `🎁 Keepsakes · ${count}` }),
     h('div', { className: 'keepsake-row' }, ...list.map((k) => {
       const use = GIFTS[k.gift].use;
-      return h('div', { className: 'keepsake', title: `${GIFTS[k.gift].name} from ${k.fromName}` },
-        h('span', { className: 'gift-emoji', textContent: GIFTS[k.gift].emoji }),
+      const emoji = k.flower ? FLOWER_EMOJI[k.flower] : GIFTS[k.gift].emoji;
+      return h('div', { className: 'keepsake', title: `${k.flower ? `bouquet of ${k.flower}s` : GIFTS[k.gift].name} from ${k.fromName}` },
+        h('span', { className: 'gift-emoji', textContent: emoji }),
         h('span', { className: 'from', textContent: k.fromName }),
         ...(onUse && use ? [h('button', { type: 'button', className: 'mini', textContent: use === 'eat' ? 'Eat' : 'Let go', onclick: () => onUse(k) })] : []));
     })));

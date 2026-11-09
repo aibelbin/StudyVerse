@@ -38,9 +38,10 @@ export class Ambience {
       }
     }
     if (now > this.nextCricket) {
-      this.nextCricket = now + 0.9 + Math.random() * 0.6;
-      const g = night * 0.012;
-      if (g > 0.002) for (let i = 0; i < 3; i++) chirp(c, bus, 4500, 4400, now + i * 0.07, g, 0.045, 'square');
+      // Just the odd soft chirp now and then (a constant cricket loop gets tiring fast).
+      this.nextCricket = now + 12 + Math.random() * 18;
+      const g = night * 0.005;
+      if (g > 0.001) for (let i = 0; i < 3; i++) chirp(c, bus, 4300, 4200, now + i * 0.09, g, 0.04, 'sine');
     }
 
     const w = this.def.water;

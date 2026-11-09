@@ -104,6 +104,8 @@ export class Game {
   onOpenGarden: (toyId: string) => void = () => {};
   /** Called once per frame after the HUD updates (the touch controls follow the hint). */
   onFrame: () => void = () => {};
+  /** I: the bag. */
+  onBagKey: () => void = () => {};
   /** Called once, after the town has been drawn for the first time (the loading screen fades then). */
   onFirstFrame: () => void = () => {};
   private drawnOnce = false;
@@ -198,6 +200,9 @@ export class Game {
       if (!this.hud.modalOpen()) this.golf.quit();
     });
     this.input.on('e', () => this.interact());
+    this.input.on('i', () => {
+      if (!this.hud.modalOpen()) this.onBagKey();
+    });
     this.input.on('f', () => {
       if (!this.hud.modalOpen()) toggleFullscreen();
     });
@@ -220,7 +225,7 @@ export class Game {
     });
     this.input.on('g', () => {
       if (this.hud.modalOpen() || !this.me) return;
-      if (!this.me.holding) return this.hud.toast('Make a drink in the Café first ☕');
+      if (!this.me.holding) return this.onBagKey(); // nothing in hand: gifts live in the bag
       const to = this.nearestPlayer(GIFT_RANGE - 0.5);
       if (!to) return this.hud.toast('Walk up to someone to share your drink 🎁');
       this.send({ t: 'offerCoffee', to: to.view.id });
@@ -343,7 +348,10 @@ export class Game {
       case 'giftReceived': {
         const ch = this.charOf(m.toId);
         if (ch) for (const [i, e] of ['💖', GIFTS[m.gift].emoji, '💕'].entries()) setTimeout(() => ch.overhead.pop(e, performance.now(), 0.45), i * 220);
-        if (m.toId === this.me?.id) this.hud.toast(`${GIFTS[m.gift].emoji} ${m.fromName} sent you ${aGift(m.gift)}! It's on your keepsakes shelf.`, 5000);
+        if (m.toId === this.me?.id) {
+          const what = m.flower ? `a ${holdName({ item: 'bouquet', flower: m.flower })}` : aGift(m.gift);
+          this.hud.toast(`${GIFTS[m.gift].emoji} ${m.fromName} sent you ${what}! It's on your keepsakes shelf.`, 5000);
+        }
         break;
       }
       case 'balloonUp':
@@ -990,9 +998,10 @@ export class Game {
     if (t?.kind === 'toy') return t.prompt;
     if (t?.kind === 'slot') return slotPrompt(t.slot, t.slot.toyId ? this.toyById(t.slot.toyId) : undefined);
     const cup = me.holding;
-    if (t?.kind === 'player') return `[E] say hi to ${this.remotes.get(t.id)?.view.name ?? 'them'}${cup ? ` · [G] give your ${holdName(cup)}` : ''}`;
-    if (cup?.item === 'bouquet') return `💐 [G] give your ${holdName(cup)} to someone, or put it in your plot's vase`;
-    if (cup) return `[C] sip your ${cup.item} (${cup.sips} left) · [G] give it to someone`;
+    const drink = cup && cup.item !== 'gift' && cup.item !== 'bouquet' ? cup : null;
+    if (t?.kind === 'player') return `[E] say hi to ${this.remotes.get(t.id)?.view.name ?? 'them'}${drink ? ` · [G] give your ${holdName(drink)}` : ''}`;
+    // Only drinks are carried now (gifts and bouquets live in the bag).
+    if (cup && cup.item !== 'gift' && cup.item !== 'bouquet') return `[C] sip your ${cup.item} (${cup.sips} left) · [G] give it to someone`;
     return null;
   }
 
@@ -1002,6 +1011,12 @@ export class Game {
     this.renderer.setSize(innerWidth, innerHeight, false);
     this.rig.resize(innerWidth, innerHeight);
     this.post?.resize();
+  }
+
+  /** How far someone is from you, if they're in the same place (for the bag's people list). */
+  distanceTo(id: string): number | null {
+    const r = this.remotes.get(id);
+    return r ? Math.hypot(r.char.root.position.x - this.x, r.char.root.position.z - this.z) : null;
   }
 
   toggleMap(): void {

@@ -13,7 +13,9 @@ import { isTouchDevice } from './touch/detect';
 import { TouchUI } from './touch/ui';
 import { loadDone, loadStep } from './loader';
 import { openGiftPicker, openGiftShop, openMe } from './hud/gifts';
-import type { Features } from '../../shared/gifts';
+import type { BagItem, Features } from '../../shared/gifts';
+import type { OnlineEntry } from '../../shared/types';
+import { openBag } from './hud/bag';
 import { AdminPanel, showAnnouncement } from './hud/admin';
 
 loadStep(0.35); // the game's code has arrived
@@ -33,6 +35,8 @@ let hello: ClientMsg | null = null;
 let wallet: Wallet | null = null;
 let refreshGarden: () => void = () => {};
 let adminPanel: AdminPanel | null = null;
+let bag: BagItem[] = [];
+let onlineList: OnlineEntry[] = [];
 let features: Features | null = null;
 
 const wardrobe = new Wardrobe({
@@ -177,7 +181,7 @@ conn.onMessage = (m) => {
         if (toy.kind === 'shop') wardrobe.open('hat');
         if (toy.kind === 'board') board.show();
         if (toy.kind === 'coffee') openBarista(hud, (drink, stars) => conn.send({ t: 'brew', drink, stars }));
-        if (toy.kind === 'giftShop') openGiftShop(hud, wallet, !!g.myView()?.holding, (gift) => conn.send({ t: 'buyGift', gift }));
+        if (toy.kind === 'giftShop') openGiftShop(hud, wallet, (gift) => conn.send({ t: 'buyGift', gift }));
         if (toy.kind === 'stageScreen') {
           const st = game?.toyState(toy.id);
           openStageScreen(hud, st?.kind === 'stageScreen' ? st.text : null, (text) => conn.send({ t: 'stageText', text }));
@@ -191,6 +195,7 @@ conn.onMessage = (m) => {
         },
         wallet: () => wallet,
         holding: () => g.myView()?.holding ?? null,
+        bouquets: () => bag.flatMap((i) => (i.kind === 'bouquet' ? [i.flower] : [])),
         send: (msg) => conn.send(msg),
       });
       game.onOpenGarden = (id) => gardenPanel.open(id);
@@ -215,8 +220,17 @@ conn.onMessage = (m) => {
       game.onFirstFrame = () => loadDone();
       hud.onSendGift = (id, name) => {
         if (features && !features.gifts) return hud.toast('Gifts are switched off right now.');
-        openGiftPicker(hud, name, wallet, (gift) => conn.send({ t: 'sendGift', to: id, gift }));
+        openGiftPicker(hud, name, wallet, bag, (item) => {
+          conn.send({ t: 'giveItem', id: item, to: id });
+          hud.toast(`🎁 Sent to ${name}!`, 2500);
+        }, (gift) => conn.send({ t: 'sendGift', to: id, gift }));
       };
+      hud.onBag = () => openBag(hud, {
+        items: bag,
+        people: onlineList.filter((p) => p.id !== hud.meId).map((p) => ({ id: p.id, name: p.name, dist: g.distanceTo(p.id) })),
+        give: (id, to) => conn.send({ t: 'giveItem', id, to }),
+      });
+      game.onBagKey = () => hud.onBag();
       hud.onMe = () => {
         const me = g.myView();
         if (me) openMe(hud, me, (emoji, text, minutes) => conn.send({ t: 'setStatus', emoji, text, minutes }), (k) => conn.send({ t: 'useKeepsake', id: k.id }));
@@ -259,6 +273,12 @@ conn.onMessage = (m) => {
     return;
   }
   if (m.t === 'adminList') adminPanel?.setPlayers(m.players);
+  if (m.t === 'bag' || m.t === 'welcome') {
+    bag = m.t === 'bag' ? m.items : m.bag;
+    refreshGarden();
+  }
+  if (m.t === 'online') onlineList = m.list;
+  if (m.t === 'welcome') onlineList = m.online;
   if (m.t === 'announce') showAnnouncement(m.text);
   if (m.t === 'chatDelete') chat.remove(m.id);
   if (m.t === 'features' || m.t === 'welcome') {

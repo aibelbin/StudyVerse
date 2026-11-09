@@ -38,7 +38,8 @@ One process serves the page and the WebSocket (`/ws`). Profiles are stored in `d
 | 1–8 | play the piano, or the stage drums, guitar and keyboard, from their seats |
 | H | honk (in a truck) |
 | C | sip your drink (four sips per cup) |
-| G | offer your drink or bouquet to someone nearby (they get Accept / No thanks, or Y / N) |
+| G | offer your drink to someone nearby (they get Accept / No thanks, or Y / N); with empty hands, opens your bag |
+| I | your bag (gifts and bouquets) |
 | Enter | open chat / send; Esc closes it |
 | T | emote wheel (hold, point, let go; or click) |
 | drag (mouse) | mini-golf: drag back from anywhere and let go to putt |
@@ -74,8 +75,9 @@ second, five per ten seconds). Hold **T** for the emote wheel: wave, cheer, danc
 ## Gifts, keepsakes and status
 
 The 🎁 gift stall in the square sells cute gifts for KP (love letters, cookies, balloons, cupcakes, a mini cactus,
-bouquets, rubber duckies, surprise boxes, plushie bears, star jars). Carry one over and press G to hand it to
-someone, or send one from anywhere with 🎁 on their player card or next to their name in the online list. Gifts
+bouquets, rubber duckies, surprise boxes, plushie bears, star jars). They go into your 🎒 bag (I), along with the
+bouquets you pick in your garden. Open the bag, tap something and choose who gets it (people nearby are listed
+first), or use 🎁 on someone's player card or next to their name in the online list. Gifts
 land on the receiver's keepsakes shelf (shown on their card); eat a cupcake or cookie, or let a balloon float away.
 Click your own name to set a status (🍜 Eating, 😴 Napping, ☕ Coffee break… or your own words) that shows over your
 head and in the online list, for 30 min, 1 h, 4 h or until you clear it. Newcomers only see chat from after they

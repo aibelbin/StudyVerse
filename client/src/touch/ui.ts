@@ -82,6 +82,10 @@ export class TouchUI {
             this.toggleMenu(false);
             this.showHomeScreenCard();
           })] : []),
+          item('🎒 Bag', () => {
+            this.toggleMenu(false);
+            hud.onBag();
+          }),
           item('🙂 Status & gifts', () => {
             this.toggleMenu(false);
             hud.onMe();

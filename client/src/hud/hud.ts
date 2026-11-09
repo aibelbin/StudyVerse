@@ -21,6 +21,8 @@ export class Hud {
   /** 🎁 next to someone: send them a gift. */
   onSendGift: (id: string, name: string) => void = () => {};
   onAdmin: () => void = () => {};
+  /** 🎒 the bag. */
+  onBag: () => void = () => {};
   /** Shows the 🛡️ button. */
   admin = false;
   /** Gifts switched on (by the admins). */
@@ -82,6 +84,7 @@ export class Hud {
           h('button', { className: `mini${me.dnd ? ' on' : ''}`, title: me.dnd ? 'Do not disturb is on (N)' : 'Do not disturb (N)', textContent: me.dnd ? '🔕' : '🔔', onclick: () => this.onToggleDnd() }),
           h('button', { className: 'mini', title: this.muted ? 'Sound off' : 'Sound on', textContent: this.muted ? '🔇' : '🔊', onclick: () => this.onToggleMute() }),
           h('button', { className: 'mini', title: this.quality === 'high' ? 'Graphics: High (click for Lite)' : 'Graphics: Lite (click for High)', textContent: this.quality === 'high' ? '✨' : '🍃', onclick: () => this.onToggleQuality() }),
+          h('button', { className: 'mini', title: 'Your bag (I)', textContent: '🎒', onclick: () => this.onBag() }),
           h('button', { className: 'mini', title: 'Full screen (F)', textContent: '⛶', onclick: () => toggleFullscreen() }),
           ...(this.admin ? [h('button', { className: 'mini', title: 'Admin panel', textContent: '🛡️', onclick: () => this.onAdmin() })] : []),
           h('button', { className: 'mini', title: 'Change your look', textContent: '✏️', onclick: () => this.onEditLook() }))),

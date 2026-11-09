@@ -339,3 +339,6 @@ body.touch input, body.touch select { font-size: 16px; }
 #chat .del { border: 0; background: none; cursor: pointer; font-size: 11px; opacity: 0.6; }
 .balloon-up { pointer-events: none; }
 body.touch .admin-panel { width: min(400px, 60vw); }
+.people { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; margin-top: 8px; }
+.person { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: 12px; min-height: 44px; }
+.person span { color: var(--mut); font-size: 12px; }

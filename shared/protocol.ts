@@ -20,7 +20,7 @@ export type AdminAction =
 export const GARDEN_ACTIONS: GardenAction[] = ['claim', 'plant', 'water', 'harvest', 'vase'];
 import type { ToyAction, ToyState } from './toys';
 import type { Flower } from './garden';
-import type { AdminPlayer, Feature, Features, Gift } from './gifts';
+import type { AdminPlayer, BagItem, Feature, Features, Gift } from './gifts';
 import type { Act, Anim, ChatMsg, Drink, EmoteKind, HoldItem, FeedEvent, Look, Note, OnlineEntry, PetKind, PetView, PlayerView, Wallet } from './types';
 
 export type ClientMsg =
@@ -56,6 +56,8 @@ export type ClientMsg =
   | { t: 'buyGift'; gift: Gift }
   | { t: 'sendGift'; to: string; gift: Gift }
   | { t: 'useKeepsake'; id: number }
+  /** Give something from your bag to someone (anywhere in town). */
+  | { t: 'giveItem'; id: number; to: string }
   | { t: 'setStatus'; emoji: string; text: string; minutes: number | null }
   | ({ t: 'admin' } & AdminAction)
   | { t: 'offerCoffee'; to: string }
@@ -130,8 +132,11 @@ export type ServerMsg =
       chat: ChatMsg[];
       /** Which town features the admins have switched on. */
       features: Features;
+      /** Your bag: gifts and bouquets. */
+      bag: BagItem[];
     }
-  | { t: 'giftReceived'; fromId: string; fromName: string; toId: string; gift: Gift }
+  | { t: 'bag'; items: BagItem[] }
+  | { t: 'giftReceived'; fromId: string; fromName: string; toId: string; gift: Gift; flower?: Flower }
   | { t: 'balloonUp'; x: number; z: number; color: string }
   | { t: 'features'; features: Features }
   | { t: 'announce'; text: string }

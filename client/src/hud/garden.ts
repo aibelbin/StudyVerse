@@ -1,6 +1,6 @@
 import { FLOWER_KINDS, FLOWERS, seedItem, stageOf, type Flower, type PlotState } from '../../../shared/garden';
 import type { ClientMsg } from '../../../shared/protocol';
-import { holdName, type Holding, type Wallet } from '../../../shared/types';
+import type { Holding, Wallet } from '../../../shared/types';
 import { h } from './dom';
 import type { Hud } from './hud';
 
@@ -13,6 +13,8 @@ export interface GardenDeps {
   plot(toyId: string): PlotState | null;
   wallet(): Wallet | null;
   holding(): Holding | null;
+  /** Bouquets in your bag (for the vase). */
+  bouquets(): Flower[];
   send(m: ClientMsg): void;
 }
 
@@ -45,7 +47,6 @@ export class GardenPanel {
     const s = this.toyId ? this.deps.plot(this.toyId) : null;
     if (!s) return;
     const wallet = this.deps.wallet();
-    const holding = this.deps.holding();
     const btn = (text: string, onclick: () => void, primary = false, disabled = false) =>
       h('button', { type: 'button', className: primary ? 'primary' : '', textContent: text, onclick, disabled });
 
@@ -69,7 +70,7 @@ export class GardenPanel {
         h('div', { className: 'garden-bar' }, fill),
         h('div', { className: 'garden-min', textContent: `${Math.floor(sp.progress)} / ${info.growMin} focus min` }),
         ...(stage === 'bloom'
-          ? [holding ? h('div', { className: 'garden-min', textContent: 'Hands full' }) : btn(`Pick 💐 +${info.harvestKp} ✨`, () => this.act('harvest', i), true)]
+          ? [btn(`Pick 💐 +${info.harvestKp} ✨`, () => this.act('harvest', i), true)]
           : []));
     });
 
@@ -88,7 +89,7 @@ export class GardenPanel {
             this.picking = null;
             this.act('plant', spot, f);
           }, true)
-          : btn(`Unlock ${info.price} ✨`, () => this.deps.send({ t: 'buySeed', flower: f }), false, (wallet?.kp ?? 0) < info.price));
+          : btn(wallet?.admin ? 'Unlock (free)' : `Unlock ${info.price} ✨`, () => this.deps.send({ t: 'buySeed', flower: f }), false, !wallet?.admin && (wallet?.kp ?? 0) < info.price));
         return card;
       })),
     ];
@@ -96,8 +97,9 @@ export class GardenPanel {
     const water = s.boostMin > 0
       ? h('div', { className: 'garden-note', textContent: `💧 Watered: +50% growth for your next ${Math.ceil(s.boostMin)} focus minutes` })
       : h('div', { className: 'garden-note' }, 'Not watered right now. ', btn('Water 💧', () => this.act('water')));
-    const vase = holding?.item === 'bouquet'
-      ? [btn(`Put your ${holdName(holding)} in the vase`, () => this.act('vase'))]
+    const flowers = [...new Set(this.deps.bouquets())];
+    const vase = flowers.length
+      ? [h('div', { className: 'garden-note' }, 'Put a bouquet from your bag in the vase: ', ...flowers.map((f) => btn(`${FLOWER_EMOJI[f]} ${FLOWERS[f].name}`, () => this.act('vase', undefined, f))))]
       : [];
 
     this.root.replaceChildren(

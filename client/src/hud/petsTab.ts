@@ -21,7 +21,7 @@ export function petsTab(d: PetsTabDeps) {
       const cells = PET_KINDS.map((p) => {
         const owned = !!w?.pets.includes(p.kind);
         const active = w?.pet?.kind === p.kind;
-        const afford = (w?.kp ?? 0) >= p.price;
+        const afford = !!w?.admin || (w?.kp ?? 0) >= p.price;
         const go = () => {
           const n = name.value.replace(/\s+/g, ' ').trim() || p.label;
           d.adopt(p.kind, n);
