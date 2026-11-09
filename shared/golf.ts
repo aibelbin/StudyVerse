@@ -110,13 +110,13 @@ export const HOLES: Hole[] = [
   },
   {
     n: 5, name: 'Loop', par: 3,
-    tee: { x: 45, z: 54.7 }, cup: { x: 33.5, y: FELT, z: 55.3 },
+    tee: { x: 45, z: 54.6 }, cup: { x: 33.5, y: FELT, z: 55.5 },
     bounds: bounds(32, 46, B.z0, B.z1),
     pieces: [
       floor(32, 46, B.z0, B.z1), ...rails(32, 46, B.z0, B.z1),
-      { kind: 'loop', x: 39, z: 54.7, r: 0.7, offset: 0.6, width: 0.8 },
+      { kind: 'loop', x: 40, z: 54.6, r: 0.55, offset: 0.9, width: 0.6 },
     ],
-    blocks: [{ x: 39, z: 55, w: 1.8, d: 1.4 }],
+    blocks: [{ x: 40, z: 55, w: 1.5, d: 1.4 }],
   },
   {
     n: 6, name: 'Volcano', par: 4,
