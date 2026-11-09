@@ -200,6 +200,17 @@ describe('trucks', () => {
     expect(truckState(b.c)).toMatchObject({ x: truck.x + 5, returnFrom: null });
   });
 
+  it('tells the driver where they left the truck when they hop out', () => {
+    const a = joinNew('Sam');
+    board(a.id);
+    const truck = SCENES.town.toys.find((x) => x.id === 'truck-1')!;
+    t += 1000;
+    w.handle(a.id, { t: 'move', x: truck.x, z: truck.z + 4, facing: 0, anim: 'sit' });
+    expect(truckState(a.c)).toBeUndefined(); // the driver isn't echoed while driving
+    w.handle(a.id, { t: 'stand' });
+    expect(truckState(a.c)).toMatchObject({ kind: 'truck', x: truck.x, z: truck.z + 4 });
+  });
+
   it('anyone in the truck can honk, people outside cannot', () => {
     const a = joinNew('Sam');
     const b = joinNew('Jo');

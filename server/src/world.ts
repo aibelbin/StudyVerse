@@ -253,6 +253,10 @@ export class World {
     const slot = this.findSlot(p.scene, p.slotId);
     const off = slot && this.leavePos(slot);
     this.freeSlot(p);
+    if (slot && isController(slot.pose) && slot.toyId) {
+      const s = this.toyStates.get(slot.toyId);
+      if (s) p.conn?.send({ t: 'toyState', toyId: slot.toyId, state: s }); // the driver was never echoed its own pose
+    }
     if (off) {
       p.x = off.x;
       p.z = off.z;

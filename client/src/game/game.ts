@@ -349,7 +349,10 @@ export class Game {
     const slot = p.slotId ? this.slotById(p.slotId) : undefined;
     if (!slot || !(CONTROLLER_POSES as readonly string[]).includes(slot.pose) || !slot.toyId) {
       if (this.driving) {
-        (this.rt?.toys.get(this.driving.toyId) as VehicleView | undefined)?.setLocal(null);
+        const { toyId, kind, pose } = this.driving;
+        // Keep the truck where we left it; the server's echo of the final pose follows.
+        if (kind === 'truck') this.toyStates[toyId] = { kind: 'truck', ...pose, returnFrom: null };
+        (this.rt?.toys.get(toyId) as VehicleView | undefined)?.setLocal(null);
         if (this.driving.kind === 'truck') this.rig.zoomTo(1);
       }
       this.driving = null;
