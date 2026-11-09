@@ -1,9 +1,11 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Decor, DecorKind } from '../../../shared/scenes/types';
 import { glow, mat, mesh, toonMat } from './materials';
 import { PALETTE as P } from './palette';
 import { rng } from './rng';
 import { labelTexture } from './text';
+import { waterMat } from './ground';
 
 type Builder = (d: Decor, r: () => number) => THREE.Object3D;
 
@@ -16,6 +18,43 @@ function group(...kids: THREE.Object3D[]): THREE.Group {
   const g = new THREE.Group();
   if (kids.length) g.add(...kids);
   return g;
+}
+
+/**
+ * Many-part decor (hedges, buildings, benches) merged into one mesh per material, so a detailed
+ * object costs a few draw calls instead of dozens.
+ */
+export function merged(g: THREE.Object3D): THREE.Group {
+  g.updateMatrixWorld(true);
+  const byMat = new Map<THREE.Material, { geos: THREE.BufferGeometry[]; shadow: boolean }>();
+  const keep: THREE.Object3D[] = [];
+  g.traverse((o) => {
+    if (o === g || !(o instanceof THREE.Mesh)) return;
+    if (Array.isArray(o.material) || o.userData.keep) {
+      keep.push(o);
+      return;
+    }
+    const geo = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
+    for (const name of Object.keys(geo.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'uv') geo.deleteAttribute(name);
+    if (!geo.attributes.uv) geo.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(geo.attributes.position.count * 2), 2));
+    let e = byMat.get(o.material);
+    if (!e) byMat.set(o.material, (e = { geos: [], shadow: false }));
+    e.geos.push(geo);
+    e.shadow ||= o.castShadow;
+  });
+  const out = new THREE.Group();
+  for (const [m, e] of byMat) {
+    const one = new THREE.Mesh(mergeGeometries(e.geos)!, m);
+    one.castShadow = e.shadow;
+    one.receiveShadow = true;
+    out.add(one);
+  }
+  for (const o of keep) {
+    o.removeFromParent();
+    out.add(o);
+  }
+  out.userData = { ...g.userData };
+  return out;
 }
 
 function labelPlane(text: string, height: number): THREE.Mesh {
@@ -55,38 +94,112 @@ function cobbles(): THREE.CanvasTexture {
 }
 
 const builders: Record<DecorKind, Builder> = {
+  /** Four shapes by seed (oak, poplar, birch, apple): round canopies of soft clumps, lighter on top. */
   tree(d, r) {
     const s = d.h ?? 1;
-    const g = group(mesh(cyl(0.12 * s, 0.18 * s, 1.3 * s, 8), mat(P.trunk), 0, 0.65 * s, 0));
-    const greens = [P.leaf1, P.leaf2, P.leaf3];
-    for (let i = 0; i < 4; i++) {
-      g.add(mesh(sph((0.55 + r() * 0.3) * s), mat(greens[i % 3]), (r() - 0.5) * 0.8 * s, (1.5 + r() * 0.6) * s, (r() - 0.5) * 0.8 * s));
+    const kind = Math.abs(Math.round(d.seed ?? 0)) % 4;
+    const greens = [P.leaf2, P.leaf1, P.leaf3];
+    const top = '#b2e29a';
+    const g = group();
+    const clump = (x: number, y: number, z: number, rad: number, color: string) =>
+      g.add(mesh(sph(rad * s, 1), mat(color), x * s, y * s, z * s));
+    if (kind === 1) {
+      // poplar: tall and narrow
+      g.add(mesh(cyl(0.09 * s, 0.14 * s, 1.2 * s, 8), mat(P.trunk), 0, 0.6 * s, 0));
+      for (let i = 0; i < 6; i++) clump((r() - 0.5) * 0.25, 1.2 + i * 0.42, (r() - 0.5) * 0.25, 0.5 - i * 0.045, i > 3 ? top : greens[i % 3]);
+      return g;
+    }
+    if (kind === 2) {
+      // birch: white trunk with dark marks, airy pale canopy
+      g.add(mesh(cyl(0.08 * s, 0.11 * s, 1.7 * s, 8), mat('#f2efe6'), 0, 0.85 * s, 0));
+      for (let i = 0; i < 4; i++) g.add(mesh(box(0.13 * s, 0.03 * s, 0.13 * s), mat('#4a4048'), 0, (0.3 + i * 0.35) * s, 0, false));
+      const pale = ['#a8d98f', '#bfe5a6', '#93cc7e'];
+      for (let i = 0; i < 7; i++) clump((r() - 0.5) * 1.1, 1.7 + r() * 0.9, (r() - 0.5) * 1.1, 0.38 + r() * 0.16, pale[i % 3]);
+      return g;
+    }
+    // oak and apple: a wide round canopy on a short trunk with two branch stubs
+    g.add(mesh(cyl(0.13 * s, 0.2 * s, 1.3 * s, 8), mat(P.trunk), 0, 0.65 * s, 0));
+    for (const side of [-1, 1]) {
+      const b = mesh(cyl(0.05 * s, 0.07 * s, 0.6 * s, 6), mat(P.trunk), side * 0.22 * s, 1.15 * s, 0);
+      b.rotation.z = -side * 0.8;
+      g.add(b);
+    }
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + r() * 0.5;
+      const rr = 0.45 + r() * 0.2;
+      clump(Math.cos(a) * rr, 1.55 + r() * 0.35, Math.sin(a) * rr, 0.42 + r() * 0.14, greens[i % 3]);
+    }
+    clump(0, 2.05, 0, 0.5, top);
+    clump(0.25, 1.95, 0.2, 0.34, top);
+    if (kind === 3) {
+      for (let i = 0; i < 9; i++) {
+        const a = r() * Math.PI * 2;
+        g.add(mesh(sph(0.065 * s, 1), mat('#e8453c'), Math.cos(a) * 0.8 * s, (1.35 + r() * 0.6) * s, Math.sin(a) * 0.8 * s, false));
+      }
     }
     return g;
   },
 
+  /** Four tiers, each a darker cone with a lighter cap, on a visible trunk. */
   pine(d) {
     const s = d.h ?? 1;
-    const g = group(mesh(cyl(0.1 * s, 0.14 * s, 0.8 * s, 8), mat(P.trunk), 0, 0.4 * s, 0));
-    for (let i = 0; i < 3; i++) {
-      g.add(mesh(new THREE.ConeGeometry((1 - i * 0.25) * s, 1.1 * s, 8), mat(i % 2 ? P.pine1 : P.pine2), 0, (1 + i * 0.6) * s, 0));
+    const g = group(mesh(cyl(0.1 * s, 0.15 * s, 0.9 * s, 8), mat(P.trunk), 0, 0.45 * s, 0));
+    for (let i = 0; i < 4; i++) {
+      const w = (1.05 - i * 0.22) * s;
+      const y = (0.95 + i * 0.5) * s;
+      g.add(mesh(new THREE.ConeGeometry(w, 0.95 * s, 10), mat(P.pine1), 0, y, 0));
+      g.add(mesh(new THREE.ConeGeometry(w * 0.72, 0.6 * s, 10), mat(i % 2 ? '#74c08a' : P.pine2), 0, y + 0.22 * s, 0, false));
     }
     return g;
   },
 
-  bush(_d, r) {
+  /** Soft clumps; variants get red or blue berries or tiny white flowers. */
+  bush(d, r) {
+    const kind = Math.abs(Math.round(d.seed ?? 0)) % 4;
     const g = group();
-    for (let i = 0; i < 3; i++) g.add(mesh(sph(0.35 + r() * 0.15), mat(i % 2 ? P.leaf1 : P.leaf2), (i - 1) * 0.35, 0.3, (r() - 0.5) * 0.3));
+    const n = 4 + Math.floor(r() * 3);
+    const spots: [number, number, number, number][] = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const rad = 0.28 + r() * 0.14;
+      const p: [number, number, number, number] = [Math.cos(a) * 0.32, 0.28 + r() * 0.12, Math.sin(a) * 0.22, rad];
+      spots.push(p);
+      g.add(mesh(sph(rad, 1), mat(i % 3 === 0 ? P.leaf3 : i % 2 ? P.leaf1 : P.leaf2), p[0], p[1], p[2]));
+    }
+    g.add(mesh(sph(0.34, 1), mat('#a6dc8e'), 0, 0.5, 0));
+    if (kind > 0) {
+      const dot = kind === 1 ? '#e8453c' : kind === 2 ? '#5a7ae8' : '#ffffff';
+      for (let i = 0; i < 10; i++) {
+        const [x, y, z, rad] = spots[i % spots.length];
+        const a = r() * Math.PI * 2;
+        g.add(mesh(sph(0.04, 0), mat(dot), x + Math.cos(a) * rad * 0.9, y + 0.1 + r() * 0.1, z + Math.sin(a) * rad * 0.9, false));
+      }
+    }
     return g;
   },
 
+  /** A little bed of real flowers: stems, two leaves, a five-petal ring round a yellow middle. */
   flowers(_d, r) {
     const g = group();
-    for (let i = 0; i < 9; i++) {
+    const family = pick([['#f7a1c4', '#ff7fa8', '#ffd0e0'], ['#ffd36e', '#ffb347', '#fff1a8'], ['#c3a6ff', '#9f86f0', '#e2d4ff'], ['#ffffff', '#f2f2f2', '#ffe8f0'], ['#ff9e7a', '#ff7a5a', '#ffd0bc']], r);
+    for (let i = 0; i < 7; i++) {
       const x = (r() - 0.5) * 0.9;
       const z = (r() - 0.5) * 0.5;
-      g.add(mesh(cyl(0.012, 0.012, 0.26, 4), mat(P.leaf2), x, 0.13, z, false));
-      g.add(mesh(sph(0.065, 0), mat(pick(P.flowers, r)), x, 0.28, z, false));
+      const h = 0.22 + r() * 0.16;
+      g.add(mesh(cyl(0.012, 0.014, h, 4), mat(P.leaf2), x, h / 2, z, false));
+      for (const side of [-1, 1]) {
+        const leaf = mesh(sph(0.04, 0), mat(P.leaf1), x + side * 0.04, h * 0.35, z, false);
+        leaf.scale.set(1.2, 0.3, 0.6);
+        g.add(leaf);
+      }
+      const color = family[i % 3];
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * Math.PI * 2;
+        const petal = mesh(sph(0.035, 0), mat(color), x + Math.cos(a) * 0.04, h + 0.01, z + Math.sin(a) * 0.04, false);
+        petal.scale.set(1, 0.4, 1);
+        g.add(petal);
+      }
+      g.add(mesh(sph(0.026, 0), mat('#ffcf3a'), x, h + 0.025, z, false));
     }
     return g;
   },
@@ -166,7 +279,7 @@ const builders: Record<DecorKind, Builder> = {
     const sz = (d.d ?? 3) / 2;
     const rim = mesh(cyl(1.08, 1.08, 0.05, 32), mat(P.waterRim), 0, 0.025, 0, false);
     rim.scale.set(sx, 1, sz);
-    const water = mesh(cyl(1, 1, 0.06, 32), toonMat({ color: P.water, roughness: 0.15, metalness: 0.1 }), 0, 0.04, 0, false);
+    const water = mesh(cyl(1, 1, 0.06, 32), waterMat(P.water), 0, 0.04, 0, false);
     water.scale.set(sx, 1, sz);
     const g = group(rim, water);
     for (let i = 0; i < 4; i++) {
@@ -369,7 +482,8 @@ const builders: Record<DecorKind, Builder> = {
     return group(
       flat(new THREE.ShapeGeometry(shape(1.06), 2), mat('#e8d8a8', 1), 0.012),
       flat(new THREE.ShapeGeometry(shape(1.0), 2), mat(P.waterRim, 0.6), 0.02),
-      flat(new THREE.ShapeGeometry(shape(0.96), 2), toonMat({ color: P.water, roughness: 0.12, metalness: 0.1 }), 0.03),
+      flat(new THREE.ShapeGeometry(shape(0.975), 2), mat('#e9f6fb'), 0.026), // a pale foam band along the shore
+      flat(new THREE.ShapeGeometry(shape(0.95), 2), waterMat(P.water), 0.03),
     );
   },
 
@@ -382,40 +496,79 @@ const builders: Record<DecorKind, Builder> = {
     return g;
   },
 
+  /** A notched pad; some carry a pink or white flower. */
   lilyPad(_d, r) {
-    const pad = mesh(cyl(0.3 + r() * 0.15, 0.3 + r() * 0.15, 0.02, 12, ), mat(r() < 0.5 ? P.leaf1 : P.leaf2), 0, 0.05, 0, false);
+    const rad = 0.3 + r() * 0.15;
+    const pad = new THREE.Mesh(new THREE.CircleGeometry(rad, 16, 0.4, Math.PI * 2 - 0.5), mat(r() < 0.5 ? P.leaf1 : P.leaf2));
+    pad.rotation.x = -Math.PI / 2;
+    pad.position.y = 0.05;
+    pad.receiveShadow = true;
     const g = group(pad);
-    if (r() < 0.35) g.add(mesh(sph(0.08, 0), mat(r() < 0.5 ? '#f7a1c4' : '#ffffff'), 0.08, 0.1, 0.05, false));
+    if (r() < 0.4) {
+      const color = r() < 0.5 ? '#f7a1c4' : '#ffffff';
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2;
+        const petal = mesh(sph(0.05, 0), mat(color), 0.08 + Math.cos(a) * 0.05, 0.1, 0.05 + Math.sin(a) * 0.05, false);
+        petal.scale.set(1, 0.5, 0.6);
+        petal.rotation.y = -a;
+        g.add(petal);
+      }
+      g.add(mesh(sph(0.03, 0), mat('#ffcf3a'), 0.08, 0.12, 0.05, false));
+    }
     return g;
   },
 
+  /** Two or three rounded stones together; half wear a soft moss cap. */
   rock(_d, r) {
-    const s = 0.18 + r() * 0.3;
-    const o = mesh(sph(s, 0), mat(r() < 0.5 ? '#b8b2b8' : '#a9a3ad'), 0, s * 0.45, 0);
-    o.scale.set(1.2, 0.7, 1);
-    return group(o);
+    const g = group();
+    const greys = ['#b8b2b8', '#a9a3ad', '#c4bec2'];
+    const n = 2 + Math.floor(r() * 2);
+    for (let i = 0; i < n; i++) {
+      const s = (0.14 + r() * 0.22) * (i === 0 ? 1.2 : 0.8);
+      const o = mesh(sph(s, 1), mat(greys[i % 3]), (r() - 0.5) * 0.35, s * 0.45, (r() - 0.5) * 0.3);
+      o.scale.set(1.25, 0.72, 1);
+      g.add(o);
+      if (i === 0 && r() < 0.5) {
+        const moss = mesh(sph(s * 0.85, 1), mat('#8cc47a'), o.position.x, s * 0.72, o.position.z, false);
+        moss.scale.set(1.2, 0.35, 1);
+        g.add(moss);
+      }
+    }
+    return g;
   },
 
+  /** A tuft of tapered blades in a few greens; now and then a tiny white flower. */
   grass(_d, r) {
     const g = group();
-    for (let i = 0; i < 3; i++) {
-      const blade = mesh(new THREE.ConeGeometry(0.035, 0.28 + r() * 0.16, 3), mat(i % 2 ? P.leaf2 : P.leaf3), (r() - 0.5) * 0.16, 0.15, (r() - 0.5) * 0.16, false);
-      blade.rotation.z = (r() - 0.5) * 0.5;
+    const greens = [P.leaf2, P.leaf3, P.leaf1];
+    for (let i = 0; i < 5; i++) {
+      const h = 0.24 + r() * 0.18;
+      const blade = mesh(new THREE.ConeGeometry(0.03, h, 3), mat(greens[i % 3]), (r() - 0.5) * 0.2, h / 2, (r() - 0.5) * 0.2, false);
+      blade.rotation.z = (r() - 0.5) * 0.6;
+      blade.rotation.x = (r() - 0.5) * 0.4;
       g.add(blade);
     }
+    if (r() < 0.3) g.add(mesh(sph(0.03, 0), mat('#ffffff'), 0.05, 0.36, 0, false));
     return g;
   },
 
-  hedge(d) {
+  /** A low base with two rows of uneven round clumps, dotted with little flowers. */
+  hedge(d, r) {
     const w = d.w ?? 2;
     const dd = d.d ?? 1;
-    const g = group(mesh(box(w, 0.8, dd), mat(P.pine1), 0, 0.4, 0));
+    const g = group(mesh(box(w, 0.55, dd), mat(P.pine1), 0, 0.275, 0));
     const along = w > dd;
     const len = along ? w : dd;
-    for (let k = -len / 2 + 0.6; k < len / 2; k += 1.2) {
-      g.add(mesh(sph(0.5, 1), mat(P.pine2), along ? k : 0, 0.75, along ? 0 : k));
+    for (let k = -len / 2 + 0.45; k < len / 2; k += 0.9) {
+      for (const off of [-0.2, 0.2]) {
+        const rad = 0.42 + r() * 0.12;
+        const kk = k + (off > 0 ? 0.45 : 0);
+        if (Math.abs(kk) > len / 2 - 0.3) continue;
+        g.add(mesh(sph(rad, 1), mat(off > 0 ? P.pine2 : '#58a874'), along ? kk : off, 0.6 + r() * 0.12, along ? off : kk));
+      }
+      if (r() < 0.35) g.add(mesh(sph(0.045, 0), mat(r() < 0.5 ? '#ffffff' : '#f7a1c4'), along ? k : (r() - 0.5) * 0.4, 1.02, along ? (r() - 0.5) * 0.4 : k, false));
     }
-    return g;
+    return merged(g);
   },
 
   bandstand(d) {

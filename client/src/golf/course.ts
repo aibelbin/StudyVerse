@@ -6,6 +6,7 @@ import { PALETTE as P } from '../world/palette';
 import { labelTexture } from '../world/text';
 import type { ToyView } from '../toys/registry';
 import { loopMesh } from './sim';
+import { waterMat } from '../world/ground';
 
 const FELT_COLOR = '#5cbf6c';
 const RAIL_COLOR = '#c98a5a';
@@ -75,7 +76,7 @@ function piece(p: Piece, root: THREE.Group, blades: THREE.Group[], sailGroups: T
     case 'water': {
       const pit = mesh(new THREE.BoxGeometry(p.w, 0.3, p.d), mat('#3a5a7a'), p.x, -0.13, p.z, false);
       root.add(pit);
-      const water = new THREE.Mesh(new THREE.PlaneGeometry(p.w, p.d), toonMat({ color: '#5fb8e8', roughness: 0.1 }));
+      const water = new THREE.Mesh(new THREE.PlaneGeometry(p.w, p.d), waterMat('#5fb8e8'));
       water.rotation.x = -Math.PI / 2;
       water.position.set(p.x, 0.02, p.z);
       root.add(water);

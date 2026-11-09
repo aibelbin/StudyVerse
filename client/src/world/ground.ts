@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { rng } from '../../../shared/rng';
 import type { SceneDef } from '../../../shared/scenes/types';
+import { toonMat } from './materials';
 
 /** World-space shapes for the painted ground, in canvas pixels. */
 export interface PaintPlan {
@@ -122,4 +123,36 @@ export function withCloudShadows(m: THREE.Material): void {
       .replace('#include <common>', '#include <common>\nuniform sampler2D cloudMap;\nuniform float cloudT;\nuniform float cloudK;\nvarying vec2 vCloudXZ;')
       .replace('#include <map_fragment>', '#include <map_fragment>\n{ float cl = texture2D(cloudMap, vCloudXZ / 70.0 - vec2(cloudT / 70.0, cloudT / 300.0)).r; diffuseColor.rgb *= 1.0 - cloudK * cl; }');
   };
+}
+
+const waterCache = new Map<string, THREE.MeshToonMaterial>();
+
+/**
+ * Storybook water: the base colour with soft light ripples that drift over time, worked out in the
+ * shader from world position (shares the cloud clock, so there's nothing to update per object).
+ */
+export function waterMat(color: string): THREE.MeshToonMaterial {
+  const hit = waterCache.get(color);
+  if (hit) return hit;
+  const m = toonMat({ color });
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.waterT = CLOUDS.t;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vWaterXZ;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvWaterXZ = (modelMatrix * vec4(transformed, 1.0)).xz;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform float waterT;\nvarying vec2 vWaterXZ;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+{
+  vec2 p = vWaterXZ;
+  float a = sin(p.x * 1.1 + waterT * 0.8) * sin(p.y * 0.9 - waterT * 0.6);
+  float b = sin((p.x + p.y) * 0.55 + waterT * 0.45);
+  float rip = a + 0.5 * b;
+  diffuseColor.rgb += smoothstep(0.85, 1.35, rip) * 0.16;
+  diffuseColor.rgb -= smoothstep(0.9, 1.4, -rip) * 0.05;
+}`);
+  };
+  m.customProgramCacheKey = () => 'water';
+  waterCache.set(color, m);
+  return m;
 }

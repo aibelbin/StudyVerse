@@ -5,6 +5,7 @@ import { mat, mesh, toonMat } from '../world/materials';
 import { PALETTE as P } from '../world/palette';
 import { Floaters } from './floaters';
 import type { ToyFx, ToyView } from './registry';
+import { waterMat } from '../world/ground';
 
 /** Unit vector from the toy towards the middle of the scene's water. */
 function towardWater(toy: Toy, def: SceneDef): { x: number; z: number } {
@@ -20,7 +21,7 @@ export function fountainView(toy: Toy, fx: ToyFx): ToyView {
   const rim = mesh(new THREE.TorusGeometry(1.42, 0.14, 8, 32), mat('#d8d2e0'), 0, 0.42, 0);
   rim.rotation.x = Math.PI / 2;
   root.add(mesh(new THREE.CylinderGeometry(1.5, 1.6, 0.4, 24), mat('#c9c2d4'), 0, 0.2, 0), rim);
-  root.add(mesh(new THREE.CylinderGeometry(1.36, 1.36, 0.04, 24), toonMat({ color: P.water, roughness: 0.1 }), 0, 0.41, 0, false));
+  root.add(mesh(new THREE.CylinderGeometry(1.36, 1.36, 0.04, 24), waterMat(P.water), 0, 0.41, 0, false));
   root.add(mesh(new THREE.CylinderGeometry(0.14, 0.2, 1.1, 10), mat('#d8d2e0'), 0, 0.9, 0));
   root.add(mesh(new THREE.CylinderGeometry(0.5, 0.25, 0.18, 14), mat('#d8d2e0'), 0, 1.45, 0));
   const drops: THREE.Mesh[] = [];

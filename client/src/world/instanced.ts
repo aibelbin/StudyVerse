@@ -12,13 +12,13 @@ export interface Sway {
   value: number;
 }
 
-const swayCache = new WeakMap<THREE.Material, THREE.MeshStandardMaterial>();
+const swayCache = new WeakMap<THREE.Material, THREE.Material>();
 
 /** A copy of base whose vertices lean in the wind, more the higher they are. */
-export function swayMaterial(base: THREE.MeshStandardMaterial, sway: Sway): THREE.MeshStandardMaterial {
-  let m = swayCache.get(base);
-  if (m) return m;
-  m = base.clone();
+export function swayMaterial<M extends THREE.Material>(base: M, sway: Sway): M {
+  const cached = swayCache.get(base);
+  if (cached) return cached as M;
+  const m = base.clone() as M;
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uSway = sway;
     shader.vertexShader = `uniform float uSway;\n${shader.vertexShader}`.replace(
@@ -79,7 +79,8 @@ export function buildInstanced(decor: Decor[], sway: Sway): THREE.Group {
     const [kind, variant] = key.split('|');
     const template = decorTemplate({ ...list[0], x: 0, z: 0, y: 0, rot: 0, h: 1, seed: Number(variant) * 977 + 13 });
     for (const part of bake(template)) {
-      const material = SWAY_KINDS.has(kind as DecorKind) && part.mat instanceof THREE.MeshStandardMaterial
+      // Toon (or standard) foliage leans in the wind; flat-colour bits like flower petals too.
+      const material = SWAY_KINDS.has(kind as DecorKind) && (part.mat instanceof THREE.MeshToonMaterial || part.mat instanceof THREE.MeshStandardMaterial)
         ? swayMaterial(part.mat, sway)
         : part.mat;
       const inst = new THREE.InstancedMesh(part.geo, material, list.length);
