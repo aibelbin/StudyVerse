@@ -1,11 +1,12 @@
-import type { Drink } from '../../../shared/types';
+import type { Flower } from '../../../shared/garden';
+import { holdName, type HoldItem } from '../../../shared/types';
 import { GIFT_TTL_MS } from '../../../shared/constants';
 import { h } from './dom';
 
 let open: (() => void) | null = null;
 
 /** "Sam offers you a ★★★ latte. [Accept] [No thanks]" with Y/N shortcuts; closes itself after 15 s. */
-export function showGiftOffer(name: string, drink: Drink, stars: number, onAnswer: (accept: boolean) => void): void {
+export function showGiftOffer(name: string, drink: HoldItem, stars: number, onAnswer: (accept: boolean) => void, flower?: Flower): void {
   open?.();
   const card = h('div', { className: 'glass gift-card' });
   let done = false;
@@ -29,7 +30,7 @@ export function showGiftOffer(name: string, drink: Drink, stars: number, onAnswe
   };
   const timer = setTimeout(() => answer(null), GIFT_TTL_MS); // the server tells the giver it timed out
   card.append(
-    h('div', { className: 'gift-text', textContent: `🎁 ${name} offers you a ${'★'.repeat(stars)} ${drink}` }),
+    h('div', { className: 'gift-text', textContent: `🎁 ${name} offers you a ${stars ? `${'★'.repeat(stars)} ` : ''}${holdName({ item: drink, flower })}` }),
     h('div', { className: 'actions' },
       h('button', { className: 'primary', type: 'button', textContent: 'Accept (Y)', onclick: () => answer(true) }),
       h('button', { type: 'button', textContent: 'No thanks (N)', onclick: () => answer(false) }),

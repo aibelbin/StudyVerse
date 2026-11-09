@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Pose } from '../../../shared/scenes/types';
-import { ACT_EMOJI, type Act, type Anim, type Drink, type Eyes, type Look, type OutfitSlot } from '../../../shared/types';
+import { FLOWERS, type Flower } from '../../../shared/garden';
+import { ACT_EMOJI, type Act, type Anim, type Eyes, type HoldItem, type Look, type OutfitSlot } from '../../../shared/types';
 import { SLOTS } from '../../../shared/wardrobe';
 import { BODY, buildItem } from './outfits';
 import { Overhead } from './overhead';
@@ -9,6 +10,33 @@ import { textSprite } from './text';
 const INK = '#2a2430';
 
 /** A round, waddling blob with a face, stubby hands and bean feet. Faces +z when facing = 0. */
+/** A small hand-held bouquet: green stems, three blooms in the flower's colours, a paper wrap. */
+function bouquetMesh(flower?: Flower): THREE.Group {
+  const info = flower ? FLOWERS[flower] : { color: '#ff8fab', accent: '#ffd36e' };
+  const g = new THREE.Group();
+  const wrap = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.16, 8, 1, true), new THREE.MeshStandardMaterial({ color: '#f4e6cf', side: THREE.DoubleSide, roughness: 0.9 }));
+  wrap.rotation.x = Math.PI;
+  wrap.position.y = 0.02;
+  g.add(wrap);
+  const petal = new THREE.MeshStandardMaterial({ color: info.color, roughness: 0.6, emissive: flower === 'glowLily' ? info.color : '#000000', emissiveIntensity: flower === 'glowLily' ? 0.6 : 0 });
+  const centre = new THREE.MeshStandardMaterial({ color: info.accent });
+  for (const [x, z] of [[-0.035, 0], [0.035, 0.01], [0, -0.03]]) {
+    const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.035, 0), petal);
+    b.position.set(x, 0.13, z);
+    g.add(b);
+    const c = new THREE.Mesh(new THREE.SphereGeometry(0.013, 6, 4), centre);
+    c.position.set(x, 0.16, z);
+    g.add(c);
+  }
+  for (const [x, z] of [[-0.05, 0.02], [0.05, -0.02]]) {
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 4), new THREE.MeshStandardMaterial({ color: '#6fbf5f' }));
+    leaf.scale.set(0.5, 1.4, 0.5);
+    leaf.position.set(x, 0.1, z);
+    g.add(leaf);
+  }
+  return g;
+}
+
 export class Character {
   readonly root = new THREE.Group();
   readonly overhead = new Overhead();
@@ -35,7 +63,7 @@ export class Character {
   private dimmed = false;
   private blinkAt = Math.random() * 4000;
   private cup: THREE.Group | null = null;
-  private cupKind: Drink | null = null;
+  private cupKind: string | null = null;
   private steam: THREE.Mesh[] = [];
   private sipAt = -1e9;
   private actKind: Act | null = null;
@@ -129,9 +157,10 @@ export class Character {
   }
 
   /** A cup of coffee (or matcha, or cocoa) in the right hand, steaming. */
-  setHolding(drink: Drink | null): void {
-    if (drink === this.cupKind) return;
-    this.cupKind = drink;
+  setHolding(drink: HoldItem | null, flower?: Flower): void {
+    const key = drink === 'bouquet' ? `bouquet:${flower}` : drink;
+    if (key === this.cupKind) return;
+    this.cupKind = key;
     if (this.cup) {
       this.cup.removeFromParent();
       disposeTree(this.cup);
@@ -139,6 +168,13 @@ export class Character {
       this.steam = [];
     }
     if (!drink) return;
+    if (drink === 'bouquet') {
+      const g = bouquetMesh(flower);
+      g.position.set(0, -0.1, 0.07);
+      this.arms[1].add(g);
+      this.cup = g;
+      return;
+    }
     const fill = { espresso: '#5a3220', latte: '#c9a27a', matcha: '#8cc77a', cocoa: '#6b3e2a' }[drink];
     const g = new THREE.Group();
     const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.055, 0.13, 14), new THREE.MeshStandardMaterial({ color: '#fffaf2', roughness: 0.6 }));

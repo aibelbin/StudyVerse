@@ -38,7 +38,7 @@ One process serves the page and the WebSocket (`/ws`). Profiles are stored in `d
 | 1–8 | play the piano, or the stage drums, guitar and keyboard, from their seats |
 | H | honk (in a truck) |
 | C | sip your drink (four sips per cup) |
-| G | offer your drink to someone nearby (they get Accept / No thanks, or Y / N) |
+| G | offer your drink or bouquet to someone nearby (they get Accept / No thanks, or Y / N) |
 | Enter | open chat / send; Esc closes it |
 | T | emote wheel (hold, point, let go; or click) |
 | M | big map |
@@ -72,7 +72,7 @@ TURN server for friends behind strict networks.
 ## The town
 
 A 150×130 town with a square (Library, Café, bandstand piano, fountain, bell, jukebox, Boutique, notice board,
-knowledge tree), car parks by the Library and the Café with four trucks, cones and crates to knock over, a lake with a dock and two rowboats, woods with a campfire, a park with wind chimes, a telescope and a zen corner, an open-air stage in the south, and a playground (swings, seesaw,
+knowledge tree), car parks by the Library and the Café with four trucks, cones and crates to knock over, a lake with a dock and two rowboats, woods with a campfire, a park with wind chimes, a telescope, a zen corner and a garden, an open-air stage in the south, and a playground (swings, seesaw,
 merry-go-round, slide). Toys are shared: friends see and hear them. Ducks, fish, frogs, birds, insects, sailboats
 and clouds wander around on their own, and the sky follows your local clock (stars and fireflies at night).
 All art is procedural and all sound is synthesized in the browser; 🔊 in the status panel mutes it.
@@ -87,6 +87,12 @@ trees, lanterns and picnic blankets. Sit on one of the five cushions for a five-
 ring breathes to the same circle, and finishing earns 3 ✨ KP plus 1 per companion (up to 3 more), once an hour.
 The shared cairn takes one stone per person every five seconds, wobbles as it grows and topples more often the
 taller it is. Its record and who placed the top stone are saved.
+
+The **focus garden** has 20 plots: press E on a free one to claim it. Plant tulips, daisies, sunflowers and
+poppies for free, or unlock lavender, roses, lotuses and glow-lilies with KP. Every finished focus minute,
+anywhere in town, grows what you've planted (25 to 120 minutes to bloom). Friends can water your plot once a
+day, which makes your next 60 focus minutes count 50% extra. Pick a bloom for a little KP and a bouquet: give
+it away with G, or put it in your plot's vase for everyone to see. Plots and plants are saved.
 
 The **open-air stage** carries the voice of anyone standing on it to everyone in its 18 seats at full volume.
 Sit at the drums, guitar (chords) or keyboard and play with 1–8. Spotlights come on when someone's on stage,

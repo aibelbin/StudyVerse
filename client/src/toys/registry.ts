@@ -7,6 +7,7 @@ import { merryGoRoundView, seesawView, slideView, swingView } from './playground
 import { boardView, coffeeView, quotesView, shopView } from './local';
 import { campfireView, telescopeView } from './misc';
 import { truckView } from './truck';
+import { plotView } from './garden';
 import { cairnView, cushionsView, drumsView, guitarView, keysView, koiView, stageScreenView } from './park';
 import { ducksView, fountainView, rowboatView, stonesView } from './water';
 
@@ -113,5 +114,6 @@ function build(toy: Toy, def: SceneDef, fx: ToyFx): ToyView {
     case 'guitar': return guitarView(toy, fx);
     case 'keys': return keysView(toy, fx);
     case 'stageScreen': return stageScreenView();
+    case 'plot': return plotView(toy);
   }
 }

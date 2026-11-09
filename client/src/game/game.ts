@@ -10,7 +10,7 @@ import type { SceneDef, Slot, Toy } from '../../../shared/scenes/types';
 import {
   angleDelta, BOAT_SPEED, boatOnWater, boatPoseAt, LOCAL_TOYS, slotWorld, type BoatPose, type Tilt, type ToyAction, type ToyState,
 } from '../../../shared/toys';
-import type { EmoteKind, PlayerView } from '../../../shared/types';
+import { holdName, type EmoteKind, type PlayerView } from '../../../shared/types';
 import type { SoundKind } from '../audio/kinds';
 import { chime } from '../hud/chime';
 import { statusText } from '../hud/format';
@@ -37,6 +37,7 @@ import type { Voice } from '../voice/voice';
 import { LocalPet } from '../pets/controller';
 import { BreathOverlay } from '../hud/breath';
 import { floorY } from '../toys/parkMath';
+import { FLOWERS } from '../../../shared/garden';
 import { StageFx } from '../world/stageFx';
 import { PetModel } from '../pets/model';
 
@@ -86,6 +87,8 @@ export class Game {
   hooks: GameHooks = { sound() {}, feedDucks() {}, frame() {}, enterScene() {} };
   /** E on a toy that opens something on this screen only (Boutique, notice board, coffee machine). */
   onLocalToy: (toy: Toy) => void = () => {};
+  /** E on your own garden plot. */
+  onOpenGarden: (toyId: string) => void = () => {};
   onToggleDnd: () => void = () => {};
   onVoiceKey: () => void = () => {};
   voice: Voice | null = null;
@@ -161,7 +164,7 @@ export class Game {
     });
     for (let i = 1; i <= 8; i++) this.input.on(String(i), () => this.playNote(i - 1));
     this.input.on('c', () => {
-      if (!this.me?.holding || this.hud.modalOpen()) return;
+      if (!this.me?.holding || this.me.holding.item === 'bouquet' || this.hud.modalOpen()) return;
       this.sippedAt = performance.now();
       this.send({ t: 'sip' });
     });
@@ -171,7 +174,7 @@ export class Game {
       const to = this.nearestPlayer(GIFT_RANGE - 0.5);
       if (!to) return this.hud.toast('Walk up to someone to share your drink 🎁');
       this.send({ t: 'offerCoffee', to: to.view.id });
-      this.hud.toast(`Offering your ${this.me.holding.item} to ${to.view.name}…`, 2500);
+      this.hud.toast(`Offering your ${holdName(this.me.holding)} to ${to.view.name}…`, 2500);
     });
     this.wheel.onPick = (kind) => this.send({ t: 'act', kind });
     this.input.on('t', () => {
@@ -267,13 +270,19 @@ export class Game {
         }
         break;
       }
+      case 'bloomed':
+        this.hud.toast(`🌷 Your ${FLOWERS[m.flower].name} bloomed! Pick it in your garden.`, 4500);
+        break;
+      case 'gardenNote':
+        this.hud.toast(m.text, 4000);
+        break;
       case 'meditated':
         this.breathDone = true;
         this.breath.hide();
         this.hud.toast(m.kp ? `Breather done 🧘 +${m.kp} KP${m.companions ? ` (with ${m.companions})` : ''}` : 'Breather done 🧘 (KP again in a while)', 4000);
         break;
       case 'coffeeOffer':
-        showGiftOffer(m.name, m.drink, m.stars, (accept) => this.send({ t: 'answerCoffee', fromId: m.fromId, accept }));
+        showGiftOffer(m.name, m.drink, m.stars, (accept) => this.send({ t: 'answerCoffee', fromId: m.fromId, accept }), m.flower);
         break;
       case 'coffeeAnswer':
         this.hud.toast(m.accepted ? `${m.name} took your drink ☕💛` : `${m.name} said no thanks`, 3500);
@@ -525,6 +534,38 @@ export class Game {
     }
     if (action === 'note' && by === this.me?.id) return; // already played the moment the key went down
     this.rt?.toys.get(toyId)?.onEvent?.({ action, arg, by }, this.toyCtx(toyId));
+  }
+
+  /** Today's date and the plots you've watered on it (the server allows once a day per plot). */
+  private watered = { day: '', plots: new Set<string>() };
+
+  private plotPrompt(toy: Toy): string | null {
+    const s = this.toyStates[toy.id];
+    const me = this.me;
+    if (s?.kind !== 'plot' || !me) return null;
+    if (!s.owner) {
+      const mine = Object.values(this.toyStates).some((x) => x.kind === 'plot' && x.owner === me.id);
+      return mine ? null : '[E] claim this plot 🌱';
+    }
+    if (s.owner === me.id) return '[E] tend your garden 🌷';
+    const today = new Date().toDateString();
+    if (this.watered.day === today && this.watered.plots.has(toy.id)) return `${s.ownerName}'s garden · watered today ✓`;
+    return `[E] water ${s.ownerName}'s garden 💧`;
+  }
+
+  private usePlot(toy: Toy): void {
+    const s = this.toyStates[toy.id];
+    if (s?.kind !== 'plot' || !this.me) return;
+    this.sendMove(performance.now());
+    if (!s.owner) return this.send({ t: 'garden', toyId: toy.id, action: 'claim' });
+    if (s.owner === this.me.id) return this.onOpenGarden(toy.id);
+    const today = new Date().toDateString();
+    if (this.watered.day !== today) this.watered = { day: today, plots: new Set() };
+    if (this.watered.plots.has(toy.id)) return;
+    this.watered.plots.add(toy.id);
+    this.send({ t: 'garden', toyId: toy.id, action: 'water' });
+    this.fx.sound('splash', toy.x, toy.z);
+    this.hud.toast(`💧 You watered ${s.ownerName}'s garden`, 2500);
   }
 
   toyState(id: string): ToyState | undefined {
@@ -787,6 +828,7 @@ export class Game {
         return;
       }
       if (LOCAL_TOYS.includes(t.toy.kind)) return this.onLocalToy(t.toy);
+      if (t.toy.kind === 'plot') return this.usePlot(t.toy);
       const action = TOY_DEFAULT_ACTION[t.toy.kind];
       if (!action) return;
       this.sendMove(performance.now());
@@ -864,7 +906,8 @@ export class Game {
     if (t?.kind === 'toy') return t.prompt;
     if (t?.kind === 'slot') return slotPrompt(t.slot, t.slot.toyId ? this.toyById(t.slot.toyId) : undefined);
     const cup = me.holding;
-    if (t?.kind === 'player') return `[E] say hi to ${this.remotes.get(t.id)?.view.name ?? 'them'}${cup ? ` · [G] give your ${cup.item}` : ''}`;
+    if (t?.kind === 'player') return `[E] say hi to ${this.remotes.get(t.id)?.view.name ?? 'them'}${cup ? ` · [G] give your ${holdName(cup)}` : ''}`;
+    if (cup?.item === 'bouquet') return `💐 [G] give your ${holdName(cup)} to someone, or put it in your plot's vase`;
     if (cup) return `[C] sip your ${cup.item} (${cup.sips} left) · [G] give it to someone`;
     return null;
   }
@@ -932,7 +975,7 @@ export class Game {
       r.char.facing = facing;
       r.char.setDim(!r.view.connected);
       r.char.overhead.setBadge(this.badgeFor(r.view));
-      r.char.setHolding(r.view.holding?.item ?? null);
+      r.char.setHolding(r.view.holding?.item ?? null, r.view.holding?.flower);
       r.char.overhead.setSession(r.view.session, sNow);
       r.char.overhead.setRain(r.view.rainUntil > sNow);
       r.char.update(dt, nowP);
@@ -985,7 +1028,7 @@ export class Game {
       { id: this.me.id, x: this.x, z: this.z, voice: this.me.voice, dnd: this.me.dnd },
       [...this.remotes.values()].map((r) => ({ id: r.view.id, x: r.char.root.position.x, z: r.char.root.position.z, voice: r.view.voice && r.view.connected, dnd: r.view.dnd })),
     );
-    c.setHolding(this.me.holding?.item ?? null);
+    c.setHolding(this.me.holding?.item ?? null, this.me.holding?.flower);
     c.update(dt, nowP);
 
     if (this.transitioning || this.me.slotId || mySlide || this.telescope) {
@@ -995,7 +1038,7 @@ export class Game {
         const spot = slot.toyId ? this.riderSpot(slot) : slot;
         return { slot, x: spot.x, z: spot.z };
       });
-      const toys = this.def.toys.map((toy) => ({ toy, prompt: toyPrompt(toy, this.toyStates[toy.id]) }));
+      const toys = this.def.toys.map((toy) => ({ toy, prompt: toy.kind === 'plot' ? this.plotPrompt(toy) : toyPrompt(toy, this.toyStates[toy.id]) }));
       this.target = pickTarget(this.x, this.z, placed, this.occupied, toys, others);
     }
     this.hud.setPrompt(this.promptText());

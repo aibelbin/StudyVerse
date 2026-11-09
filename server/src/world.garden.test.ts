@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PLOT_IDLE_MS } from '../../shared/constants';
-import type { PlotState } from '../../shared/garden';
+import type { Flower, PlotState } from '../../shared/garden';
 import type { ErrorCode, ServerMsg } from '../../shared/protocol';
 import { SCENES } from '../../shared/scenes';
 import { DEFAULT_LOOK } from '../../shared/wardrobe';
@@ -33,7 +33,7 @@ const go = (id: string, x: number, z: number) => {
   w.handle(id, { t: 'move', x, z, facing: 0, anim: 'idle' });
 };
 const atPlot = (id: string, i: number) => go(id, plots[i].x, plots[i].z + 1.2);
-const act = (id: string, i: number, action: 'claim' | 'plant' | 'water' | 'harvest' | 'vase', extra: { spot?: number; flower?: 'tulip' | 'rose' } = {}) =>
+const act = (id: string, i: number, action: 'claim' | 'plant' | 'water' | 'harvest' | 'vase', extra: { spot?: number; flower?: Flower } = {}) =>
   w.handle(id, { t: 'garden', toyId: plots[i].id, action, ...extra });
 const plot = (c: FakeConn, i: number) => c.of('toyState').filter((m) => m.toyId === plots[i].id).at(-1)?.state as PlotState | undefined;
 const lastError = (c: FakeConn) => c.of('error').at(-1)?.message ?? '';

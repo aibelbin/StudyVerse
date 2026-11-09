@@ -10,7 +10,7 @@ export function worldToMap(x: number, z: number, size: Bounds, w: number, h: num
 const ICONS: Partial<Record<ToyKind, string>> = {
   piano: '🎹', jukebox: '🎵', fountain: '⛲', bell: '🔔', chimes: '🎐', campfire: '🔥', telescope: '🔭',
   ducks: '🦆', swing: '🛝', merryGoRound: '🎠', stones: '🪨', slide: '🛝', seesaw: '⚖️',
-  shop: '👕', board: '📌', quotes: '📖', coffee: '☕', koi: '🎏', cushions: '🧘', drums: '🎤',
+  shop: '👕', board: '📌', quotes: '📖', coffee: '☕', koi: '🎏', cushions: '🧘', drums: '🎤', plot: '🌷',
 };
 
 export interface MapDot {
@@ -92,6 +92,7 @@ export class Minimap {
     for (const d of def.decor) {
       if (d.kind === 'dock') rect(d.x, d.z, d.w ?? 2, d.d ?? 8, '#c99a6e');
       else if (d.kind === 'stage') rect(d.x, d.z, d.w ?? 8, d.d ?? 5, '#c99a6e');
+      else if (d.kind === 'soil') rect(d.x, d.z, d.w ?? 2, d.d ?? 1.8, '#8a6040');
       else if (d.kind === 'gravel') rect(d.x, d.z, d.w ?? 2, d.d ?? 2, '#ece4d4');
       else if (d.kind === 'pond') {
         const p = m(d.x, d.z);
@@ -131,8 +132,9 @@ export class Minimap {
     const seen = new Set<string>();
     for (const t of def.toys) {
       const icon = ICONS[t.kind];
-      if (!icon || seen.has(`${t.kind}${Math.round(t.x / 6)}${Math.round(t.z / 6)}`)) continue;
-      seen.add(`${t.kind}${Math.round(t.x / 6)}${Math.round(t.z / 6)}`);
+      const cell = t.kind === 'plot' ? 'plot' : `${t.kind}${Math.round(t.x / 6)}${Math.round(t.z / 6)}`; // one 🌷 for the whole garden
+      if (!icon || seen.has(cell)) continue;
+      seen.add(cell);
       const p = m(t.x, t.z);
       g.fillText(icon, p.u, p.v);
     }

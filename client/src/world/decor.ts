@@ -626,6 +626,17 @@ const builders: Record<DecorKind, Builder> = {
     );
   },
 
+  /** A raised garden bed: dark soil in a low wooden frame. */
+  soil(d) {
+    const w = d.w ?? 2;
+    const dd = d.d ?? 1.8;
+    const frame = mat('#9a6a4f');
+    const g = group(mesh(box(w, 0.12, dd), mat('#6b4a36'), 0, 0.06, 0));
+    for (const z of [-dd / 2, dd / 2]) g.add(mesh(box(w + 0.1, 0.16, 0.08), frame, 0, 0.08, z));
+    for (const x of [-w / 2, w / 2]) g.add(mesh(box(0.08, 0.16, dd), frame, x, 0.08, 0));
+    return g;
+  },
+
   /** A spotlight on a pole; its beam is drawn by the stage effects, which switch it on and off. */
   spotlight() {
     const head = mesh(cyl(0.16, 0.24, 0.4, 10), mat(P.dark), 0, 3, 0.1);

@@ -8,6 +8,7 @@ import { Hud } from './hud/hud';
 import { showJoin } from './hud/joinScreen';
 import { openBarista } from './coffee/barista';
 import { openStageScreen } from './hud/stageScreen';
+import { GardenPanel } from './hud/garden';
 import { NotesBoard } from './hud/notes';
 import { Wardrobe } from './hud/wardrobe';
 import { Voice } from './voice/voice';
@@ -22,6 +23,7 @@ const conn = new Connection(`${location.protocol === 'https:' ? 'wss' : 'ws'}://
 let game: Game | null = null;
 let hello: ClientMsg | null = null;
 let wallet: Wallet | null = null;
+let refreshGarden: () => void = () => {};
 
 const wardrobe = new Wardrobe({
   hud,
@@ -145,6 +147,18 @@ conn.onMessage = (m) => {
           openStageScreen(hud, st?.kind === 'stageScreen' ? st.text : null, (text) => conn.send({ t: 'stageText', text }));
         }
       };
+      const g = game;
+      const gardenPanel = new GardenPanel(hud, {
+        plot: (id) => {
+          const s = g.toyState(id);
+          return s?.kind === 'plot' ? s : null;
+        },
+        wallet: () => wallet,
+        holding: () => g.myView()?.holding ?? null,
+        send: (msg) => conn.send(msg),
+      });
+      game.onOpenGarden = (id) => gardenPanel.open(id);
+      refreshGarden = () => gardenPanel.refresh();
       game.onToggleDnd = toggleDnd;
       game.onChatKey = () => chat.focus();
       game.voice = voice;
@@ -179,6 +193,7 @@ conn.onMessage = (m) => {
     return;
   }
   game?.onMessage(m);
+  if (m.t === 'toyState' || m.t === 'wallet' || m.t === 'playerUpdated') refreshGarden();
 };
 
 hud.onEditLook = () => {
