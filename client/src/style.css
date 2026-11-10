@@ -361,3 +361,10 @@ body.touch .admin-panel { width: min(400px, 60vw); }
 /* chat switched off by an admin: no trace of it on screen */
 body.chat-off #chat, body.chat-off .touch-chat { display: none !important; }
 body.chat-off #feed { bottom: 14px; }
+
+.art-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-top: 10px; }
+.art-tile { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px; border-radius: 14px; background: rgba(255, 255, 255, 0.5); }
+.art-tile img { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 8px; background: #fff; }
+.art-tile img.pixel { image-rendering: pixelated; }
+.art-tile b { font-size: 13px; }
+.art-tile small { font-size: 11px; color: var(--mut); }
