@@ -110,6 +110,15 @@ describe('scene data', () => {
     expect(SCENES.library.slots.length).toBe(16);
     expect(SCENES.cafe.slots.length).toBe(12);
   });
+
+  it('has a gate to the village at the east end of the street', () => {
+    const door = SCENES.town.doors.find((d) => d.id === 'to-village')!;
+    expect(door).toMatchObject({ toScene: 'village', toSpawn: 'gate' });
+    expect(door.box.x).toBeGreaterThan(70);
+    const spawn = SCENES.town.spawns.find((s) => s.id === 'from-village')!;
+    expect(Math.abs(spawn.z - door.box.z)).toBeLessThan(0.1);
+    expect(SCENES.town.decor.some((d) => d.kind === 'gate')).toBe(true);
+  });
 });
 
 describe('car parks', () => {
@@ -187,10 +196,10 @@ describe('car parks', () => {
 
     it('puts the signposts on grass, clear of paths', () => {
       const posts = town.decor.filter((d) => d.kind === 'signpost');
-      expect(posts).toHaveLength(2);
+      expect(posts).toHaveLength(3);
       for (const p of posts) {
         expect(inBoxes(PATHS, p.x, p.z, 0.3), p.label).toBe(false);
-        expect(p.label!.split('|').length).toBe(3);
+        expect(p.label!.split('|').length).toBeGreaterThanOrEqual(2);
       }
     });
 
