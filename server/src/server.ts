@@ -97,6 +97,13 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       res.writeHead(200).end('ok');
       return;
     }
+    const art = /^\/art\/(\d+)\.png$/.exec(req.url ?? '');
+    if (art) {
+      const png = store.paintingPng(Number(art[1]));
+      if (png) res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' }).end(png);
+      else res.writeHead(404).end('not found');
+      return;
+    }
     if (opts.staticDir) {
       serveStatic(opts.staticDir, req, res).catch((err) => {
         console.error('static error', err);
@@ -107,7 +114,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
   };
   const http = opts.tls ? createHttpsServer({ cert: opts.tls.cert, key: opts.tls.key }, handler) : createServer(handler);
 
-  const wss = new WebSocketServer({ server: http, path: '/ws', maxPayload: 16 * 1024 });
+  const wss = new WebSocketServer({ server: http, path: '/ws', maxPayload: 128 * 1024 });
 
   wss.on('connection', (ws: WebSocket) => {
     let playerId: string | null = null;

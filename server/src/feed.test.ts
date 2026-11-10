@@ -28,5 +28,7 @@ describe('feedText', () => {
     expect(feedText.quit('Sam', 12, 25)).toBe('🥀 Sam left 12 min into a 25 min session');
     expect(feedText.quitDisconnect('Sam', 12, 25)).toBe("🥀 Sam disconnected and didn't come back, 12 min into a 25 min session");
     expect(feedText.cheer('Sam', 'Alex', '💪')).toBe('Sam cheered Alex 💪');
+    expect(feedText.art('Ann', 'Sunset')).toBe("🎨 Ann hung 'Sunset' in the studio");
+    expect(feedText.bought('Mia', 'Sunset', 'Aibel', 12)).toBe("🖼️ Mia bought 'Sunset' from Aibel for 12 KP");
   });
 });

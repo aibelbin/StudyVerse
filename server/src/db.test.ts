@@ -184,21 +184,21 @@ describe('wallet, wardrobe, notes and daily totals', () => {
     expect(s.setForSale(p3, b, true)).toBe(false);
     expect(s.setForSale(p3, a, true)).toBe(true);
 
-    expect(s.buyPrint(b, p1, 10)).toEqual({ ok: false, reason: 'kp' });
+    expect(s.buyPrint(b, p1, 10, 5)).toEqual({ ok: false, reason: 'kp' });
     s.addKp(b, 15);
-    expect(s.buyPrint(a, p1, 10)).toEqual({ ok: false, reason: 'own' });
-    expect(s.buyPrint(b, 999, 10)).toEqual({ ok: false, reason: 'gone' });
-    const ok = s.buyPrint(b, p1, 10);
+    expect(s.buyPrint(a, p1, 10, 5)).toEqual({ ok: false, reason: 'own' });
+    expect(s.buyPrint(b, 999, 10, 5)).toEqual({ ok: false, reason: 'gone' });
+    const ok = s.buyPrint(b, p1, 10, 5);
     expect(ok).toEqual({ ok: true, artist: a, price: 10, title: 'One' });
     expect(s.wallet(b).kp).toBe(5);
     expect(s.wallet(a).kp).toBe(10);
     expect(s.painting(p1)?.sold).toBe(1);
-    expect(s.buyPrint(b, p1, 10)).toEqual({ ok: false, reason: 'owned' });
+    expect(s.buyPrint(b, p1, 10, 5)).toEqual({ ok: false, reason: 'owned' });
     expect(s.ownsPainting(b, p1)).toBe(true);
     expect(s.ownsPainting(a, p1)).toBe(true);
     expect(s.ownsPainting(b, p2)).toBe(false);
     expect(s.prints(b).map((p) => p.id)).toEqual([p1]);
     s.setForSale(p2, a, false);
-    expect(s.buyPrint(b, p2, 1)).toEqual({ ok: false, reason: 'gone' });
+    expect(s.buyPrint(b, p2, 1, 5)).toEqual({ ok: false, reason: 'gone' });
   });
 });

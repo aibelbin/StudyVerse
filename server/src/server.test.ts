@@ -5,7 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
 import { DEFAULT_LOOK } from '../../shared/wardrobe';
 import type { ClientMsg, ServerMsg } from '../../shared/protocol';
-import { findSlot } from '../../shared/scenes';
+import { findSlot, SCENES } from '../../shared/scenes';
+import { SceneBook } from '../../shared/scenes/book';
+import { makePng } from './pngFixture';
 import { startServer, type RunningServer } from './server';
 
 type Msg<T extends ServerMsg['t']> = Extract<ServerMsg, { t: T }>;
@@ -174,11 +176,38 @@ describe('server', () => {
   it('survives an oversize frame', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { c } = await join('Sam');
-    c.ws.send('x'.repeat(17 * 1024)); // just over the 16 KB frame limit
+    c.ws.send('x'.repeat(129 * 1024)); // just over the 128 KB frame limit
     await new Promise((r) => c.ws.once('close', r));
     expect(await (await fetch(`http://127.0.0.1:${srv.port}/health`)).text()).toBe('ok');
     await join('Alex');
     warn.mockRestore();
+  });
+
+  it('serves a painting hung over the socket as an immutable PNG, and 404s a missing one', async () => {
+    const { c, welcome } = await join('Sam');
+    const book = new SceneBook(SCENES);
+    book.setRoster(welcome.cabins);
+    const through = async (sceneId: string, doorId: string, to: string) => {
+      const door = book.get(sceneId)!.doors.find((d) => d.id === doorId)!;
+      t += 10_000;
+      c.send({ t: 'move', x: door.box.x, z: door.box.z, facing: 0, anim: 'walk' });
+      c.send({ t: 'enterScene', doorId });
+      await c.next('sceneSnapshot', (m) => m.scene === to);
+    };
+    await through('town', 'to-village', 'village');
+    await through('village', 'to-studio', 'studio');
+    const png = makePng(32, 32);
+    c.send({ t: 'paint', title: 'Sunset', price: 12, forSale: true, mode: 'pixel', png: png.toString('base64') });
+    const mine = (await c.next('portfolio')).mine;
+    expect(mine.map((p) => p.id)).toEqual([1]);
+
+    const base = `http://127.0.0.1:${srv.port}`;
+    const r = await fetch(`${base}/art/1.png`);
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-type')).toBe('image/png');
+    expect(r.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+    expect(Buffer.from(await r.arrayBuffer())).toEqual(png);
+    expect((await fetch(`${base}/art/999.png`)).status).toBe(404);
   });
 
   it('answers 400 to a bad percent-escape and keeps serving', async () => {

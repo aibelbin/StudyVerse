@@ -33,4 +33,6 @@ export const feedText = {
   golfRound: (name: string, total: number) => `⛳ ${name} went round the mini-golf in ${total}`,
   meditate: (name: string, companions: number) =>
     `🧘 ${name} finished a breather${companions ? ` with ${companions} ${companions === 1 ? 'friend' : 'friends'}` : ''}`,
+  art: (name: string, title: string) => `🎨 ${name} hung '${title}' in the studio`,
+  bought: (buyer: string, title: string, artist: string, price: number) => `🖼️ ${buyer} bought '${title}' from ${artist} for ${price} KP`,
 };

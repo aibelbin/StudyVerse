@@ -92,7 +92,7 @@ export interface Store {
   setForSale(id: number, artist: string, on: boolean): boolean;
   /** True for the artist and for anyone holding a print. */
   ownsPainting(owner: string, id: number): boolean;
-  buyPrint(buyer: string, id: number, pay: number): { ok: true; artist: string; price: number; title: string } | { ok: false; reason: 'gone' | 'own' | 'owned' | 'kp' };
+  buyPrint(buyer: string, id: number, pay: number, at: number): { ok: true; artist: string; price: number; title: string } | { ok: false; reason: 'gone' | 'own' | 'owned' | 'kp' };
 }
 
 export class ProfileStore implements Store {
@@ -406,7 +406,7 @@ export class ProfileStore implements Store {
     return !!this.db.prepare('SELECT 1 FROM paintings WHERE id = ? AND artist_id = ? UNION ALL SELECT 1 FROM prints WHERE painting_id = ? AND owner_id = ?').get(id, owner, id, owner);
   }
 
-  buyPrint(buyer: string, id: number, pay: number): { ok: true; artist: string; price: number; title: string } | { ok: false; reason: 'gone' | 'own' | 'owned' | 'kp' } {
+  buyPrint(buyer: string, id: number, pay: number, at: number): { ok: true; artist: string; price: number; title: string } | { ok: false; reason: 'gone' | 'own' | 'owned' | 'kp' } {
     this.db.exec('BEGIN');
     try {
       const p = this.db.prepare('SELECT artist_id, title, price, for_sale FROM paintings WHERE id = ?').get(id) as { artist_id: string; title: string; price: number; for_sale: number } | undefined;
@@ -418,7 +418,7 @@ export class ProfileStore implements Store {
       else {
         const price = Number(p.price);
         this.db.prepare('UPDATE profiles SET kp = kp + ? WHERE id = ?').run(price, p.artist_id);
-        this.db.prepare('INSERT INTO prints (painting_id, owner_id, at) VALUES (?, ?, ?)').run(id, buyer, Date.now());
+        this.db.prepare('INSERT INTO prints (painting_id, owner_id, at) VALUES (?, ?, ?)').run(id, buyer, at);
         this.db.prepare('UPDATE paintings SET sold = sold + 1 WHERE id = ?').run(id);
         out = { ok: true, artist: p.artist_id, price, title: p.title };
       }

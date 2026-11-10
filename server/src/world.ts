@@ -34,6 +34,7 @@ import type { AdminAction } from '../../shared/protocol';
 import { cabinOwner } from '../../shared/art';
 import { SceneBook } from '../../shared/scenes/book';
 import { Cabins } from './cabins';
+import { Studio } from './studio';
 import type { Port } from './port';
 
 /** What the World needs from a network connection. */
@@ -110,6 +111,7 @@ export class World {
   /** Every scene, the village and cabins included (built from the cabin roster). */
   private book: SceneBook;
   private cabins: Cabins;
+  private studio: Studio;
 
   constructor(
     private now: () => number = Date.now,
@@ -134,6 +136,7 @@ export class World {
       nameOf: (id) => byId(id)?.name ?? this.store.profileName(id),
     };
     this.cabins = new Cabins(this.store, this.book, port);
+    this.studio = new Studio(this.store, port);
     try {
       this.features = { ...allOn(), ...(JSON.parse(this.store.getKv('features') ?? '{}') as Partial<Features>) };
     } catch { /* keep everything on */ }
@@ -251,6 +254,11 @@ export class World {
       case 'setStatus': return this.setStatus(p, msg.emoji, msg.text, msg.minutes);
       case 'admin': return this.admin(p, msg);
       case 'cabin': return this.cabins.handle(p.id, msg);
+      case 'paint': return this.studio.paint(p.id, msg);
+      case 'setSale': return this.studio.setSale(p.id, msg.id, msg.on);
+      case 'buyPrint': return this.studio.buyPrint(p.id, msg.id);
+      case 'getGallery': return this.studio.sendGallery(p.id);
+      case 'getPortfolio': return this.studio.sendPortfolio(p.id);
       case 'offerCoffee': return this.offerCoffee(p, msg.to);
       case 'answerCoffee': return this.answerCoffee(p, msg.fromId, msg.accept);
       case 'setVoice': {
@@ -381,10 +389,11 @@ export class World {
     this.afterEnter(p);
   }
 
-  /** Scene-specific extras once a player has arrived somewhere (a cabin's items). */
+  /** Scene-specific extras once a player has arrived somewhere (a cabin's items, the studio's gallery). */
   private afterEnter(p: Player): void {
     const o = cabinOwner(p.scene);
     if (o) this.cabins.sendState(o, p.id);
+    if (p.scene === 'studio') this.studio.sendGallery(p.id);
   }
 
   private sit(p: Player, slotId: string): void {
