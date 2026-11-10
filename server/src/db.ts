@@ -74,9 +74,10 @@ export interface Store {
   cabinCount(): number;
   cabins(): CabinEntry[];
   setCabinLocked(owner: string, on: boolean): void;
-  setCabinItem(owner: string, spot: string, kind: string, ref: number): void;
-  takeCabinItem(owner: string, spot: string): { kind: string; ref: number } | null;
-  cabinItems(owner: string): { spot: string; kind: string; ref: number }[];
+  /** ref: a painting or keepsake id, or a flower name for a bouquet (always stored as text). */
+  setCabinItem(owner: string, spot: string, kind: string, ref: string): void;
+  takeCabinItem(owner: string, spot: string): { kind: string; ref: string } | null;
+  cabinItems(owner: string): { spot: string; kind: string; ref: string }[];
   keepsake(owner: string, id: number): { gift: string; fromName: string; flower?: string } | null;
   addPainting(artist: string, title: string, price: number, mode: PaintMode, png: Buffer, forSale: boolean, at: number): number;
   painting(id: number): PaintingMeta | null;
@@ -131,7 +132,7 @@ export class ProfileStore implements Store {
       CREATE INDEX IF NOT EXISTS bag_owner ON bag (owner, id);
       CREATE TABLE IF NOT EXISTS restrictions (profile_id TEXT NOT NULL, kind TEXT NOT NULL, until INTEGER NOT NULL, PRIMARY KEY (profile_id, kind));
       CREATE TABLE IF NOT EXISTS cabins (owner_id TEXT PRIMARY KEY, lot INTEGER UNIQUE, locked INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL);
-      CREATE TABLE IF NOT EXISTS cabin_items (owner_id TEXT NOT NULL, spot TEXT NOT NULL, kind TEXT NOT NULL, ref INTEGER NOT NULL, PRIMARY KEY (owner_id, spot));
+      CREATE TABLE IF NOT EXISTS cabin_items (owner_id TEXT NOT NULL, spot TEXT NOT NULL, kind TEXT NOT NULL, ref TEXT NOT NULL, PRIMARY KEY (owner_id, spot));
       CREATE TABLE IF NOT EXISTS paintings (id INTEGER PRIMARY KEY AUTOINCREMENT, artist_id TEXT NOT NULL, title TEXT NOT NULL, price INTEGER NOT NULL, mode TEXT NOT NULL,
         png BLOB NOT NULL, for_sale INTEGER NOT NULL DEFAULT 0, sold INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS paintings_sale ON paintings (for_sale, id);
@@ -324,19 +325,20 @@ export class ProfileStore implements Store {
     this.db.prepare('UPDATE cabins SET locked = ? WHERE owner_id = ?').run(on ? 1 : 0, owner);
   }
 
-  setCabinItem(owner: string, spot: string, kind: string, ref: number): void {
+  setCabinItem(owner: string, spot: string, kind: string, ref: string): void {
     this.db.prepare('INSERT INTO cabin_items (owner_id, spot, kind, ref) VALUES (?, ?, ?, ?) ON CONFLICT(owner_id, spot) DO UPDATE SET kind = excluded.kind, ref = excluded.ref').run(owner, spot, kind, ref);
   }
 
-  takeCabinItem(owner: string, spot: string): { kind: string; ref: number } | null {
-    const r = this.db.prepare('SELECT kind, ref FROM cabin_items WHERE owner_id = ? AND spot = ?').get(owner, spot) as { kind: string; ref: number } | undefined;
+  takeCabinItem(owner: string, spot: string): { kind: string; ref: string } | null {
+    const r = this.db.prepare('SELECT kind, ref FROM cabin_items WHERE owner_id = ? AND spot = ?').get(owner, spot) as { kind: string; ref: unknown } | undefined;
     if (!r) return null;
     this.db.prepare('DELETE FROM cabin_items WHERE owner_id = ? AND spot = ?').run(owner, spot);
-    return { kind: r.kind, ref: Number(r.ref) };
+    return { kind: r.kind, ref: String(r.ref) };
   }
 
-  cabinItems(owner: string): { spot: string; kind: string; ref: number }[] {
-    return (this.db.prepare('SELECT spot, kind, ref FROM cabin_items WHERE owner_id = ?').all(owner) as { spot: string; kind: string; ref: number }[]).map((r) => ({ spot: r.spot, kind: r.kind, ref: Number(r.ref) }));
+  cabinItems(owner: string): { spot: string; kind: string; ref: string }[] {
+    return (this.db.prepare('SELECT spot, kind, ref FROM cabin_items WHERE owner_id = ? ORDER BY spot').all(owner) as { spot: string; kind: string; ref: unknown }[])
+      .map((r) => ({ spot: r.spot, kind: r.kind, ref: String(r.ref) }));
   }
 
   keepsake(owner: string, id: number): { gift: string; fromName: string; flower?: string } | null {

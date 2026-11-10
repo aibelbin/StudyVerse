@@ -151,11 +151,14 @@ describe('wallet, wardrobe, notes and daily totals', () => {
   it('upserts and takes cabin items, and reads a keepsake', () => {
     const s = new ProfileStore(':memory:');
     const a = s.create('Ann', DEFAULT_LOOK).profile.id;
-    s.setCabinItem(a, 'wall-1', 'painting', 3);
-    s.setCabinItem(a, 'wall-1', 'keepsake', 7);
-    s.setCabinItem(a, 'shelf', 'bouquet', 2);
-    expect(s.cabinItems(a)).toHaveLength(2);
-    expect(s.takeCabinItem(a, 'wall-1')).toEqual({ kind: 'keepsake', ref: 7 });
+    s.setCabinItem(a, 'wall-1', 'painting', '3');
+    s.setCabinItem(a, 'wall-1', 'keepsake', '7');
+    s.setCabinItem(a, 'shelf', 'bouquet', 'rose');
+    expect(s.cabinItems(a)).toEqual([
+      { spot: 'shelf', kind: 'bouquet', ref: 'rose' },
+      { spot: 'wall-1', kind: 'keepsake', ref: '7' },
+    ]);
+    expect(s.takeCabinItem(a, 'wall-1')).toEqual({ kind: 'keepsake', ref: '7' });
     expect(s.takeCabinItem(a, 'wall-1')).toBeNull();
     const k = s.addKeepsake(a, 'x', 'Zed', 'teddy', 1, 'rose');
     expect(s.keepsake(a, k)).toEqual({ gift: 'teddy', fromName: 'Zed', flower: 'rose' });

@@ -31,6 +31,10 @@ import { BALL_R, COURSE_PAR, FELT, HOLES } from '../../shared/golf';
 import { aGift, allOn, GIFTS, isGift, STATUS_TEXT_MAX, type AdminPlayer, type BagItem, type Feature, type Features, type Gift, type Keepsake, type Status } from '../../shared/gifts';
 import { isFlower } from '../../shared/garden';
 import type { AdminAction } from '../../shared/protocol';
+import { cabinOwner } from '../../shared/art';
+import { SceneBook } from '../../shared/scenes/book';
+import { Cabins } from './cabins';
+import type { Port } from './port';
 
 /** What the World needs from a network connection. */
 export interface Conn {
@@ -103,6 +107,9 @@ export class World {
   private features: Features = allOn();
   /** STUN/TURN servers handed to clients for voice chat. */
   ice: IceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
+  /** Every scene, the village and cabins included (built from the cabin roster). */
+  private book: SceneBook;
+  private cabins: Cabins;
 
   constructor(
     private now: () => number = Date.now,
@@ -111,6 +118,22 @@ export class World {
     private store: Store = new ProfileStore(':memory:'),
   ) {
     for (const def of Object.values(scenes)) for (const toy of def.toys) this.toySceneOf.set(toy.id, def.id);
+    this.book = new SceneBook(scenes);
+    const byId = (id: string) => this.players.get(id);
+    const port: Port = {
+      now: () => this.now(),
+      send: (id, msg) => byId(id)?.conn?.send(msg),
+      toScene: (scene, msg) => this.toScene(scene, msg),
+      toAll: (msg) => this.toAll(msg),
+      error: (id, code, message) => { const q = byId(id); if (q) this.error(q, code, message); },
+      feed: (kind, text) => this.pushFeed(kind, text),
+      priceFor: (id, price) => (this.admins.has(id) ? 0 : price),
+      walletChanged: (id) => { const q = byId(id); if (q) { q.wallet = this.store.wallet(id); q.conn?.send({ t: 'wallet', wallet: this.publicWallet(q) }); } },
+      bagChanged: (id) => { const q = byId(id); if (q) this.sendBag(q); },
+      sceneOf: (id) => byId(id)?.scene ?? null,
+      nameOf: (id) => byId(id)?.name ?? this.store.profileName(id),
+    };
+    this.cabins = new Cabins(this.store, this.book, port);
     try {
       this.features = { ...allOn(), ...(JSON.parse(this.store.getKv('features') ?? '{}') as Partial<Features>) };
     } catch { /* keep everything on */ }
@@ -128,7 +151,7 @@ export class World {
   }
 
   private scene(id: string): SceneDef {
-    return this.scenes[id];
+    return this.book.get(id)!;
   }
 
   view(id: string): PlayerView | undefined {
@@ -142,6 +165,7 @@ export class World {
       conn.close('banned', banned >= FOREVER ? 'An admin has closed the town to you.' : `You're on a break from the town until ${new Date(banned).toLocaleString()}.`);
       return;
     }
+    const fresh = this.cabins.ensure(profile.id, this.now());
     const existing = this.players.get(profile.id);
     if (existing) {
       const old = existing.conn;
@@ -153,6 +177,7 @@ export class World {
       if (old) old.close('connected_elsewhere');
       this.sendWelcome(existing, newToken);
       this.toScene(existing.scene, { t: 'playerUpdated', player: this.toView(existing) }, existing.id);
+      this.afterEnter(existing);
       return;
     }
     const spawn = this.scene(START_SCENE).spawns.find((s) => s.id === START_SPAWN)!;
@@ -172,8 +197,10 @@ export class World {
     this.spawnPet(p);
     this.sendWelcome(p, newToken);
     this.toScene(p.scene, { t: 'playerJoined', player: this.toView(p) }, p.id);
+    if (fresh) this.cabins.broadcast();
     this.pushFeed('arrive', feedText.arrive(p.name));
     this.broadcastOnline();
+    this.afterEnter(p);
   }
 
   /** Only the player's current connection counts; a replaced socket closing is ignored. */
@@ -223,6 +250,7 @@ export class World {
       case 'giveItem': return this.giveItem(p, msg.id, msg.to);
       case 'setStatus': return this.setStatus(p, msg.emoji, msg.text, msg.minutes);
       case 'admin': return this.admin(p, msg);
+      case 'cabin': return this.cabins.handle(p.id, msg);
       case 'offerCoffee': return this.offerCoffee(p, msg.to);
       case 'answerCoffee': return this.answerCoffee(p, msg.fromId, msg.accept);
       case 'setVoice': {
@@ -334,7 +362,9 @@ export class World {
     if (!door || p.slotId || !inBox(door.box, p.x, p.z, DOOR_PAD)) {
       return this.error(p, 'bad_door', 'You are not at that door.');
     }
-    const target = this.scene(door.toScene);
+    const target = this.book.get(door.toScene);
+    if (!target) return this.error(p, 'bad_door', "That door doesn't lead anywhere.");
+    if (!this.cabins.canEnter(p.id, target.id)) return this.error(p, 'locked', 'The door is latched 🔒');
     const spawn = target.spawns.find((s) => s.id === door.toSpawn)!;
     this.toScene(p.scene, { t: 'playerLeft', id: p.id }, p.id);
     this.golfClear(p);
@@ -348,6 +378,13 @@ export class World {
     p.conn!.send({ t: 'sceneSnapshot', scene: target.id, you: this.toView(p), players: this.scenePlayers(target.id, p.id), toys: this.sceneToys(target.id) });
     this.toScene(target.id, { t: 'playerJoined', player: this.toView(p) }, p.id);
     this.broadcastOnline();
+    this.afterEnter(p);
+  }
+
+  /** Scene-specific extras once a player has arrived somewhere (a cabin's items). */
+  private afterEnter(p: Player): void {
+    const o = cabinOwner(p.scene);
+    if (o) this.cabins.sendState(o, p.id);
   }
 
   private sit(p: Player, slotId: string): void {
@@ -1294,6 +1331,7 @@ export class World {
     if (from !== scene) this.toScene(scene, { t: 'playerJoined', player: this.toView(q) }, q.id);
     else this.toScene(scene, { t: 'playerMoved', id: q.id, x, z, facing: q.facing, anim: 'idle' }, q.id);
     this.broadcastOnline();
+    this.afterEnter(q);
   }
 
   // ---------- messaging ----------
@@ -1301,7 +1339,7 @@ export class World {
   private sendWelcome(p: Player, token?: string): void {
     p.conn!.send({
       t: 'welcome',
-      cabins: [],
+      cabins: this.cabins.roster(),
       you: this.toView(p),
       ...(token ? { token } : {}),
       serverTime: this.now(),
