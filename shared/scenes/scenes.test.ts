@@ -4,6 +4,7 @@ import { inBox, pointInPolygon } from '../geometry';
 import { inBay } from '../parking';
 import { MOVING_TOYS, TOY_KINDS } from '../toys';
 import { GARDEN_BOX, PATHS } from './town/scatter';
+import { SceneBook } from './book';
 import { findSlot, SCENES, START_SCENE, START_SPAWN } from './index';
 
 const scenes = Object.values(SCENES);
@@ -60,11 +61,13 @@ describe('scene data', () => {
     }
   });
 
-  it.each(scenes.map((s) => [s.id, s] as const))('%s: doors lead somewhere real and are reachable', (_id, s) => {
+  // the village is built from the cabin roster: with no cabins it still exists, so every door resolves
+  const book = new SceneBook(SCENES);
+  it.each([...scenes, book.get('village')!].map((s) => [s.id, s] as const))('%s: doors lead somewhere real and are reachable', (_id, s) => {
     for (const door of s.doors) {
-      const target = SCENES[door.toScene];
+      const target = book.get(door.toScene);
       expect(target, door.id).toBeDefined();
-      expect(target.spawns.some((sp) => sp.id === door.toSpawn), door.id).toBe(true);
+      expect(target!.spawns.some((sp) => sp.id === door.toSpawn), door.id).toBe(true);
       expect(s.colliders.some((c) => inBox(c, door.box.x, door.box.z, PLAYER_RADIUS)), door.id).toBe(false);
     }
   });
