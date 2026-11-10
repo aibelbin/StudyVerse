@@ -26,6 +26,9 @@ import { petsTab } from './hud/petsTab';
 import type { Wallet } from '../../shared/types';
 import { Connection } from './net/connection';
 import { book } from './world/book';
+import { Catalogue } from './art/catalogue';
+import { openPaint } from './art/paint';
+import { openSpotPicker } from './art/cabinPanel';
 import { ChatPanel } from './hud/chat';
 
 const TOKEN_KEY = 'vsw-token';
@@ -54,6 +57,8 @@ const wardrobe = new Wardrobe({
     setOut: (on) => conn.send({ t: 'setPetOut', on }),
   })],
 });
+
+const catalogue = new Catalogue(hud, () => wallet, () => hud.meId, (m) => conn.send(m));
 
 const chat = new ChatPanel(byId('chat'));
 const touch = isTouchDevice(location.search, (q) => matchMedia(q));
@@ -165,6 +170,7 @@ conn.onMessage = (m) => {
     chat.setMe(m.you.id);
     for (const p of m.online) chat.setName(p.id, p.name);
     chat.load(m.chat);
+    conn.send({ t: 'getPortfolio' });
     if (voice.on) conn.send({ t: 'setVoice', on: true }); // after a reconnect
     if (m.token) localStorage.setItem(TOKEN_KEY, m.token);
     hello = { t: 'hello', token: localStorage.getItem(TOKEN_KEY)! };
@@ -187,7 +193,15 @@ conn.onMessage = (m) => {
           const st = game?.toyState(toy.id);
           openStageScreen(hud, st?.kind === 'stageScreen' ? st.text : null, (text) => conn.send({ t: 'stageText', text }));
         }
+        if (toy.kind === 'easel') openPaint(hud, (p) => conn.send({ t: 'paint', ...p }));
+        if (toy.kind === 'gallery') catalogue.show('sale');
       };
+      game.onSpot = (spot) => openSpotPicker(hud, spot, {
+        paintings: catalogue.owned(),
+        keepsakes: game?.myView()?.keepsakes ?? [],
+        bouquets: bag.filter((i) => i.kind === 'bouquet'),
+        pick: (item) => conn.send({ t: 'cabin', action: 'place', spot: spot.id, item }),
+      });
       const g = game;
       const gardenPanel = new GardenPanel(hud, {
         plot: (id) => {
@@ -294,6 +308,8 @@ conn.onMessage = (m) => {
     if (chatOff) chat.close();
     adminPanel?.setFeatures(m.features);
   }
+  if (m.t === 'gallery') catalogue.setGallery(m.forSale);
+  if (m.t === 'portfolio') catalogue.setPortfolio(m.mine, m.prints);
   if (m.t === 'welcome' || m.t === 'village') book.setRoster(m.cabins);
   game?.onMessage(m);
   if (m.t === 'village') game?.onVillage();

@@ -140,6 +140,12 @@ Sit at the drums, guitar (chords) or keyboard and play with 1–8. Spotlights co
 claps and cheers from the seats sound like applause, and E at the board behind the stage puts up a line for
 everyone (it stays two hours).
 
+East along the main street, a gate leads to the **village**: everyone gets a cabin of their own on a lot (empty
+lots wear a "free lot" sign, and a new row opens as it fills). Inside, E at a wall spot hangs one of your paintings
+and E at a shelf shows off a keepsake or a bouquet; 🔓/🔒 latches the door so visitors stay outside. The village
+**Studio** has easels for pixel or freehand painting. Put up to three of yours up for sale and they hang on its
+gallery wall; E there opens the catalogue, where prints cost KP and the artist earns it.
+
 The Café's coffee machine is a little barista game: grind, tamp, pull the shot, steam the milk, pour to the line
 and trace latte art. Your score sets the stars on the cup you carry.
 

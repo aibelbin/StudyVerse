@@ -368,3 +368,5 @@ body.chat-off #feed { bottom: 14px; }
 .art-tile img.pixel { image-rendering: pixelated; }
 .art-tile b { font-size: 13px; }
 .art-tile small { font-size: 11px; color: var(--mut); }
+.spot-thumb { width: 72px; height: 72px; object-fit: contain; border-radius: 8px; background: #fff; }
+.spot-thumb.pixel { image-rendering: pixelated; }
