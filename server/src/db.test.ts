@@ -131,4 +131,71 @@ describe('wallet, wardrobe, notes and daily totals', () => {
     s.addKp(profile.id, 4);
     expect(s.wallet(profile.id)).toMatchObject({ kp: 14, streak: 2 });
   });
+
+  it('hands out cabins by lot with current profile names', () => {
+    const s = new ProfileStore(':memory:');
+    const a = s.create('Ann', DEFAULT_LOOK).profile.id;
+    const b = s.create('Bo', DEFAULT_LOOK).profile.id;
+    s.addCabin(b, 1, 5);
+    s.addCabin(a, 0, 4);
+    expect(s.cabinCount()).toBe(2);
+    expect(s.cabinOf(a)).toEqual({ lot: 0, locked: false });
+    expect(s.cabinOf('nobody')).toBeNull();
+    s.setCabinLocked(a, true);
+    expect(s.cabins()).toEqual([
+      { owner: a, name: 'Ann', lot: 0, locked: true },
+      { owner: b, name: 'Bo', lot: 1, locked: false },
+    ]);
+  });
+
+  it('upserts and takes cabin items, and reads a keepsake', () => {
+    const s = new ProfileStore(':memory:');
+    const a = s.create('Ann', DEFAULT_LOOK).profile.id;
+    s.setCabinItem(a, 'wall-1', 'painting', 3);
+    s.setCabinItem(a, 'wall-1', 'keepsake', 7);
+    s.setCabinItem(a, 'shelf', 'bouquet', 2);
+    expect(s.cabinItems(a)).toHaveLength(2);
+    expect(s.takeCabinItem(a, 'wall-1')).toEqual({ kind: 'keepsake', ref: 7 });
+    expect(s.takeCabinItem(a, 'wall-1')).toBeNull();
+    const k = s.addKeepsake(a, 'x', 'Zed', 'teddy', 1, 'rose');
+    expect(s.keepsake(a, k)).toEqual({ gift: 'teddy', fromName: 'Zed', flower: 'rose' });
+    const k2 = s.addKeepsake(a, 'x', 'Zed', 'teddy', 1);
+    expect(s.keepsake(a, k2)).toEqual({ gift: 'teddy', fromName: 'Zed' });
+    expect(s.keepsake('other', k)).toBeNull();
+  });
+
+  it('lists paintings newest first and buys prints', () => {
+    const s = new ProfileStore(':memory:');
+    const a = s.create('Ann', DEFAULT_LOOK).profile.id;
+    const b = s.create('Bo', DEFAULT_LOOK).profile.id;
+    const png = Buffer.from([1, 2, 3]);
+    const p1 = s.addPainting(a, 'One', 10, 'pixel', png, true, 1);
+    const p2 = s.addPainting(a, 'Two', 20, 'free', png, true, 2);
+    const p3 = s.addPainting(a, 'Three', 5, 'pixel', png, false, 3);
+    expect(s.forSale().map((p) => p.id)).toEqual([p2, p1]);
+    expect(s.painting(p1)).toMatchObject({ artist: a, artistName: 'Ann', title: 'One', price: 10, mode: 'pixel', sold: 0, forSale: true, at: 1 });
+    expect(s.paintingPng(p1)).toEqual(png);
+    expect(s.paintingCount(a)).toBe(3);
+    expect(s.forSaleCount(a)).toBe(2);
+    expect(s.byArtist(a)).toHaveLength(3);
+    expect(s.setForSale(p3, b, true)).toBe(false);
+    expect(s.setForSale(p3, a, true)).toBe(true);
+
+    expect(s.buyPrint(b, p1, 10)).toEqual({ ok: false, reason: 'kp' });
+    s.addKp(b, 15);
+    expect(s.buyPrint(a, p1, 10)).toEqual({ ok: false, reason: 'own' });
+    expect(s.buyPrint(b, 999, 10)).toEqual({ ok: false, reason: 'gone' });
+    const ok = s.buyPrint(b, p1, 10);
+    expect(ok).toEqual({ ok: true, artist: a, price: 10, title: 'One' });
+    expect(s.wallet(b).kp).toBe(5);
+    expect(s.wallet(a).kp).toBe(10);
+    expect(s.painting(p1)?.sold).toBe(1);
+    expect(s.buyPrint(b, p1, 10)).toEqual({ ok: false, reason: 'owned' });
+    expect(s.ownsPainting(b, p1)).toBe(true);
+    expect(s.ownsPainting(a, p1)).toBe(true);
+    expect(s.ownsPainting(b, p2)).toBe(false);
+    expect(s.prints(b).map((p) => p.id)).toEqual([p1]);
+    s.setForSale(p2, a, false);
+    expect(s.buyPrint(b, p2, 1)).toEqual({ ok: false, reason: 'gone' });
+  });
 });
