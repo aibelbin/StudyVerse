@@ -1301,6 +1301,7 @@ export class World {
   private sendWelcome(p: Player, token?: string): void {
     p.conn!.send({
       t: 'welcome',
+      cabins: [],
       you: this.toView(p),
       ...(token ? { token } : {}),
       serverTime: this.now(),

@@ -5,6 +5,7 @@ import { isPetKind } from '../../shared/pets/kinds';
 import { GARDEN_ACTIONS, type AdminAction, type ClientMsg, type GardenAction } from '../../shared/protocol';
 import { FEATURE_KINDS, isGift, STATUS_MINUTES, STATUS_TEXT_MAX, type Feature } from '../../shared/gifts';
 import { ANNOUNCE_MAX } from '../../shared/constants';
+import { PAINT_B64_MAX, PAINT_MODES, PRICE_RANGE, SPOT_PICK_KINDS, TITLE_MAX, type PaintMode, type SpotPick } from '../../shared/art';
 import { TOY_ACTIONS, type ToyAction } from '../../shared/toys';
 import { ACTS, DRINKS, PET_ANIMS, REACTIONS, type Act, type Anim, type Drink, type EmoteKind, type Look, type PetAnim } from '../../shared/types';
 
@@ -154,6 +155,25 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     }
     case 'admin':
       return parseAdmin(m);
+    case 'paint': {
+      if (typeof m.title !== 'string') return null;
+      const title = m.title.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!title || [...title].length > TITLE_MAX) return null;
+      if (!Number.isInteger(m.price) || (m.price as number) < PRICE_RANGE[0] || (m.price as number) > PRICE_RANGE[1]) return null;
+      if (typeof m.forSale !== 'boolean' || !PAINT_MODES.includes(m.mode as PaintMode)) return null;
+      if (typeof m.png !== 'string' || m.png.length === 0 || m.png.length > PAINT_B64_MAX || !/^[A-Za-z0-9+/=]+$/.test(m.png)) return null;
+      return { t: 'paint', title, price: m.price as number, forSale: m.forSale, mode: m.mode as PaintMode, png: m.png };
+    }
+    case 'setSale':
+      return Number.isInteger(m.id) && typeof m.on === 'boolean' ? { t: 'setSale', id: m.id as number, on: m.on } : null;
+    case 'buyPrint':
+      return Number.isInteger(m.id) ? { t: 'buyPrint', id: m.id as number } : null;
+    case 'getGallery':
+      return { t: 'getGallery' };
+    case 'getPortfolio':
+      return { t: 'getPortfolio' };
+    case 'cabin':
+      return parseCabin(m);
     case 'buySeed':
       return isFlower(m.flower) ? { t: 'buySeed', flower: m.flower } : null;
     case 'stageText': {
@@ -219,6 +239,23 @@ function parseAdmin(m: Record<string, unknown>): ClientMsg | null {
     }
     case 'deleteChat': case 'deleteNote':
       return Number.isInteger(m.id) ? wrap({ action: m.action, id: m.id as number }) : null;
+    default: return null;
+  }
+}
+
+/** Cabin requests: place/clear an item at a spot, or lock the door. */
+function parseCabin(m: Record<string, unknown>): ClientMsg | null {
+  switch (m.action) {
+    case 'lock':
+      return typeof m.on === 'boolean' ? { t: 'cabin', action: 'lock', on: m.on } : null;
+    case 'clear':
+      return isStr(m.spot, 8) ? { t: 'cabin', action: 'clear', spot: m.spot } : null;
+    case 'place': {
+      const it = m.item as Record<string, unknown> | null;
+      if (!isStr(m.spot, 8) || typeof it !== 'object' || it === null) return null;
+      if (!SPOT_PICK_KINDS.includes(it.kind as SpotPick['kind']) || !Number.isInteger(it.id)) return null;
+      return { t: 'cabin', action: 'place', spot: m.spot, item: { kind: it.kind as SpotPick['kind'], id: it.id as number } };
+    }
     default: return null;
   }
 }

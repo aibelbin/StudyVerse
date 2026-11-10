@@ -1,4 +1,5 @@
 import type { Tilt } from './toys';
+import type { CabinEntry, CabinState, PaintingMeta, PaintMode, SpotPick } from './art';
 
 export type GardenAction = 'claim' | 'plant' | 'water' | 'harvest' | 'vase';
 
@@ -67,9 +68,20 @@ export type ClientMsg =
   | { t: 'setPetOut'; on: boolean }
   | { t: 'pet'; x: number; z: number; facing: number; anim: PetView['anim'] }
   /** WebRTC signalling for proximity voice, relayed to one player in the same scene. */
-  | { t: 'rtc'; to: string; data: string };
+  | { t: 'rtc'; to: string; data: string }
+  | { t: 'paint'; title: string; price: number; forSale: boolean; mode: PaintMode; png: string }
+  | { t: 'setSale'; id: number; on: boolean }
+  | { t: 'buyPrint'; id: number }
+  | { t: 'getGallery' }
+  | { t: 'getPortfolio' }
+  | { t: 'cabin'; action: 'place'; spot: string; item: SpotPick }
+  | { t: 'cabin'; action: 'clear'; spot: string }
+  | { t: 'cabin'; action: 'lock'; on: boolean };
 
 export type ErrorCode =
+  | 'bad_art'
+  | 'locked'
+  | 'bad_cabin'
   | 'bad_invite'
   | 'unknown_token'
   | 'bad_profile'
@@ -97,6 +109,10 @@ export type ErrorCode =
   | 'not_admin';
 
 export type ServerMsg =
+  | { t: 'village'; cabins: CabinEntry[] }
+  | { t: 'gallery'; forSale: PaintingMeta[] }
+  | { t: 'portfolio'; mine: PaintingMeta[]; prints: PaintingMeta[] }
+  | { t: 'cabinState'; state: CabinState }
   | { t: 'chat'; msg: ChatMsg }
   | { t: 'chatReact'; id: number; reactions: Record<string, string[]> }
   | { t: 'act'; fromId: string; kind: Act }
@@ -116,6 +132,7 @@ export type ServerMsg =
   | { t: 'meditated'; kp: number; companions: number }
   | {
       t: 'welcome';
+      cabins: CabinEntry[];
       you: PlayerView;
       token?: string;
       serverTime: number;

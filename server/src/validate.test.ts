@@ -140,3 +140,33 @@ describe('isLook', () => {
     expect(isLook(null)).toBe(false);
   });
 });
+
+describe('studio and cabin messages', () => {
+  const p = (o: object) => parseClientMsg(JSON.stringify(o));
+  const paint = { t: 'paint', title: ' Sun\tset  ', price: 5, forSale: true, mode: 'pixel', png: 'iVBORw0KGgo=' };
+  it('parses paint and cleans the title', () => {
+    expect(p(paint)).toEqual({ ...paint, title: 'Sun set' });
+  });
+  it('rejects bad paint', () => {
+    expect(p({ ...paint, price: 0 })).toBeNull();
+    expect(p({ ...paint, title: 'x'.repeat(25) })).toBeNull();
+    expect(p({ ...paint, png: 'not base64!' })).toBeNull();
+    expect(p({ ...paint, mode: 'oil' })).toBeNull();
+  });
+  it('parses and rejects setSale, buyPrint and the getters', () => {
+    expect(p({ t: 'setSale', id: 3, on: true })).toEqual({ t: 'setSale', id: 3, on: true });
+    expect(p({ t: 'setSale', id: 3 })).toBeNull();
+    expect(p({ t: 'buyPrint', id: 3 })).toEqual({ t: 'buyPrint', id: 3 });
+    expect(p({ t: 'buyPrint', id: 1.5 })).toBeNull();
+    expect(p({ t: 'getGallery' })).toEqual({ t: 'getGallery' });
+    expect(p({ t: 'getPortfolio' })).toEqual({ t: 'getPortfolio' });
+  });
+  it('parses and rejects cabin actions', () => {
+    expect(p({ t: 'cabin', action: 'place', spot: 'wall1', item: { kind: 'painting', id: 2, x: 1 } })).toEqual({ t: 'cabin', action: 'place', spot: 'wall1', item: { kind: 'painting', id: 2 } });
+    expect(p({ t: 'cabin', action: 'place', spot: 'wall1', item: { kind: 'sword', id: 2 } })).toBeNull();
+    expect(p({ t: 'cabin', action: 'clear', spot: 'wall1' })).toEqual({ t: 'cabin', action: 'clear', spot: 'wall1' });
+    expect(p({ t: 'cabin', action: 'clear', spot: 'toolongspot' })).toBeNull();
+    expect(p({ t: 'cabin', action: 'lock', on: false })).toEqual({ t: 'cabin', action: 'lock', on: false });
+    expect(p({ t: 'cabin', action: 'lock' })).toBeNull();
+  });
+});
