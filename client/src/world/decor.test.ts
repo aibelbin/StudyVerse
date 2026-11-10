@@ -4,7 +4,7 @@ import type { DecorKind } from '../../../shared/scenes/types';
 import { decorTemplate } from './decor';
 
 /** Kinds that don't need a browser canvas, so they can be built in Node. */
-const KINDS: DecorKind[] = ['tree', 'pine', 'bush', 'flowers', 'grass', 'rock', 'lilyPad', 'hedge', 'bench', 'lampPost', 'plant', 'window', 'pendant', 'stringLights', 'sunbeam'];
+const KINDS: DecorKind[] = ['tree', 'pine', 'bush', 'flowers', 'grass', 'rock', 'lilyPad', 'hedge', 'bench', 'lampPost', 'plant', 'window', 'pendant', 'stringLights', 'sunbeam', 'shelf', 'bed'];
 
 const triangles = (o: THREE.Object3D) => {
   let n = 0;

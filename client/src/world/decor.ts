@@ -178,12 +178,113 @@ export function chimneyLocal(d: Decor): THREE.Vector3 {
 }
 
 const builders: Record<DecorKind, Builder> = {
-  // Placeholders until the cabin decor task draws them.
-  cabin: () => group(),
-  gate: () => group(),
-  galleryWall: () => group(),
-  shelf: () => group(),
-  bed: () => group(),
+  /** A player's cabin: a small, simple building. Door on +z, a plaque with the owner's name above it. */
+  cabin(d, r) {
+    const w = d.w ?? 5;
+    const dd = d.d ?? 4.5;
+    const h = d.h ?? 2.6;
+    const wall = d.color ?? '#f2dcc0';
+    const accent = d.accent ?? P.woodDark;
+    const front = dd / 2;
+    const trim = mat('#fff6ea');
+    const wood = mat(P.woodLight);
+    const g = group();
+    g.add(mesh(box(w + 0.12, 0.3, dd + 0.12), mat('#c9bfb2'), 0, 0.15, 0));
+    const siding = sidingTex(wall).clone();
+    siding.repeat.set(w, h);
+    siding.needsUpdate = true;
+    g.add(mesh(box(w, h - 0.3, dd), toonMat({ map: siding }), 0, 0.3 + (h - 0.3) / 2, 0));
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(mesh(box(0.12, h, 0.12), trim, sx * (w / 2 - 0.02), h / 2, sz * (dd / 2 - 0.02)));
+    g.add(mesh(box(w + 0.1, 0.12, dd + 0.1), trim, 0, h, 0));
+    const rise = 1.4;
+    const half = w / 2 + 0.3;
+    const slope = Math.hypot(half, rise);
+    const ang = Math.atan2(rise, half);
+    const tiles = tileTex(accent).clone();
+    tiles.repeat.set(slope * 4, (dd + 0.6) * 4);
+    tiles.needsUpdate = true;
+    const tileMat = toonMat({ map: tiles });
+    for (const side of [-1, 1]) {
+      const rf = mesh(box(slope, 0.1, dd + 0.6), tileMat, side * half / 2, h + rise / 2 + 0.05, 0);
+      rf.rotation.z = -side * ang;
+      g.add(rf);
+    }
+    const ridge = mesh(cyl(0.08, 0.08, dd + 0.65, 8), mat(accent), 0, h + rise + 0.08, 0);
+    ridge.rotation.x = Math.PI / 2;
+    g.add(ridge);
+    const gable = new THREE.Shape([new THREE.Vector2(-w / 2, 0), new THREE.Vector2(w / 2, 0), new THREE.Vector2(0, rise - 0.05)]);
+    for (const z of [front + 0.01, -front - 0.01]) g.add(mesh(new THREE.ShapeGeometry(gable), mat(wall), 0, h, z));
+    // door
+    const doorColor = pick(['#5f9a72', '#c9705a', '#e8c35a', '#f2a65a', '#7a8fc4', '#8fd694'], r);
+    g.add(mesh(box(1.0, 1.7, 0.1), trim, -0.7, 0.85 + 0.05, front + 0.03));
+    g.add(mesh(box(0.82, 1.55, 0.12), mat(doorColor), -0.7, 0.8 + 0.05, front + 0.05));
+    g.add(mesh(sph(0.045, 1), mat('#e8c35a'), -0.45, 0.85, front + 0.13, false));
+    g.add(mesh(box(1.1, 0.02, 0.6), mat('#b5857a'), -0.7, 0.01, front + 0.4)); // doormat
+    // window with a flower box
+    const wx = 1.2;
+    g.add(mesh(box(1.1, 0.95, 0.08), wood, wx, 1.4, front + 0.02));
+    g.add(mesh(box(0.92, 0.77, 0.1), glow(P.windowGlow, 0.5, 'window'), wx, 1.4, front + 0.03, false));
+    g.add(mesh(box(0.05, 0.77, 0.12), wood, wx, 1.4, front + 0.06, false));
+    g.add(mesh(box(0.92, 0.05, 0.12), wood, wx, 1.4, front + 0.06, false));
+    g.add(mesh(box(1.1, 0.2, 0.24), mat(P.woodDark), wx, 0.84, front + 0.14));
+    for (let i = 0; i < 5; i++) g.add(mesh(sph(0.07, 1), mat(P.flowers[i % P.flowers.length]), wx - 0.4 + i * 0.2, 1.0, front + 0.16, false));
+    if (d.label) {
+      const text = labelPlane(d.label, 0.3);
+      const tw = (text.geometry as THREE.PlaneGeometry).parameters.width;
+      const py = 2.1;
+      g.add(mesh(box(tw + 0.3, 0.46, 0.06), mat(P.woodLight), 0, py, front + 0.04));
+      g.add(mesh(box(tw + 0.4, 0.56, 0.05), mat(P.woodDark), 0, py, front + 0.02));
+      text.position.set(0, py, front + 0.09);
+      text.userData.keep = true;
+      g.add(text);
+    }
+    return merged(g);
+  },
+
+  /** The village gate: two posts and a beam with the village's name hanging under it, a lantern at each post. */
+  gate(d) {
+    const wood = mat(P.woodDark);
+    const g = group();
+    for (const sx of [-1, 1]) {
+      g.add(mesh(box(0.22, 2.8, 0.22), wood, sx * 0.8, 1.4, 0));
+      g.add(mesh(box(0.1, 0.14, 0.1), mat(P.dark), sx * 1.0, 2.4, 0.22, false)); // lantern hook
+      g.add(mesh(sph(0.12, 1), glow(P.lampGlow, 1.6, 'street'), sx * 1.0, 2.25, 0.22, false));
+    }
+    g.add(mesh(box(2.2, 0.2, 0.28), mat(P.woodLight), 0, 2.8, 0));
+    if (d.label) {
+      const text = labelPlane(d.label, 0.34);
+      const tw = (text.geometry as THREE.PlaneGeometry).parameters.width;
+      g.add(mesh(box(tw + 0.3, 0.5, 0.05), mat(P.woodLight), 0, 2.4, 0.02));
+      text.position.set(0, 2.4, 0.06);
+      text.userData.keep = true;
+      g.add(text);
+    }
+    return merged(g);
+  },
+
+  /** A pale panel to hang paintings on, with a wooden rail along the top. */
+  galleryWall(d) {
+    const w = d.w ?? 4;
+    return group(mesh(box(w, 2.4, 0.04), mat('#f4ece0'), 0, 1.75, 0), mesh(box(w + 0.1, 0.08, 0.1), mat(P.woodDark), 0, 2.95, 0));
+  },
+
+  /** A wall shelf: the plank sits at the origin (y comes from d.y), brackets below. */
+  shelf(d) {
+    const w = d.w ?? 1;
+    const g = group(mesh(box(w, 0.05, 0.3), mat(P.woodLight), 0, 0, 0));
+    for (const sx of [-1, 1]) g.add(mesh(box(0.04, 0.16, 0.22), mat(P.woodDark), sx * (w / 2 - 0.1), -0.105, 0));
+    return g;
+  },
+
+  bed(_d, r) {
+    const g = group(
+      mesh(box(1.2, 0.3, 2), mat(P.woodDark), 0, 0.15, 0),
+      mesh(box(1.1, 0.14, 1.9), mat('#fff6ea'), 0, 0.37, 0),
+      mesh(box(0.7, 0.12, 0.35), mat('#ffffff'), 0, 0.5, -0.7),
+      mesh(box(1.14, 0.1, 1.0), mat(pick(P.chairs, r)), 0, 0.46, 0.4),
+    );
+    return g;
+  },
   /** Four shapes by seed (oak, poplar, birch, apple): round canopies of soft clumps, lighter on top. */
   tree(d, r) {
     const s = d.h ?? 1;
