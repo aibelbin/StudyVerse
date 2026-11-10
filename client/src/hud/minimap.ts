@@ -105,6 +105,7 @@ export class Minimap {
       }
       else if (d.kind === 'hedge') rect(d.x, d.z, d.w ?? 1, d.d ?? 1, '#4f9e6a');
       else if (d.kind === 'building') rect(d.x, d.z, d.w ?? 6, d.d ?? 5, d.accent ?? '#9c6f4c');
+      else if (d.kind === 'cabin') rect(d.x, d.z, d.w ?? 5, d.d ?? 4.5, d.accent ?? '#9c6f4c');
       else if (d.kind === 'desk' || d.kind === 'counter') rect(d.x, d.z, d.w ?? 1.4, d.d ?? 0.8, '#b58860');
       else if (d.kind === 'bookshelf') rect(d.x, d.z, d.rot && Math.abs(Math.sin(d.rot)) > 0.5 ? 0.45 : d.w ?? 2.2, d.rot && Math.abs(Math.sin(d.rot)) > 0.5 ? d.w ?? 2.2 : 0.45, '#8a5a3c');
       else if (d.kind === 'cafeTable') {

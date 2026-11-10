@@ -1,4 +1,4 @@
-import { SCENES } from '../../../shared/scenes';
+import { book } from '../world/book';
 import type { SceneDef } from '../../../shared/scenes/types';
 import type { EmoteKind, FeedEvent, OnlineEntry, PlayerView } from '../../../shared/types';
 import type { ConnStatus } from '../net/connection';
@@ -106,7 +106,7 @@ export class Hud {
   setOnline(list: OnlineEntry[]): void {
     const by = new Map<string, OnlineEntry[]>();
     for (const p of list) {
-      const scene = SCENES[p.scene]?.name ?? p.scene;
+      const scene = book.name(p.scene);
       by.set(scene, [...(by.get(scene) ?? []), p]);
     }
     const mood = (p: OnlineEntry) => (p.status ? [h('span', { className: 'st', textContent: ` ${moodText(p.status)}` })] : []);

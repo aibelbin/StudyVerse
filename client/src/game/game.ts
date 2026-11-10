@@ -4,7 +4,7 @@ import { showGiftOffer } from '../hud/giftCard';
 import { EmoteWheel } from '../hud/emoteWheel';
 import { inBox, moveWithCollision, pointInPolygon } from '../../../shared/geometry';
 import type { ClientMsg, ErrorCode, ServerMsg } from '../../../shared/protocol';
-import { getScene } from '../../../shared/scenes';
+import { SCENES } from '../../../shared/scenes';
 import { SLIDE_RUN } from '../../../shared/scenes/kitToys';
 import type { SceneDef, Slot, Toy } from '../../../shared/scenes/types';
 import {
@@ -28,6 +28,7 @@ import { CONTROLLER_POSES } from '../../../shared/vehicles';
 import { DriveWorld, loadRapier } from '../drive/physics';
 import { PropsView } from '../world/props';
 import { Character } from '../world/character';
+import { book } from '../world/book';
 import { buildScene, followSun, updateFades, type BuiltScene } from '../world/sceneBuilder';
 import { CameraRig } from './cameraRig';
 import { serverNow, syncClock } from './clock';
@@ -68,6 +69,8 @@ interface SceneRuntime {
   golf: GolfCourse | null;
   /** Emoji pops in the world (e.g. a hole-in-one). */
   pops: Floaters;
+  /** The scene book version it was built from; a village or cabin from an older roster is rebuilt. */
+  version: number;
 }
 
 /** Instruments you play from their seat with the number keys. */
@@ -401,8 +404,12 @@ export class Game {
     for (const pet of this.pets.values()) pet.model.dispose();
     this.pets.clear();
     this.localPet = null;
-    this.def = getScene(you.scene)!;
+    this.def = book.get(you.scene)!;
     let rt = this.runtimes.get(you.scene);
+    if (rt && !SCENES[you.scene] && rt.version !== book.version) {
+      this.runtimes.delete(you.scene);
+      rt = undefined;
+    }
     if (!rt) {
       const built = buildScene(this.def);
       const toys = new Map<string, ToyView>();
@@ -418,7 +425,7 @@ export class Game {
       if (stageFx) built.scene.add(stageFx.root);
       const golf = this.def.toys.some((t) => t.kind === 'golfTee') ? new GolfCourse() : null;
       if (golf) built.scene.add(golf.root);
-      rt = { built, toys, props, stageFx, golf, pops: new Floaters(built.scene) };
+      rt = { built, toys, props, stageFx, golf, pops: new Floaters(built.scene), version: book.version };
       this.runtimes.set(you.scene, rt);
       built.setTreeStage(treeStage(this.treeMinutes));
     }
@@ -445,6 +452,14 @@ export class Game {
     this.hooks.enterScene(this.def, rt.built);
     this.minimap.setScene(this.def);
     if (this.voice) this.voice.stage = this.def.stage;
+  }
+
+  /** The village roster changed: if you are standing in the village, rebuild it around you. */
+  onVillage(): void {
+    if (this.def?.id !== 'village' || !this.me) return;
+    const others = [...this.remotes.values()].map((r) => r.view);
+    this.runtimes.delete('village');
+    this.enter({ ...this.me, x: this.x, z: this.z, facing: this.facing }, others);
   }
 
   private addRemote(v: PlayerView): void {
@@ -557,10 +572,11 @@ export class Game {
   }
 
   private onError(code: ErrorCode, message: string): void {
-    if (code === 'bad_door' && this.transitioning) {
+    if ((code === 'bad_door' || code === 'locked') && this.transitioning) {
       this.x -= Math.sin(this.facing) * 0.8; // step back out of the doorway
       this.z -= Math.cos(this.facing) * 0.8;
       this.endTransition();
+      if (code === 'locked') this.hud.toast(message);
       return;
     }
     this.hud.toast(code === 'slot_taken' ? '💺 That seat is taken!' : message);

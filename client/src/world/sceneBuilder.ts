@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { SCENES } from '../../../shared/scenes';
 import type { Door, SceneDef } from '../../../shared/scenes/types';
+import { book } from './book';
 import { makeDecor } from './decor';
 import { buildInstanced, INSTANCED_KINDS, type Sway } from './instanced';
 import { mat, mesh, toonMat } from './materials';
@@ -108,7 +108,7 @@ function walls(def: SceneDef): THREE.Group {
 function doorMat(door: Door): THREE.Group {
   const g = new THREE.Group();
   g.add(mesh(new THREE.BoxGeometry(door.box.w, 0.02, door.box.d), mat('#d98f6a', 1), door.box.x, 0.012, door.box.z, false));
-  const label = textSprite(`↓ ${SCENES[door.toScene]?.name ?? 'Out'}`, 0.26, { bg: '#ffffffcc', font: 36, pad: 12 });
+  const label = textSprite(`↓ ${book.get(door.toScene) ? book.name(door.toScene) : 'Out'}`, 0.26, { bg: '#ffffffcc', font: 36, pad: 12 });
   label.position.set(door.box.x, 0.9, door.box.z);
   g.add(label);
   return g;

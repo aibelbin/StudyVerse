@@ -1,6 +1,6 @@
 import { FEATURE_KINDS, FEATURES, type AdminPlayer, type Features } from '../../../shared/gifts';
 import type { AdminAction } from '../../../shared/protocol';
-import { SCENES } from '../../../shared/scenes';
+import { book } from '../world/book';
 import { h } from './dom';
 import { moodText } from './gifts';
 
@@ -85,7 +85,7 @@ export class AdminPanel {
         });
         const btn = (label: string, a: AdminAction, confirmText?: string) => h('button', { type: 'button', className: 'mini', textContent: label, onclick: () => this.act(a, confirmText) });
         const meta = [
-          p.online ? `🟢 ${SCENES[p.scene]?.name ?? p.scene}` : p.scene ? '💤 away' : '⚪ offline',
+          p.online ? `🟢 ${book.name(p.scene)}` : p.scene ? '💤 away' : '⚪ offline',
           `✨ ${p.kp}`,
           moodText(p.status),
           p.mutedUntil ? `🔇 muted ${when(p.mutedUntil)}` : '',

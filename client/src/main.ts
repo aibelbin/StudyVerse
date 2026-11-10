@@ -25,6 +25,7 @@ import { Voice } from './voice/voice';
 import { petsTab } from './hud/petsTab';
 import type { Wallet } from '../../shared/types';
 import { Connection } from './net/connection';
+import { book } from './world/book';
 import { ChatPanel } from './hud/chat';
 
 const TOKEN_KEY = 'vsw-token';
@@ -293,7 +294,9 @@ conn.onMessage = (m) => {
     if (chatOff) chat.close();
     adminPanel?.setFeatures(m.features);
   }
+  if (m.t === 'welcome' || m.t === 'village') book.setRoster(m.cabins);
   game?.onMessage(m);
+  if (m.t === 'village') game?.onVillage();
   if (m.t === 'toyState' || m.t === 'wallet' || m.t === 'playerUpdated') refreshGarden();
 };
 
