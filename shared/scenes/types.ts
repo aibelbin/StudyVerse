@@ -30,13 +30,26 @@ export interface Spawn {
   facing: number;
 }
 
+/** A fixed place in a cabin where its owner hangs a painting (wall) or shows a keepsake (shelf). */
+export interface Spot {
+  id: string;
+  kind: 'wall' | 'shelf';
+  x: number;
+  z: number;
+  /** Height of the frame centre / shelf top. */
+  y: number;
+  /** Which way the frame faces (same convention as Decor.rot). */
+  rot: number;
+}
+
 export type DecorKind =
   | 'tree' | 'pine' | 'bush' | 'flowers' | 'lampPost' | 'bench' | 'path' | 'building' | 'pond'
   | 'desk' | 'chair' | 'deskLamp' | 'bookshelf' | 'rug' | 'plant' | 'window' | 'sign'
   | 'cafeTable' | 'stool' | 'counter' | 'coffeeMachine' | 'cup'
   | 'lake' | 'dock' | 'lilyPad' | 'rock' | 'grass' | 'hedge' | 'bandstand' | 'swingSet' | 'log' | 'leafPile' | 'mound' | 'knowledgeTree' | 'parking'
   | 'cherry' | 'bridge' | 'gravel' | 'blanket' | 'lantern' | 'cushion' | 'stage' | 'amphiSeat' | 'spotlight' | 'soil'
-  | 'signpost' | 'frame' | 'pendant' | 'chalkboard' | 'stringLights' | 'sunbeam';
+  | 'signpost' | 'frame' | 'pendant' | 'chalkboard' | 'stringLights' | 'sunbeam'
+  | 'cabin' | 'gate' | 'galleryWall' | 'shelf' | 'bed';
 
 /** Visual-only object. Size fields mean different things per kind (see client/src/world/decor.ts). */
 export interface Decor {
@@ -145,6 +158,8 @@ export interface SceneDef {
   /** The open-air stage: who's on it, who's listening, and where the screen is. */
   stage?: { stage: Box; audience: Box; screen: { x: number; z: number } };
   props?: Prop[];
+  /** Cabins: the owner's decorating spots. */
+  spots?: Spot[];
   doors: Door[];
   spawns: Spawn[];
   decor: Decor[];

@@ -91,3 +91,31 @@ export function coffeeView(): ToyView {
   root.add(cup);
   return { root, update: (ctx) => bob(cup, 2.1, ctx.now) };
 }
+
+/** An easel in the studio: a wooden tripod holding a blank canvas, with a sign. */
+export function easelView(): ToyView {
+  const root = new THREE.Group();
+  for (const [x, z] of [[-0.3, 0.25], [0.3, 0.25], [0, -0.3]]) {
+    const leg = mesh(new THREE.CylinderGeometry(0.03, 0.035, 1.9, 8), mat(P.woodLight), x, 0.95, z);
+    leg.rotation.x = z < 0 ? -0.22 : 0.18;
+    leg.rotation.z = -x * 0.5;
+    root.add(leg);
+  }
+  root.add(mesh(new THREE.BoxGeometry(0.8, 0.06, 0.12), mat(P.woodDark), 0, 0.85, 0.2));
+  const canvas = mesh(new THREE.BoxGeometry(0.72, 0.72, 0.03), mat('#fffdf7'), 0, 1.3, 0.16);
+  canvas.rotation.x = -0.18;
+  root.add(canvas);
+  const sign = textSprite('🎨 Paint', 0.28, { bg: '#ffffffdd', font: 40, pad: 12 });
+  sign.position.set(0, 2.15, 0);
+  root.add(sign);
+  return { root, update: (ctx) => bob(sign, 2.15, ctx.now) };
+}
+
+/** The gallery wall's sign (the wall and its frames are decor + the Pictures view). */
+export function galleryView(): ToyView {
+  const root = new THREE.Group();
+  const sign = textSprite('🖼️ Gallery', 0.28, { bg: '#ffffffdd', font: 40, pad: 12 });
+  sign.position.set(0, 1.4, 0);
+  root.add(sign);
+  return { root, update: (ctx) => bob(sign, 1.4, ctx.now) };
+}

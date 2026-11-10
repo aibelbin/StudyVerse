@@ -178,6 +178,12 @@ export function chimneyLocal(d: Decor): THREE.Vector3 {
 }
 
 const builders: Record<DecorKind, Builder> = {
+  // Placeholders until the cabin decor task draws them.
+  cabin: () => group(),
+  gate: () => group(),
+  galleryWall: () => group(),
+  shelf: () => group(),
+  bed: () => group(),
   /** Four shapes by seed (oak, poplar, birch, apple): round canopies of soft clumps, lighter on top. */
   tree(d, r) {
     const s = d.h ?? 1;
