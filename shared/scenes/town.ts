@@ -1,6 +1,6 @@
 import { pointInPolygon, type Box } from '../geometry';
 import { merge, shift } from './kit';
-import { edges } from './town/edges';
+import { edges, GATE_GAP } from './town/edges';
 import { lake, water } from './town/lake';
 import { meadows } from './town/meadows';
 import { park } from './town/park';
@@ -25,11 +25,11 @@ const townWater: Water = {
 };
 const doors: Door[] = squareDoors.map((d) => ({ ...d, box: at(d.box) }));
 const spawns: Spawn[] = squareSpawns.map(at);
-const placed = merge(shift(merge(base, meadows(base, water.outline)), 0, TOWN_DZ), edges(150, 130));
-const zones = merge(placed, south(placed, townWater.outline));
-
 /** The main street's z in final town coordinates (the gate to the village sits at its east end). */
 export const TOWN_STREET_Z = 1.5 + TOWN_DZ;
+const placed = merge(shift(merge(base, meadows(base, water.outline)), 0, TOWN_DZ), edges(150, 130, undefined, [{ side: 'east', at: TOWN_STREET_Z, w: GATE_GAP }]));
+const zones = merge(placed, south(placed, townWater.outline));
+
 const gate: Decor[] = [
   { kind: 'gate', x: 73.5, z: TOWN_STREET_Z, rot: Math.PI / 2, label: 'Village' },
   { kind: 'signpost', x: 66, z: TOWN_STREET_Z - 2.6, label: 'Village|Studio' },

@@ -1,6 +1,6 @@
 import { cabinLook, cabinSceneId, LOT_XS, lotSpawn, seedOf, villageRows, villageSize, type CabinEntry } from '../art';
 import { building, lampPost, merge, tree, type Parts } from './kit';
-import { edges } from './town/edges';
+import { edges, GATE_GAP } from './town/edges';
 import { OUTDOOR_THEME } from './town';
 import type { Door, SceneDef, Spawn } from './types';
 
@@ -57,13 +57,13 @@ export function villageScene(roster: CabinEntry[]): SceneDef {
     });
   }
   const parts = merge(
-    edges(size.w, size.d),
+    edges(size.w, size.d, undefined, [{ side: 'south', at: 0, w: GATE_GAP }]),
     {
       decor: [
         { kind: 'path', x: 0, z: 0, w: 3, d: size.d - 4 },
         { kind: 'path', x: -7, z: hd - 6.9, w: 14, d: 2 },
         { kind: 'gate', x: 0, z: hd - 1.5, label: 'Town' },
-        { kind: 'signpost', x: 2.4, z: hd - 6, label: 'Studio|Cabins' },
+        { kind: 'signpost', x: 2.4, z: hd - 6, label: 'Cabins|Studio' },
       ],
       colliders: [{ x: 2.4, z: hd - 6, w: 0.3, d: 0.3 }],
     },

@@ -57,7 +57,10 @@ describe('village', () => {
     const line = (x: number, z: number) => Math.abs(x) > w / 2 - 1.5 || Math.abs(z) > d / 2 - 1.5;
     for (const o of s.decor) if (!((o.kind === 'tree' || o.kind === 'pine') && line(o.x, o.z))) expect(inside(w, d, o.x, o.z, 0), `${o.kind}@${o.x},${o.z}`).toBe(true);
     const hedges = s.decor.filter((o) => o.kind === 'hedge');
-    expect(hedges.map((h) => Math.abs(h.z) || Math.abs(h.x)).sort()).toEqual([w / 2 - 1.5, w / 2 - 1.5, d / 2 - 1.5, d / 2 - 1.5].sort());
+    // the south hedge is in two pieces either side of the gate
+    expect(hedges.map((h) => Math.abs(h.z) || Math.abs(h.x)).sort()).toEqual([w / 2 - 1.5, w / 2 - 1.5, d / 2 - 1.5, d / 2 - 1.5, d / 2 - 1.5].sort());
+    const gate = s.decor.find((o) => o.kind === 'gate')!;
+    for (const h of hedges) if (h.z === gate.z) expect(Math.abs(h.x - gate.x) >= (h.w ?? 0) / 2 + 0.8 - 1e-9, `hedge@${h.x}`).toBe(true);
   });
 
   it('grows a row per six cabins and keeps the gate spawn inside', () => {
