@@ -6,7 +6,10 @@ import { inBox, moveWithCollision, pointInPolygon } from '../../../shared/geomet
 import type { ClientMsg, ErrorCode, ServerMsg } from '../../../shared/protocol';
 import { SCENES } from '../../../shared/scenes';
 import { SLIDE_RUN } from '../../../shared/scenes/kitToys';
-import type { SceneDef, Slot, Toy } from '../../../shared/scenes/types';
+import type { SceneDef, Slot, Spot, Toy } from '../../../shared/scenes/types';
+import { GALLERY_FRAMES } from '../../../shared/scenes/studio';
+import { cabinOwner, itemLabel, type CabinState, type PaintingMeta } from '../../../shared/art';
+import { Pictures, Shelves } from '../art/views';
 import {
   angleDelta, BOAT_SPEED, boatOnWater, boatPoseAt, LOCAL_TOYS, slotWorld, type BoatPose, type Tilt, type ToyAction, type ToyState,
 } from '../../../shared/toys';
@@ -69,6 +72,10 @@ interface SceneRuntime {
   golf: GolfCourse | null;
   /** Emoji pops in the world (e.g. a hole-in-one). */
   pops: Floaters;
+  /** Gallery frames (studio) or cabin wall frames. */
+  pictures: Pictures | null;
+  /** Cabin shelves. */
+  shelves: Shelves | null;
   /** The scene book version it was built from; a village or cabin from an older roster is rebuilt. */
   version: number;
 }
@@ -107,6 +114,8 @@ export class Game {
   onLocalToy: (toy: Toy) => void = () => {};
   /** E on your own garden plot. */
   onOpenGarden: (toyId: string) => void = () => {};
+  /** E on an empty spot in your own cabin: pick something to hang or put there. */
+  onSpot: (spot: Spot) => void = () => {};
   /** Called once per frame after the HUD updates (the touch controls follow the hint). */
   onFrame: () => void = () => {};
   /** I: the bag. */
@@ -122,6 +131,8 @@ export class Game {
   private pets = new Map<string, { model: PetModel; key: string; x: number; z: number; facing: number; anim: PetView['anim']; tx: number; tz: number }>();
   private localPet: LocalPet | null = null;
   private treeMinutes = 0;
+  private gallery: PaintingMeta[] = [];
+  private cabinState: CabinState | null = null;
 
   private renderer: THREE.WebGLRenderer;
   private rig = new CameraRig();
@@ -264,6 +275,9 @@ export class Game {
       document.body.append(el);
       this.fps = { el, frames: 0, since: performance.now() };
     }
+    this.hud.onToggleLatch = () => {
+      if (this.cabinState) this.send({ t: 'cabin', action: 'lock', on: !this.cabinState.locked });
+    };
     this.renderer.setAnimationLoop(() => this.frame());
   }
 
@@ -394,6 +408,16 @@ export class Game {
       case 'error':
         this.onError(m.code, m.message);
         break;
+      case 'gallery':
+        this.gallery = m.forSale;
+        this.applyGallery();
+        break;
+      case 'cabinState':
+        if (this.def && m.state.owner === cabinOwner(this.def.id)) {
+          this.cabinState = m.state;
+          this.applyCabin();
+        }
+        break;
     }
   }
 
@@ -425,12 +449,20 @@ export class Game {
       if (stageFx) built.scene.add(stageFx.root);
       const golf = this.def.toys.some((t) => t.kind === 'golfTee') ? new GolfCourse() : null;
       if (golf) built.scene.add(golf.root);
-      rt = { built, toys, props, stageFx, golf, pops: new Floaters(built.scene), version: book.version };
+      const spots = this.def.id === 'studio' ? GALLERY_FRAMES : this.def.spots ?? [];
+      const walls = spots.filter((sp) => sp.kind === 'wall');
+      const shelfSpots = spots.filter((sp) => sp.kind === 'shelf');
+      const pictures = walls.length ? new Pictures(walls) : null;
+      if (pictures) built.scene.add(pictures.root);
+      const shelves = shelfSpots.length ? new Shelves(shelfSpots) : null;
+      if (shelves) built.scene.add(shelves.root);
+      rt = { built, toys, props, stageFx, golf, pops: new Floaters(built.scene), pictures, shelves, version: book.version };
       this.runtimes.set(you.scene, rt);
       built.setTreeStage(treeStage(this.treeMinutes));
     }
     this.rt = rt;
     this.scene = rt.built.scene;
+    this.cabinState = null; // the new scene's state follows the snapshot
     this.myChar ??= new Character(you.look, you.name, true);
     this.myChar.setLook(you.look);
     this.scene.add(this.myChar.root); // add() detaches it from the previous scene
@@ -452,6 +484,35 @@ export class Game {
     this.hooks.enterScene(this.def, rt.built);
     this.minimap.setScene(this.def);
     if (this.voice) this.voice.stage = this.def.stage;
+  }
+
+  /** The first 16 paintings for sale, onto the studio's gallery frames. */
+  private applyGallery(): void {
+    this.runtimes.get('studio')?.pictures?.set(GALLERY_FRAMES.map((f, i) => ({ id: f.id, painting: this.gallery[i] ?? null })));
+  }
+
+  /** The cabin's paintings onto its wall frames and its keepsakes onto its shelves. */
+  private applyCabin(): void {
+    const st = this.cabinState;
+    if (!st || !this.rt || !this.def) return;
+    const items = st.items;
+    this.rt.pictures?.set((this.def.spots ?? []).filter((sp) => sp.kind === 'wall').map((sp) => {
+      const it = items.find((i) => i.spot === sp.id);
+      return { id: sp.id, painting: it?.kind === 'painting' ? it.painting : null };
+    }));
+    this.rt.shelves?.set(items);
+  }
+
+  /** Your own cabin's spots and what [E] would do at each. */
+  private mySpots(): { spot: Spot; prompt: string }[] {
+    if (!this.def || !this.me || cabinOwner(this.def.id) !== this.me.id) return [];
+    return (this.def.spots ?? []).map((spot) => ({ spot, prompt: this.spotPrompt(spot) }));
+  }
+
+  private spotPrompt(spot: Spot): string {
+    const it = this.cabinState?.items.find((i) => i.spot === spot.id);
+    if (it) return `[E] take down the ${itemLabel(it)}`;
+    return spot.kind === 'wall' ? '[E] hang a painting here' : '[E] put something on the shelf';
   }
 
   /** The village roster changed: if you are standing in the village, rebuild it around you. */
@@ -1003,6 +1064,11 @@ export class Game {
       this.send({ t: 'use', toyId: t.toy.id, action });
       return;
     }
+    if (t.kind === 'spot') {
+      if (this.cabinState?.items.some((i) => i.spot === t.spot.id)) this.send({ t: 'cabin', action: 'clear', spot: t.spot.id });
+      else this.onSpot(t.spot);
+      return;
+    }
     const r = this.remotes.get(t.id);
     if (r) this.hud.openPlayerCard(r.view, (kind: EmoteKind) => this.send({ t: 'emote', kind, targetId: t.id }));
   }
@@ -1073,7 +1139,7 @@ export class Game {
       return '[Space] start a study session · [E] stand up';
     }
     const t = this.target;
-    if (t?.kind === 'toy') return t.prompt;
+    if (t?.kind === 'toy' || t?.kind === 'spot') return t.prompt;
     if (t?.kind === 'slot') return slotPrompt(t.slot, t.slot.toyId ? this.toyById(t.slot.toyId) : undefined);
     const cup = me.holding;
     const drink = cup && cup.item !== 'gift' && cup.item !== 'bouquet' ? cup : null;
@@ -1242,10 +1308,11 @@ export class Game {
         return { slot, x: spot.x, z: spot.z };
       });
       const toys = this.def.toys.map((toy) => ({ toy, prompt: toy.kind === 'plot' ? this.plotPrompt(toy) : toyPrompt(toy, this.toyStates[toy.id]) }));
-      this.target = pickTarget(this.x, this.z, placed, this.occupied, toys, others);
+      this.target = pickTarget(this.x, this.z, placed, this.occupied, toys, others, this.mySpots());
     }
     this.hud.setPrompt(this.promptText());
     this.onFrame();
+    this.hud.latch = cabinOwner(this.def.id) === this.me.id && this.cabinState ? this.cabinState.locked : null;
     this.hud.setStatus(this.me, this.def, sNow);
 
     const cardId = this.hud.cardTarget();

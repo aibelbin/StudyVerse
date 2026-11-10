@@ -1,10 +1,12 @@
 import { INTERACT_RADIUS, SEAT_RADIUS } from '../../../shared/constants';
-import type { Slot, Toy } from '../../../shared/scenes/types';
+import { SPOT_RADIUS } from '../../../shared/art';
+import type { Slot, Spot, Toy } from '../../../shared/scenes/types';
 
 export type Target =
   | { kind: 'slot'; slot: Slot; dist: number }
   | { kind: 'toy'; toy: Toy; prompt: string; dist: number }
-  | { kind: 'player'; id: string; dist: number };
+  | { kind: 'player'; id: string; dist: number }
+  | { kind: 'spot'; spot: Spot; prompt: string; dist: number };
 
 /** A slot where it is right now (seats on boats and the merry-go-round move). */
 export interface PlacedSlot {
@@ -13,7 +15,7 @@ export interface PlacedSlot {
   z: number;
 }
 
-/** What [E] would act on right now: the closest free slot, usable toy, or nearby player. */
+/** What [E] would act on right now: the closest free slot, usable toy, nearby player, or cabin spot. */
 export function pickTarget(
   x: number,
   z: number,
@@ -21,6 +23,7 @@ export function pickTarget(
   taken: Set<string>,
   toys: { toy: Toy; prompt: string | null }[],
   others: { id: string; x: number; z: number }[],
+  spots: { spot: Spot; prompt: string }[] = [],
 ): Target | null {
   let best: Target | null = null;
   for (const s of slots) {
@@ -36,6 +39,10 @@ export function pickTarget(
   for (const o of others) {
     const d = Math.hypot(o.x - x, o.z - z);
     if (d <= INTERACT_RADIUS && (!best || d < best.dist)) best = { kind: 'player', id: o.id, dist: d };
+  }
+  for (const { spot, prompt } of spots) {
+    const d = Math.hypot(spot.x - x, spot.z - z);
+    if (d <= SPOT_RADIUS && (!best || d < best.dist)) best = { kind: 'spot', spot, prompt, dist: d };
   }
   return best;
 }

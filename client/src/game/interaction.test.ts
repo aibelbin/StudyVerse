@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Toy } from '../../../shared/scenes/types';
+import type { Spot, Toy } from '../../../shared/scenes/types';
 import { toyPrompt } from '../toys/registry';
 import { pickTarget, type PlacedSlot } from './interaction';
 
@@ -30,6 +30,15 @@ describe('pickTarget', () => {
   it('prefers a closer player over a toy', () => {
     const t = pickTarget(0, 0, [], new Set(), [{ toy: toy('bell', 1, 0), prompt: 'x' }], [{ id: 'p', x: 0, z: 0.4 }]);
     expect(t).toMatchObject({ kind: 'player', id: 'p' });
+  });
+  it('a spot in range beats a farther toy', () => {
+    const spot: Spot = { id: 'w1', kind: 'wall', x: 0.5, z: 0, y: 1.8, rot: 0 };
+    const t = pickTarget(0, 0, [], new Set(), [{ toy: toy('bell', 1, 0), prompt: 'x' }], [], [{ spot, prompt: '[E] hang a painting here' }]);
+    expect(t).toMatchObject({ kind: 'spot', spot: { id: 'w1' }, prompt: '[E] hang a painting here' });
+  });
+  it('ignores spots out of range', () => {
+    const spot: Spot = { id: 's1', kind: 'shelf', x: 2, z: 0, y: 1.3, rot: 0 };
+    expect(pickTarget(0, 0, [], new Set(), [], [], [{ spot, prompt: 'x' }])).toBeNull();
   });
   it('returns null when nothing is close', () => {
     expect(pickTarget(0, 0, [slot('a', 5, 0)], new Set(), [], [{ id: 'p', x: 0, z: 3 }])).toBeNull();

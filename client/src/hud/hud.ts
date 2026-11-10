@@ -33,6 +33,9 @@ export class Hud {
   quality = 'high';
   onToggleDnd: () => void = () => {};
   onToggleVoice: () => void = () => {};
+  /** In your own cabin: whether the door is latched (null hides the 🔒 button). */
+  latch: boolean | null = null;
+  onToggleLatch: () => void = () => {};
   /** Open a private chat with this player. */
   onOpenDm: (id: string, name: string) => void = () => {};
   meId = '';
@@ -70,7 +73,7 @@ export class Hud {
       ? `${s.phase === 'focus' ? '📖 Focus' : '☕ Break'} · ${formatClock(sessionLeftMs(s, now))}`
       : me.slotId ? '🪑 Sitting' : `🚶 Wandering ${def.where}`;
     this.dnd = me.dnd;
-    const key = `${me.name}|${line}|${def.id}|${this.muted}|${this.walletText}|${me.dnd}|${this.voiceState}|${this.quality}|${moodText(me.status)}|${this.admin}`;
+    const key = `${me.name}|${line}|${def.id}|${this.muted}|${this.walletText}|${me.dnd}|${this.voiceState}|${this.quality}|${moodText(me.status)}|${this.admin}|${this.latch}`;
     if (key === this.statusKey) return;
     this.statusKey = key;
     byId('status').replaceChildren(
@@ -86,6 +89,7 @@ export class Hud {
           h('button', { className: `mini${me.dnd ? ' on' : ''}`, title: me.dnd ? 'Do not disturb is on (N)' : 'Do not disturb (N)', textContent: me.dnd ? '🔕' : '🔔', onclick: () => this.onToggleDnd() }),
           h('button', { className: 'mini', title: this.muted ? 'Sound off' : 'Sound on', textContent: this.muted ? '🔇' : '🔊', onclick: () => this.onToggleMute() }),
           h('button', { className: 'mini', title: this.quality === 'high' ? 'Graphics: High (click for Lite)' : 'Graphics: Lite (click for High)', textContent: this.quality === 'high' ? '✨' : '🍃', onclick: () => this.onToggleQuality() }),
+          ...(this.latch !== null ? [h('button', { className: `mini${this.latch ? ' on' : ''}`, title: this.latch ? 'Door latched: visitors bounce off · click to open' : 'Door open · click to latch it', textContent: this.latch ? '🔒' : '🔓', onclick: () => this.onToggleLatch() })] : []),
           h('button', { className: 'mini', title: 'Your bag (I)', textContent: '🎒', onclick: () => this.onBag() }),
           h('button', { className: 'mini', title: 'Full screen (F)', textContent: '⛶', onclick: () => toggleFullscreen() }),
           ...(this.admin ? [h('button', { className: 'mini', title: 'Admin panel', textContent: '🛡️', onclick: () => this.onAdmin() })] : []),
