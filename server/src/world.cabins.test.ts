@@ -106,6 +106,22 @@ describe('cabins', () => {
     expect(b.c.of('cabinState').at(-1)!.state).toMatchObject({ owner: a.id, locked: false });
   });
 
+  it('a latch flip that changes nothing, or comes too soon, re-sends nothing', () => {
+    const a = joinNew('Ann');
+    const b = joinNew('Bo');
+    walkToCabin(a, a.id);
+    const n = b.c.of('village').length;
+    w.handle(a.id, { t: 'cabin', action: 'lock', on: false }); // already open
+    expect(b.c.of('village')).toHaveLength(n);
+    w.handle(a.id, { t: 'cabin', action: 'lock', on: true });
+    w.handle(a.id, { t: 'cabin', action: 'lock', on: false }); // too soon
+    expect(b.c.of('village')).toHaveLength(n + 1);
+    expect(lastError(a.c)?.code).toBe('bad_cabin');
+    t += 2000;
+    w.handle(a.id, { t: 'cabin', action: 'lock', on: false });
+    expect(b.c.of('village')).toHaveLength(n + 2);
+  });
+
   it('decorates fixed spots with your paintings, keepsakes and bouquets', () => {
     const ann = newProfile('Ann');
     const bo = newProfile('Bo');

@@ -39,6 +39,24 @@ export function mat(color: string, _roughness = 0.85): THREE.MeshToonMaterial {
   return m;
 }
 
+/** Frees the geometries, textures, own materials and shadow maps under o; the shared mat()/glow() materials stay. */
+export function disposeTree(o: THREE.Object3D): void {
+  const shared = new Set<THREE.Material>(cache.values());
+  if (o instanceof THREE.Scene && o.background instanceof THREE.Texture) o.background.dispose();
+  o.traverse((x) => {
+    if (x instanceof THREE.Light) x.dispose();
+    if (x instanceof THREE.Mesh || x instanceof THREE.Sprite) {
+      if (!(x instanceof THREE.Sprite)) x.geometry.dispose(); // sprites share one geometry
+      const mats = Array.isArray(x.material) ? x.material : [x.material];
+      for (const m of mats) {
+        if (shared.has(m)) continue;
+        (m as THREE.MeshBasicMaterial).map?.dispose();
+        m.dispose();
+      }
+    }
+  });
+}
+
 /** Emissive material. A tag gives a separate instance (e.g. 'street' lamps that day/night dims). */
 export function glow(color: string, intensity = 1.6, tag = ''): THREE.MeshToonMaterial {
   const key = `glow|${color}|${intensity}|${tag}`;

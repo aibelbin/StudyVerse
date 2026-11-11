@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { glow, mat, RAMP_BANDS, rampTexture, toonMat } from './materials';
+import { disposeTree, glow, mat, RAMP_BANDS, rampTexture, toonMat } from './materials';
 
 describe('toon materials', () => {
   it('uses one four-band ramp that gets brighter', () => {
@@ -25,5 +25,19 @@ describe('toon materials', () => {
     expect(mat('#123456')).toBe(mat('#123456'));
     expect(glow('#ffffff', 1.6, 'street')).toBe(glow('#ffffff', 1.6, 'street'));
     expect(glow('#ffffff', 1.6, 'street')).not.toBe(glow('#ffffff', 1.6, 'window'));
+  });
+
+  it('disposeTree frees a scene\'s own geometry and materials but keeps the shared ones', () => {
+    const freed: unknown[] = [];
+    const watch = <T extends THREE.EventDispatcher<{ dispose: object }>>(x: T) => (x.addEventListener('dispose', () => freed.push(x)), x);
+    const geo = watch(new THREE.BoxGeometry());
+    const own = watch(toonMat());
+    const shared = watch(mat('#654321'));
+    const scene = new THREE.Scene();
+    scene.add(new THREE.Mesh(geo, own), new THREE.Mesh(new THREE.BoxGeometry(), shared));
+    disposeTree(scene);
+    expect(freed).toContain(geo);
+    expect(freed).toContain(own);
+    expect(freed).not.toContain(shared);
   });
 });

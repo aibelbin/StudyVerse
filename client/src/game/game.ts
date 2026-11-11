@@ -16,7 +16,7 @@ import {
 import { holdName, type EmoteKind, type PetView, type PlayerView } from '../../../shared/types';
 import { moodText } from '../hud/gifts';
 import { aGift, GIFTS } from '../../../shared/gifts';
-import { mesh, toonMat } from '../world/materials';
+import { disposeTree, mesh, toonMat } from '../world/materials';
 import type { SoundKind } from '../audio/kinds';
 import { chime } from '../hud/chime';
 import { statusText } from '../hud/format';
@@ -429,11 +429,10 @@ export class Game {
     this.pets.clear();
     this.localPet = null;
     this.def = book.get(you.scene)!;
+    // a village or cabin from an older roster is rebuilt; cabins (there are many) aren't kept once you leave
+    const stale = [...this.runtimes].filter(([id, r]) => !SCENES[id] && (r.version !== book.version || (cabinOwner(id) && id !== you.scene)));
+    for (const [id] of stale) this.runtimes.delete(id);
     let rt = this.runtimes.get(you.scene);
-    if (rt && !SCENES[you.scene] && rt.version !== book.version) {
-      this.runtimes.delete(you.scene);
-      rt = undefined;
-    }
     if (!rt) {
       const built = buildScene(this.def);
       const toys = new Map<string, ToyView>();
@@ -466,6 +465,7 @@ export class Game {
     this.myChar ??= new Character(you.look, you.name, true);
     this.myChar.setLook(you.look);
     this.scene.add(this.myChar.root); // add() detaches it from the previous scene
+    for (const [, r] of stale) disposeTree(r.built.scene);
     this.me = you;
     this.x = you.x;
     this.z = you.z;
@@ -515,11 +515,10 @@ export class Game {
     return spot.kind === 'wall' ? '[E] hang a painting here' : '[E] put something on the shelf';
   }
 
-  /** The village roster changed: if you are standing in the village, rebuild it around you. */
+  /** A cabin was added: if you are standing in the village, rebuild it around you (a latch flip shows on the next visit). */
   onVillage(): void {
-    if (this.def?.id !== 'village' || !this.me) return;
+    if (this.def?.id !== 'village' || !this.me || book.get('village')!.doors.length === this.def.doors.length) return;
     const others = [...this.remotes.values()].map((r) => r.view);
-    this.runtimes.delete('village');
     this.enter({ ...this.me, x: this.x, z: this.z, facing: this.facing }, others);
   }
 

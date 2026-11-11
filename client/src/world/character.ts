@@ -7,7 +7,7 @@ import { SLOTS } from '../../../shared/wardrobe';
 import { BODY, buildItem } from './outfits';
 import { Overhead } from './overhead';
 import { textSprite } from './text';
-import { toonMat } from './materials';
+import { disposeTree, toonMat } from './materials';
 import { bouquetMesh } from './items';
 
 const INK = '#2a2430';
@@ -358,17 +358,4 @@ export class Character {
     this.root.removeFromParent();
     disposeTree(this.root);
   }
-}
-
-function disposeTree(o: THREE.Object3D): void {
-  o.traverse((x) => {
-    if (x instanceof THREE.Mesh || x instanceof THREE.Sprite) {
-      if (!(x instanceof THREE.Sprite)) x.geometry.dispose();
-      const mats = Array.isArray(x.material) ? x.material : [x.material];
-      for (const m of mats) {
-        (m as THREE.MeshBasicMaterial).map?.dispose();
-        m.dispose();
-      }
-    }
-  });
 }

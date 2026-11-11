@@ -11,10 +11,14 @@ type CabinMsg = Extract<ClientMsg, { t: 'cabin' }>;
 
 /** Which kind of spot each pick goes on. */
 const SPOT_KIND: Record<SpotPick['kind'], 'wall' | 'shelf'> = { painting: 'wall', keepsake: 'shelf', bouquet: 'shelf' };
+/** A latch flip re-sends the roster to everyone, so one owner can flip it at most this often. */
+const LOCK_GAP_MS = 2000;
 
 /** Player cabins: one lot each on first join, a door latch, and fixed spots the owner decorates. */
 export class Cabins {
   private list: CabinEntry[];
+  /** Owner id -> when they last flipped the latch. */
+  private lastLockAt = new Map<string, number>();
 
   constructor(private store: Store, private book: SceneBook, private port: Port) {
     this.list = store.cabins();
@@ -54,11 +58,16 @@ export class Cabins {
   handle(p: string, msg: CabinMsg): void {
     if (this.port.sceneOf(p) !== cabinSceneId(p)) return this.port.error(p, 'bad_cabin', 'You can only do that in your own cabin.');
     switch (msg.action) {
-      case 'lock':
+      case 'lock': {
+        if (msg.on === !!this.store.cabinOf(p)?.locked) return;
+        const now = this.port.now();
+        if (now - (this.lastLockAt.get(p) ?? -Infinity) < LOCK_GAP_MS) return this.port.error(p, 'bad_cabin', 'Give the latch a moment.');
+        this.lastLockAt.set(p, now);
         this.store.setCabinLocked(p, msg.on);
         this.refresh();
         this.broadcast();
         return this.sendState(p);
+      }
       case 'clear':
         if (!CABIN_SPOTS.some((s) => s.id === msg.spot)) return this.port.error(p, 'bad_cabin', "There's no such spot.");
         this.clearSpot(p, msg.spot);
