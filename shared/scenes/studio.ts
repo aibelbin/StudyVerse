@@ -1,10 +1,11 @@
+import { GALLERY_WALL } from '../art';
 import { merge, plant } from './kit';
 import { simpleToy } from './kitToys';
 import type { SceneDef, Spot } from './types';
 
 const FRAME_XS = [-6.3, -4.5, -2.7, -0.9, 0.9, 2.7, 4.5, 6.3];
 
-export const GALLERY_FRAMES: Spot[] = Array.from({ length: 16 }, (_, i) => ({
+const GALLERY_FRAMES: Spot[] = Array.from({ length: GALLERY_WALL }, (_, i) => ({
   id: `g${i}`,
   kind: 'wall' as const,
   x: FRAME_XS[i % 8],
@@ -50,6 +51,7 @@ export const studio: SceneDef = {
     trim: '#b07f5a',
   },
   ...parts,
+  spots: GALLERY_FRAMES,
   doors: [{ id: 'to-village', box: { x: 0, z: 5.6, w: 1.6, d: 0.8 }, toScene: 'village', toSpawn: 'studio-door' }],
   spawns: [{ id: 'entrance', x: 0, z: 4.4, facing: Math.PI }],
 };

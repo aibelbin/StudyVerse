@@ -158,7 +158,7 @@ export interface SceneDef {
   /** The open-air stage: who's on it, who's listening, and where the screen is. */
   stage?: { stage: Box; audience: Box; screen: { x: number; z: number } };
   props?: Prop[];
-  /** Cabins: the owner's decorating spots. */
+  /** Picture frames and shelves: a cabin's decorating spots, the studio's gallery frames. */
   spots?: Spot[];
   doors: Door[];
   spawns: Spawn[];
