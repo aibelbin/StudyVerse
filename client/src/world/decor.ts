@@ -177,6 +177,47 @@ export function chimneyLocal(d: Decor): THREE.Vector3 {
   return new THREE.Vector3(w * 0.28, h + 1.75, -dd * 0.12);
 }
 
+/** A house body, door side +z: stone base, plank walls, corner trims and eave, two tiled roof slopes, a ridge, gable ends. */
+function houseShell(g: THREE.Group, o: { w: number; dd: number; h: number; wall: string; accent: string; base: number; t: number; rise: number; over: number }): void {
+  const { w, dd, h, wall, accent, base, t, rise, over } = o;
+  const trim = mat('#fff6ea');
+  g.add(mesh(box(w + 0.12, base, dd + 0.12), mat('#c9bfb2'), 0, base / 2, 0));
+  const siding = sidingTex(wall).clone();
+  siding.repeat.set(w, h);
+  siding.needsUpdate = true;
+  g.add(mesh(box(w, h - base, dd), toonMat({ map: siding }), 0, base + (h - base) / 2, 0));
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(mesh(box(t, h, t), trim, sx * (w / 2 - 0.02), h / 2, sz * (dd / 2 - 0.02)));
+  g.add(mesh(box(w + 0.1, t, dd + 0.1), trim, 0, h, 0));
+  const half = w / 2 + over;
+  const slope = Math.hypot(half, rise);
+  const ang = Math.atan2(rise, half);
+  const tiles = tileTex(accent).clone();
+  tiles.repeat.set(slope * 4, (dd + 2 * over) * 4);
+  tiles.needsUpdate = true;
+  const tileMat = toonMat({ map: tiles });
+  for (const side of [-1, 1]) {
+    const r = mesh(box(slope, 0.1, dd + 2 * over), tileMat, side * half / 2, h + rise / 2 + 0.05, 0);
+    r.rotation.z = -side * ang;
+    g.add(r);
+  }
+  const ridge = mesh(cyl(t - 0.05, t - 0.05, dd + 2 * over + 0.05, 8), mat(accent), 0, h + rise + 0.08, 0);
+  ridge.rotation.x = Math.PI / 2;
+  g.add(ridge);
+  const gable = new THREE.Shape([new THREE.Vector2(-w / 2, 0), new THREE.Vector2(w / 2, 0), new THREE.Vector2(0, rise - 0.05)]);
+  for (const z of [dd / 2 + 0.01, -dd / 2 - 0.01]) g.add(mesh(new THREE.ShapeGeometry(gable), mat(wall), 0, h, z));
+}
+
+/** A name board on a front wall: the label on a light plank in a dark frame, lh tall, centred at y. */
+function plaque(g: THREE.Group, label: string, lh: number, y: number, front: number): void {
+  const text = labelPlane(label, lh);
+  const tw = (text.geometry as THREE.PlaneGeometry).parameters.width;
+  g.add(mesh(box(tw + lh * 1.2, lh * 1.57, 0.08), mat(P.woodLight), 0, y, front + 0.04));
+  g.add(mesh(box(tw + lh * 1.48, lh * 1.86, 0.06), mat(P.woodDark), 0, y, front + 0.02));
+  text.position.set(0, y, front + 0.09);
+  text.userData.keep = true;
+  g.add(text);
+}
+
 const builders: Record<DecorKind, Builder> = {
   /** A player's cabin: a small, simple building. Door on +z, a plaque with the owner's name above it. */
   cabin(d, r) {
@@ -189,31 +230,7 @@ const builders: Record<DecorKind, Builder> = {
     const trim = mat('#fff6ea');
     const wood = mat(P.woodLight);
     const g = group();
-    g.add(mesh(box(w + 0.12, 0.3, dd + 0.12), mat('#c9bfb2'), 0, 0.15, 0));
-    const siding = sidingTex(wall).clone();
-    siding.repeat.set(w, h);
-    siding.needsUpdate = true;
-    g.add(mesh(box(w, h - 0.3, dd), toonMat({ map: siding }), 0, 0.3 + (h - 0.3) / 2, 0));
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(mesh(box(0.12, h, 0.12), trim, sx * (w / 2 - 0.02), h / 2, sz * (dd / 2 - 0.02)));
-    g.add(mesh(box(w + 0.1, 0.12, dd + 0.1), trim, 0, h, 0));
-    const rise = 1.4;
-    const half = w / 2 + 0.3;
-    const slope = Math.hypot(half, rise);
-    const ang = Math.atan2(rise, half);
-    const tiles = tileTex(accent).clone();
-    tiles.repeat.set(slope * 4, (dd + 0.6) * 4);
-    tiles.needsUpdate = true;
-    const tileMat = toonMat({ map: tiles });
-    for (const side of [-1, 1]) {
-      const rf = mesh(box(slope, 0.1, dd + 0.6), tileMat, side * half / 2, h + rise / 2 + 0.05, 0);
-      rf.rotation.z = -side * ang;
-      g.add(rf);
-    }
-    const ridge = mesh(cyl(0.08, 0.08, dd + 0.65, 8), mat(accent), 0, h + rise + 0.08, 0);
-    ridge.rotation.x = Math.PI / 2;
-    g.add(ridge);
-    const gable = new THREE.Shape([new THREE.Vector2(-w / 2, 0), new THREE.Vector2(w / 2, 0), new THREE.Vector2(0, rise - 0.05)]);
-    for (const z of [front + 0.01, -front - 0.01]) g.add(mesh(new THREE.ShapeGeometry(gable), mat(wall), 0, h, z));
+    houseShell(g, { w, dd, h, wall, accent, base: 0.3, t: 0.12, rise: 1.4, over: 0.3 });
     // door
     const doorColor = pick(['#5f9a72', '#c9705a', '#e8c35a', '#f2a65a', '#7a8fc4', '#8fd694'], r);
     g.add(mesh(box(1.0, 1.7, 0.1), trim, -0.7, 0.85 + 0.05, front + 0.03));
@@ -227,16 +244,7 @@ const builders: Record<DecorKind, Builder> = {
     g.add(mesh(box(0.92, 0.05, 0.12), wood, wx, 1.4, front + 0.06, false));
     g.add(mesh(box(1.1, 0.2, 0.24), mat(P.woodDark), wx, 0.84, front + 0.14));
     for (let i = 0; i < 5; i++) g.add(mesh(sph(0.07, 1), mat(P.flowers[i % P.flowers.length]), wx - 0.4 + i * 0.2, 1.0, front + 0.16, false));
-    if (d.label) {
-      const text = labelPlane(d.label, 0.3);
-      const tw = (text.geometry as THREE.PlaneGeometry).parameters.width;
-      const py = 2.1;
-      g.add(mesh(box(tw + 0.3, 0.46, 0.06), mat(P.woodLight), 0, py, front + 0.04));
-      g.add(mesh(box(tw + 0.4, 0.56, 0.05), mat(P.woodDark), 0, py, front + 0.02));
-      text.position.set(0, py, front + 0.09);
-      text.userData.keep = true;
-      g.add(text);
-    }
+    if (d.label) plaque(g, d.label, 0.3, 2.1, front);
     return merged(g);
   },
 
@@ -511,32 +519,7 @@ const builders: Record<DecorKind, Builder> = {
     const trim = mat('#fff6ea');
     const wood = mat(P.woodLight);
     const g = group();
-    g.add(mesh(box(w + 0.12, 0.38, dd + 0.12), mat('#c9bfb2'), 0, 0.19, 0));
-    const siding = sidingTex(wall).clone();
-    siding.repeat.set(w, h);
-    siding.needsUpdate = true;
-    g.add(mesh(box(w, h - 0.38, dd), toonMat({ map: siding }), 0, 0.38 + (h - 0.38) / 2, 0));
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(mesh(box(0.14, h, 0.14), trim, sx * (w / 2 - 0.02), h / 2, sz * (dd / 2 - 0.02)));
-    g.add(mesh(box(w + 0.1, 0.14, dd + 0.1), trim, 0, h, 0));
-    // roof: two tiled slopes, a ridge, gable ends
-    const rise = 1.7;
-    const half = w / 2 + 0.35;
-    const slope = Math.hypot(half, rise);
-    const ang = Math.atan2(rise, half);
-    const tiles = tileTex(accent).clone();
-    tiles.repeat.set(slope * 4, (dd + 0.7) * 4);
-    tiles.needsUpdate = true;
-    const tileMat = toonMat({ map: tiles });
-    for (const side of [-1, 1]) {
-      const r = mesh(box(slope, 0.1, dd + 0.7), tileMat, side * half / 2, h + rise / 2 + 0.05, 0);
-      r.rotation.z = -side * ang;
-      g.add(r);
-    }
-    const ridge = mesh(cyl(0.09, 0.09, dd + 0.75, 8), mat(accent), 0, h + rise + 0.08, 0);
-    ridge.rotation.x = Math.PI / 2;
-    g.add(ridge);
-    const gable = new THREE.Shape([new THREE.Vector2(-w / 2, 0), new THREE.Vector2(w / 2, 0), new THREE.Vector2(0, rise - 0.05)]);
-    for (const z of [front + 0.01, -front - 0.01]) g.add(mesh(new THREE.ShapeGeometry(gable), mat(wall), 0, h, z));
+    houseShell(g, { w, dd, h, wall, accent, base: 0.38, t: 0.14, rise: 1.7, over: 0.35 });
     g.add(mesh(new THREE.CircleGeometry(0.28, 16), wood, 0, h + 0.7, front + 0.02)); // round gable window
     g.add(mesh(new THREE.CircleGeometry(0.2, 16), glow(P.windowGlow, 0.5, 'window'), 0, h + 0.7, front + 0.03, false));
     // chimney with a cap
@@ -578,15 +561,7 @@ const builders: Record<DecorKind, Builder> = {
       sc.scale.set(1, 0.7, 0.35);
       g.add(sc);
     }
-    if (d.label) {
-      const text = labelPlane(d.label, 0.42);
-      const tw = (text.geometry as THREE.PlaneGeometry).parameters.width;
-      g.add(mesh(box(tw + 0.5, 0.66, 0.08), mat(P.woodLight), 0, h - 0.5, front + 0.04));
-      g.add(mesh(box(tw + 0.62, 0.78, 0.06), mat(P.woodDark), 0, h - 0.5, front + 0.02));
-      text.position.set(0, h - 0.5, front + 0.09);
-      text.userData.keep = true;
-      g.add(text);
-    }
+    if (d.label) plaque(g, d.label, 0.42, h - 0.5, front);
     return merged(g);
   },
 

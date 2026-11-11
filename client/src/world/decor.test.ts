@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { DecorKind } from '../../../shared/scenes/types';
 import { decorTemplate } from './decor';
 
 /** Kinds that don't need a browser canvas, so they can be built in Node. */
-const KINDS: DecorKind[] = ['tree', 'pine', 'bush', 'flowers', 'grass', 'rock', 'lilyPad', 'hedge', 'bench', 'lampPost', 'plant', 'window', 'pendant', 'stringLights', 'sunbeam', 'shelf', 'bed'];
+const KINDS: DecorKind[] = ['tree', 'pine', 'bush', 'flowers', 'grass', 'rock', 'lilyPad', 'hedge', 'bench', 'lampPost', 'plant', 'window', 'pendant', 'stringLights', 'sunbeam', 'shelf', 'bed', 'galleryWall'];
 
 const triangles = (o: THREE.Object3D) => {
   let n = 0;
@@ -37,5 +37,16 @@ describe('storybook decor', () => {
       if (m instanceof THREE.Mesh) meshes++;
     });
     expect(meshes).toBeLessThanOrEqual(6);
+  });
+});
+
+describe('decor that paints on a canvas', () => {
+  // a 2D context that accepts every call; enough to build label and siding textures in Node
+  const ctx: object = new Proxy({}, { get: (_t, k) => (k === 'measureText' ? () => ({ width: 40 }) : () => ctx), set: () => true });
+  beforeAll(() => vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => ctx }) }));
+  afterAll(() => vi.unstubAllGlobals());
+
+  it.each(['cabin', 'gate', 'building'] as const)('%s builds with a label', (kind) => {
+    expect(triangles(decorTemplate({ kind, x: 0, z: 0, seed: 7, label: 'Mia', w: kind === 'building' ? 9 : 5, d: 4.5, h: 2.6 }))).toBeGreaterThan(100);
   });
 });
