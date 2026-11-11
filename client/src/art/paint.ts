@@ -33,8 +33,11 @@ function exportPng(canvas: HTMLCanvasElement, mode: PaintMode): string | null {
   return bytesOf(retry) <= PAINTING_MAX_BYTES ? retry : null;
 }
 
+/** Sends the painting; call done(true) once the server has saved it, done(false) if it refused. */
+export type OnSave = (p: PaintSave, done: (ok: boolean) => void) => void;
+
 /** The easel: pick pixel art or freehand, paint, then hang it for sale or keep it. */
-export function openPaint(hud: Hud, onSave: (p: PaintSave) => void): void {
+export function openPaint(hud: Hud, onSave: OnSave): void {
   const choice = (label: string, mode: PaintMode) =>
     h('button', { className: 'choice', type: 'button', onclick: () => openEditor(hud, mode, onSave) }, h('b', { textContent: label }));
   hud.openModal(h('div', {},
@@ -45,7 +48,7 @@ export function openPaint(hud: Hud, onSave: (p: PaintSave) => void): void {
   ));
 }
 
-function openEditor(hud: Hud, mode: PaintMode, onSave: (p: PaintSave) => void): void {
+function openEditor(hud: Hud, mode: PaintMode, onSave: OnSave): void {
   const n = PAINT_SIZE[mode];
   const canvas = h('canvas', { className: `paint-canvas ${mode}`, width: n, height: n });
   const ctx = canvas.getContext('2d')!;
@@ -153,9 +156,18 @@ function openEditor(hud: Hud, mode: PaintMode, onSave: (p: PaintSave) => void): 
       hud.toast('Too detailed to save — try fewer colours');
       return;
     }
-    hud.finishModal();
-    onSave({ title: t, price: p, forSale, mode, png });
+    // the editor stays open until the server answers, so a refused painting isn't lost
+    saveBtns.forEach((b) => (b.disabled = true));
+    onSave({ title: t, price: p, forSale, mode, png }, (ok) => {
+      if (!canvas.isConnected) return;
+      if (ok) hud.finishModal();
+      else saveBtns.forEach((b) => (b.disabled = false));
+    });
   };
+  const saveBtns = [
+    h('button', { type: 'button', className: 'primary', textContent: 'Hang for sale', onclick: () => save(true) }),
+    h('button', { type: 'button', textContent: 'Keep for myself', onclick: () => save(false) }),
+  ];
 
   draw();
   hud.openModal(h('div', { className: 'paint' },
@@ -169,8 +181,7 @@ function openEditor(hud: Hud, mode: PaintMode, onSave: (p: PaintSave) => void): 
           h('label', { className: 'field' }, 'Title', title),
           h('label', { className: 'field price' }, 'Price ✨', price)),
         h('div', { className: 'paint-footer' },
-          h('button', { type: 'button', className: 'primary', textContent: 'Hang for sale', onclick: () => save(true) }),
-          h('button', { type: 'button', textContent: 'Keep for myself', onclick: () => save(false) }),
+          ...saveBtns,
           h('button', { type: 'button', textContent: 'Cancel', onclick: () => hud.closeModals() })))),
   ), undefined, true);
 }

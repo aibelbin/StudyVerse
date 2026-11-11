@@ -58,6 +58,7 @@ const wardrobe = new Wardrobe({
   })],
 });
 
+let paintDone: ((ok: boolean) => void) | null = null;
 const catalogue = new Catalogue(hud, () => wallet, () => hud.meId, (m) => conn.send(m));
 
 const chat = new ChatPanel(byId('chat'));
@@ -193,7 +194,10 @@ conn.onMessage = (m) => {
           const st = game?.toyState(toy.id);
           openStageScreen(hud, st?.kind === 'stageScreen' ? st.text : null, (text) => conn.send({ t: 'stageText', text }));
         }
-        if (toy.kind === 'easel') openPaint(hud, (p) => conn.send({ t: 'paint', ...p }));
+        if (toy.kind === 'easel') openPaint(hud, (p, done) => {
+          paintDone = done;
+          conn.send({ t: 'paint', ...p });
+        });
         if (toy.kind === 'gallery') catalogue.show('sale');
       };
       game.onSpot = (spot) => openSpotPicker(hud, spot, {
@@ -310,6 +314,11 @@ conn.onMessage = (m) => {
   }
   if (m.t === 'gallery') catalogue.setGallery(m.forSale);
   if (m.t === 'portfolio') catalogue.setPortfolio(m.mine, m.prints);
+  // a pending painting: saved (portfolio), refused (bad_art), or the connection was reset (welcome)
+  if (m.t === 'portfolio' || m.t === 'welcome' || (m.t === 'error' && m.code === 'bad_art')) {
+    paintDone?.(m.t === 'portfolio');
+    paintDone = null;
+  }
   if (m.t === 'welcome' || m.t === 'village') book.setRoster(m.cabins);
   game?.onMessage(m);
   if (m.t === 'village') game?.onVillage();
