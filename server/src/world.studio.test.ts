@@ -247,4 +247,19 @@ describe('studio', () => {
     expect(store.painting(id)!.forSale).toBe(false);
     expect(store.forSaleCount(a.id)).toBe(3);
   });
+
+  it('an admin can take anyone\'s painting down, but not hang it', () => {
+    const a = joinNew('Ann');
+    const admin = joinNew('Aibel');
+    w.admins = new Set([admin.id]);
+    walkToStudio(a);
+    paint(a.id);
+    const id = store.forSale()[0].id;
+    w.handle(admin.id, { t: 'setSale', id, on: false });
+    expect(store.painting(id)!.forSale).toBe(false);
+    expect(a.c.of('portfolio').at(-1)!.mine[0].forSale).toBe(false);
+    w.handle(admin.id, { t: 'setSale', id, on: true });
+    expect(lastError(admin.c)?.code).toBe('bad_art');
+    expect(store.painting(id)!.forSale).toBe(false);
+  });
 });

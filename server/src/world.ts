@@ -129,7 +129,7 @@ export class World {
       toAll: (msg) => this.toAll(msg),
       error: (id, code, message) => { const q = byId(id); if (q) this.error(q, code, message); },
       feed: (kind, text) => this.pushFeed(kind, text),
-      priceFor: (id, price) => (this.admins.has(id) ? 0 : price),
+      isAdmin: (id) => this.admins.has(id),
       walletChanged: (id) => { const q = byId(id); if (q) { q.wallet = this.store.wallet(id); q.conn?.send({ t: 'wallet', wallet: this.publicWallet(q) }); } },
       bagChanged: (id) => { const q = byId(id); if (q) this.sendBag(q); },
       sceneOf: (id) => byId(id)?.scene ?? null,

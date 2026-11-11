@@ -38,21 +38,22 @@ export class Studio {
     }
   }
 
-  /** The artist takes a painting off the wall or hangs it again (within the for-sale cap). */
+  /** The artist takes a painting off the wall or hangs it again (within the for-sale cap); an admin may take any down. */
   setSale(p: string, id: number, on: boolean): void {
     const painting = this.store.painting(id);
-    if (!painting || painting.artist !== p) return this.port.error(p, 'bad_art', "That painting isn't yours.");
-    if (on && !painting.forSale && this.store.forSaleCount(p) >= FOR_SALE_MAX) {
+    if (!painting || (painting.artist !== p && (on || !this.port.isAdmin(p)))) return this.port.error(p, 'bad_art', "That painting isn't yours.");
+    const artist = painting.artist;
+    if (on && !painting.forSale && this.store.forSaleCount(artist) >= FOR_SALE_MAX) {
       return this.port.error(p, 'bad_art', `You already have ${FOR_SALE_MAX} paintings for sale.`);
     }
-    this.store.setForSale(id, p, on);
-    this.sendPortfolio(p);
+    this.store.setForSale(id, artist, on);
+    this.sendPortfolio(artist);
     if (painting.forSale !== on) this.sendGallery();
   }
 
   buyPrint(p: string, id: number): void {
     const price = this.store.painting(id)?.price ?? 0;
-    const r = this.store.buyPrint(p, id, this.port.priceFor(p, price), this.port.now());
+    const r = this.store.buyPrint(p, id, this.port.isAdmin(p) ? 0 : price, this.port.now());
     if (!r.ok) {
       switch (r.reason) {
         case 'gone': return this.port.error(p, 'bad_art', "That one isn't for sale any more");

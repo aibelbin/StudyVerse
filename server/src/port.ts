@@ -12,8 +12,8 @@ export interface Port {
   toAll(msg: ServerMsg): void;
   error(id: string, code: ErrorCode, message: string): void;
   feed(kind: FeedKind, text: string): void;
-  /** What something costs this player (admins pay nothing). */
-  priceFor(id: string, price: number): number;
+  /** Admins pay nothing and may take any painting down. */
+  isAdmin(id: string): boolean;
   /** Reloads the player's wallet from the store and pushes `wallet`. */
   walletChanged(id: string): void;
   /** Pushes the player's `bag`. */

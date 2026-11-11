@@ -56,12 +56,12 @@ export class Catalogue {
     return h('img', { className: p.mode === 'pixel' ? 'pixel' : '', src: artUrl(p.id), alt: p.title, loading: 'lazy' });
   }
 
-  private tile(p: PaintingMeta, action?: HTMLElement): HTMLElement {
+  private tile(p: PaintingMeta, ...actions: HTMLElement[]): HTMLElement {
     return h('div', { className: 'art-tile' },
       this.thumb(p),
       h('b', { textContent: p.title }),
       h('small', { textContent: `by ${p.artistName} · sold ×${p.sold}` }),
-      ...(action ? [action] : []));
+      ...actions);
   }
 
   private render(): void {
@@ -80,13 +80,15 @@ export class Catalogue {
     if (!this.gallery.length) return h('p', { className: 'sub', textContent: 'Nothing for sale yet.' });
     return h('div', { className: 'art-grid' }, ...this.gallery.map((p) => {
       const b = this.buyLabel(p);
-      return this.tile(p, h('button', {
+      const buy = h('button', {
         type: 'button', className: 'primary', textContent: b.text, disabled: !b.ok,
         onclick: () => {
           this.send({ t: 'buyPrint', id: p.id });
           this.hud.toast(`Buying “${p.title}”…`, 2500);
         },
-      }));
+      });
+      if (!this.wallet()?.admin || p.artist === this.meId()) return this.tile(p, buy);
+      return this.tile(p, buy, h('button', { type: 'button', textContent: 'Take down', onclick: () => this.send({ t: 'setSale', id: p.id, on: false }) }));
     }));
   }
 
