@@ -64,7 +64,7 @@ Indoor 16 × 12 m, paint-splattered floor theme. Three easels (`easel-1..3`, toy
 ### Paintings
 
 - Stored once, served over HTTP: `GET /art/<id>.png` (`cache-control: public, max-age=31536000, immutable`; paintings never change). WebSocket carries only metadata (`PaintingMeta = { id; artist; artistName; title; price; mode: 'pixel' | 'free'; sold: number; forSale: boolean; at }`), so entering the studio costs a few KB plus browser-cached images.
-- Uploading goes over the WebSocket as one `paint` message with a base64 PNG; `maxPayload` rises from 16 KB to 96 KB and the server caps the decoded PNG at 64 KB (`PAINTING_MAX_BYTES`), checks the PNG signature and that the IHDR size is 32 × 32 (pixel) or 256 × 256 (free). Oversized freehand work is re-encoded by the client at 192 px before it gives up with "too detailed".
+- Uploading goes over the WebSocket as one `paint` message with a base64 PNG; `maxPayload` rises from 16 KB to 128 KB and the server caps the decoded PNG at 64 KB (`PAINTING_MAX_BYTES`), checks the PNG signature and that the IHDR size is 32 × 32 (pixel) or 256 × 256 (free). Oversized freehand work is re-encoded by the client at 192 px before it gives up with "too detailed".
 - Limits: title ≤ 24 chars, price 1–100 KP (ignored when `forSale` is false), ≤ 3 for sale per artist, ≤ 40 paintings per artist in all, one `paint` per 30 s.
 - Buying a print: `buyPrint { id }` → must be for sale, not your own, not already owned; one SQLite transaction debits the buyer (admins pay 0 via `priceFor`), credits the artist, inserts the print, increments `sold`. Feed: "Mia bought 'Sunset' from Aibel for 12 KP". Artist's wallet is pushed if online.
 - Taking down / re-listing: `setSale { id; on }` by the artist (re-listing still respects the 3 cap).
