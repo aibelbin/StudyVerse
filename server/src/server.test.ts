@@ -206,6 +206,7 @@ describe('server', () => {
     expect(r.status).toBe(200);
     expect(r.headers.get('content-type')).toBe('image/png');
     expect(r.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+    expect(r.headers.get('x-content-type-options')).toBe('nosniff');
     expect(Buffer.from(await r.arrayBuffer())).toEqual(png);
     expect((await fetch(`${base}/art/999.png`)).status).toBe(404);
   });

@@ -85,7 +85,7 @@ describe('village', () => {
       expect(door).toMatchObject({ toScene: cabinSceneId(e.owner), toSpawn: 'entrance' });
       const sp = s.spawns.find((x) => x.id === lotSpawn(e.lot))!;
       expect(sp).toBeDefined();
-      const body = s.colliders.find((c) => c.w === 5 && c.d === 4.5 && c.x === door.box.x && Math.abs(door.box.z - c.z) < 4)!;
+      const body = s.colliders.find((c) => c.w === 5 && c.d === 4.5 && Math.abs(c.x - door.box.x) < 1 && Math.abs(door.box.z - c.z) < 4)!;
       expect(body.x).toBe(LOT_XS[e.lot % 6]);
       expect(door.box.z - door.box.d / 2).toBeGreaterThan(body.z + body.d / 2);
       expect(inBox(door.box, sp.x, sp.z)).toBe(false);

@@ -32,7 +32,7 @@ const zones = merge(placed, south(placed, townWater.outline));
 
 const gate: Decor[] = [
   { kind: 'gate', x: 73.5, z: TOWN_STREET_Z, rot: Math.PI / 2, label: 'Village' },
-  { kind: 'signpost', x: 66, z: TOWN_STREET_Z - 2.6, label: 'Village|Studio' },
+  { kind: 'signpost', x: 66, z: TOWN_STREET_Z - 2.6, label: 'Village & Studio|Square' },
 ];
 const gateColliders: Box[] = [{ x: 66, z: TOWN_STREET_Z - 2.6, w: 0.3, d: 0.3 }];
 

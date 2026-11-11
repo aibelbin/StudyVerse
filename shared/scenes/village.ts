@@ -18,8 +18,9 @@ function lot(k: number, x: number, z: number, e: CabinEntry | undefined, doors: 
     };
   }
   const look = cabinLook(e.owner);
-  doors.push({ id: `cabin-${e.owner}`, box: { x, z: z + 2.8, w: 1.4, d: 0.8 }, toScene: cabinSceneId(e.owner), toSpawn: 'entrance' });
-  spawns.push({ id: lotSpawn(k), x, z: z + 3.6, facing: 0 });
+  const dx = x - 0.7; // the cabin decor draws its door 0.7 m left of centre
+  doors.push({ id: `cabin-${e.owner}`, box: { x: dx, z: z + 2.8, w: 1.4, d: 0.8 }, toScene: cabinSceneId(e.owner), toSpawn: 'entrance' });
+  spawns.push({ id: lotSpawn(k), x: dx, z: z + 3.6, facing: 0 });
   return {
     decor: [
       { kind: 'cabin', x, z, w: 5, d: 4.5, h: 2.6, color: look.wall, accent: look.roof, label: (e.locked ? '🔒 ' : '') + e.name, seed: seedOf(e.owner) },

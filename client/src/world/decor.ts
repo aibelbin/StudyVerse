@@ -219,7 +219,6 @@ const builders: Record<DecorKind, Builder> = {
     g.add(mesh(box(1.0, 1.7, 0.1), trim, -0.7, 0.85 + 0.05, front + 0.03));
     g.add(mesh(box(0.82, 1.55, 0.12), mat(doorColor), -0.7, 0.8 + 0.05, front + 0.05));
     g.add(mesh(sph(0.045, 1), mat('#e8c35a'), -0.45, 0.85, front + 0.13, false));
-    g.add(mesh(box(1.1, 0.02, 0.6), mat('#b5857a'), -0.7, 0.01, front + 0.4)); // doormat
     // window with a flower box
     const wx = 1.2;
     g.add(mesh(box(1.1, 0.95, 0.08), wood, wx, 1.4, front + 0.02));
@@ -564,7 +563,7 @@ const builders: Record<DecorKind, Builder> = {
         for (const y of [1.5, 1.75, 2.0]) g.add(mesh(box(0.34, 0.03, 0.03), mat(P.woodDark), x + sx * 0.86, y, front + 0.075, false));
       }
       g.add(mesh(box(1.2, 0.22, 0.26), mat(P.woodDark), x, 1.05, front + 0.2));
-      for (let i = 0; i < 6; i++) g.add(mesh(sph(0.075, 1), mat(P.flowers[(i + Math.round(x)) % P.flowers.length]), x - 0.5 + i * 0.2, 1.22, front + 0.22, false));
+      for (let i = 0; i < 6; i++) g.add(mesh(sph(0.075, 1), mat(P.flowers[(((i + Math.round(x)) % P.flowers.length) + P.flowers.length) % P.flowers.length]), x - 0.5 + i * 0.2, 1.22, front + 0.22, false));
     }
     // striped awning with a scalloped edge
     const stripes = stripeTex(accent).clone();
