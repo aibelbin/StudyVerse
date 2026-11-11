@@ -28,7 +28,7 @@ export class Studio {
     if (!sizeOk(msg.mode, size.w, size.h)) return err('That canvas is the wrong size.');
     if (this.store.paintingCount(p) >= PAINTINGS_MAX) return err(`You've made ${PAINTINGS_MAX} paintings, the most anyone can keep.`);
     if (msg.forSale && this.store.forSaleCount(p) >= FOR_SALE_MAX) return err(`You already have ${FOR_SALE_MAX} paintings for sale.`);
-    const title = msg.title.trim() || 'Untitled';
+    const title = msg.title;
     this.store.addPainting(p, title, msg.price, msg.mode, png, msg.forSale, now);
     this.lastPaintAt.set(p, now);
     this.sendPortfolio(p);

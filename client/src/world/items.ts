@@ -31,7 +31,7 @@ export function bouquetMesh(flower?: Flower): THREE.Group {
   return g;
 }
 
-/** A gift as a little emoji sprite. */
-export function giftSprite(gift: Gift): THREE.Sprite {
-  return textSprite(GIFTS[gift].emoji, 0.42, { bg: null, font: 64, pad: 2 });
+/** A gift as a little emoji sprite (a plain parcel if unknown). */
+export function giftSprite(gift: Gift | undefined, h = 0.42): THREE.Sprite {
+  return textSprite(gift ? GIFTS[gift].emoji : '🎁', h, { bg: null, font: 64, pad: 2 });
 }

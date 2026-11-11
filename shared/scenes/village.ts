@@ -1,4 +1,4 @@
-import { cabinLook, cabinSceneId, LOT_XS, lotSpawn, seedOf, villageRows, villageSize, type CabinEntry } from '../art';
+import { cabinLook, cabinSceneId, LOT_XS, lotSpawn, ROW_D, seedOf, villageRows, villageSize, type CabinEntry } from '../art';
 import { building, lampPost, merge, tree, type Parts } from './kit';
 import { edges, GATE_GAP } from './town/edges';
 import { OUTDOOR_THEME } from './town';
@@ -35,7 +35,7 @@ function lot(k: number, x: number, z: number, e: CabinEntry | undefined, doors: 
 export function villageScene(roster: CabinEntry[]): SceneDef {
   const size = villageSize(roster.length);
   const hd = size.d / 2;
-  const rowZ = (r: number) => hd - 18 - 12 * r;
+  const rowZ = (r: number) => hd - 18 - ROW_D * r;
   const doors: Door[] = [
     { id: 'to-town', box: { x: 0, z: hd - 2.6, w: 2.4, d: 1.2 }, toScene: 'town', toSpawn: 'from-village' },
     { id: 'to-studio', box: { x: -14, z: hd - 6.9, w: 1.4, d: 0.8 }, toScene: 'studio', toSpawn: 'entrance' },

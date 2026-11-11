@@ -154,7 +154,7 @@ export class World {
   }
 
   private scene(id: string): SceneDef {
-    return this.book.get(id)!;
+    return this.book.get(id)!; // a player's scene always resolves: fixed scenes, the village, and cabins (never deleted)
   }
 
   view(id: string): PlayerView | undefined {

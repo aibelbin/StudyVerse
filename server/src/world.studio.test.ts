@@ -99,13 +99,13 @@ describe('studio', () => {
     expect(store.paintingPng(a.c.of('portfolio').at(-1)!.mine[0].id)).toEqual(Buffer.from(PIXEL, 'base64'));
   });
 
-  it('keeps a painting for yourself quietly, and names an untitled one', () => {
+  it('keeps a painting for yourself quietly', () => {
     const a = joinNew('Ann');
     walkToStudio(a);
     const galleries = a.c.of('gallery').length;
     const feeds = a.c.of('feed').length;
-    paint(a.id, { title: ' ', forSale: false, mode: 'free', png: makePng(64, 64).toString('base64') });
-    expect(a.c.of('portfolio').at(-1)!.mine).toMatchObject([{ title: 'Untitled', forSale: false, mode: 'free' }]);
+    paint(a.id, { title: 'Mine', forSale: false, mode: 'free', png: makePng(64, 64).toString('base64') });
+    expect(a.c.of('portfolio').at(-1)!.mine).toMatchObject([{ title: 'Mine', forSale: false, mode: 'free' }]);
     expect(a.c.of('gallery')).toHaveLength(galleries);
     expect(a.c.of('feed')).toHaveLength(feeds);
   });

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { artUrl, type CabinItem, type PaintingMeta } from '../../../shared/art';
 import type { Spot } from '../../../shared/scenes/types';
 import { bouquetMesh, giftSprite } from '../world/items';
-import { mat, mesh } from '../world/materials';
+import { disposeTree, mat, mesh } from '../world/materials';
 import { PALETTE as P } from '../world/palette';
 
 const loader = new THREE.TextureLoader();
@@ -84,13 +84,7 @@ export class Shelves {
   set(items: CabinItem[]): void {
     for (const c of [...this.root.children]) {
       this.root.remove(c);
-      c.traverse((o) => {
-        if (o instanceof THREE.Mesh) o.geometry.dispose();
-        if (o instanceof THREE.Sprite) {
-          o.material.map?.dispose();
-          o.material.dispose();
-        }
-      });
+      disposeTree(c);
     }
     for (const it of items) {
       const s = this.bySpot.get(it.spot);

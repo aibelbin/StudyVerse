@@ -28,7 +28,7 @@ export class Cabins {
   /** Gives this profile a cabin on the next free lot if it has none; true if one was just built. */
   ensure(ownerId: string, at: number): boolean {
     if (this.store.cabinOf(ownerId)) return false;
-    this.store.addCabin(ownerId, this.store.cabinCount(), at);
+    this.store.addCabin(ownerId, this.store.cabinCount(), at); // shortcut: lot = count assumes cabins are never deleted; use MAX(lot)+1 once they can be
     this.refresh();
     return true;
   }
