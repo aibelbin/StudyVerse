@@ -34,5 +34,6 @@ export const feedText = {
   meditate: (name: string, companions: number) =>
     `🧘 ${name} finished a breather${companions ? ` with ${companions} ${companions === 1 ? 'friend' : 'friends'}` : ''}`,
   art: (name: string, title: string) => `🎨 ${name} hung '${title}' in the studio`,
+  mug: (name: string) => `🏺 ${name} fired a new mug`,
   bought: (buyer: string, title: string, artist: string, price: number) => `🖼️ ${buyer} bought '${title}' from ${artist} for ${price} KP`,
 };

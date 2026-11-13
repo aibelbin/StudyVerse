@@ -3,6 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import type { ChatMsg, Look, Note, PetInfo, PetKind, Wallet } from '../../shared/types';
 import type { CabinEntry, PaintMode, PaintingMeta } from '../../shared/art';
 import { DEFAULT_LOOK, normalizeLook } from '../../shared/wardrobe';
+import { isMug, type Mug } from '../../shared/mug';
 
 export interface Profile {
   id: string;
@@ -81,9 +82,14 @@ export interface Store {
   keepsake(owner: string, id: number): { gift: string; fromName: string; flower?: string } | null;
   addPainting(artist: string, title: string, price: number, mode: PaintMode, png: Buffer, forSale: boolean, at: number): number;
   painting(id: number): PaintingMeta | null;
-  paintingPng(id: number): Buffer | null;
+  paintingPng(id: number): { png: Buffer; mode: PaintMode } | null;
   /** Paintings on sale, newest first. */
   forSale(): PaintingMeta[];
+  /** The newest photos by anyone. */
+  photos(limit: number): PaintingMeta[];
+  mug(id: string): Mug | null;
+  /** Charges `price` and saves the mug in one statement; false if unaffordable. */
+  setMug(id: string, mug: Mug, price: number): boolean;
   byArtist(artist: string): PaintingMeta[];
   /** Paintings this profile owns a print of. */
   prints(owner: string): PaintingMeta[];
@@ -116,6 +122,7 @@ export class ProfileStore implements Store {
     addCol('streak', 'INTEGER NOT NULL DEFAULT 0');
     addCol('last_study_day', 'TEXT');
     addCol('pet_json', 'TEXT');
+    addCol('mug_json', 'TEXT');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS owned (profile_id TEXT NOT NULL, item_id TEXT NOT NULL, PRIMARY KEY (profile_id, item_id));
       CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY AUTOINCREMENT, profile_id TEXT NOT NULL, name TEXT NOT NULL, text TEXT NOT NULL, created_at INTEGER NOT NULL);
@@ -373,9 +380,23 @@ export class ProfileStore implements Store {
     return r ? ProfileStore.meta(r) : null;
   }
 
-  paintingPng(id: number): Buffer | null {
-    const r = this.db.prepare('SELECT png FROM paintings WHERE id = ?').get(id) as { png: Uint8Array } | undefined;
-    return r ? Buffer.from(r.png) : null;
+  paintingPng(id: number): { png: Buffer; mode: PaintMode } | null {
+    const r = this.db.prepare('SELECT png, mode FROM paintings WHERE id = ?').get(id) as { png: Uint8Array; mode: PaintMode } | undefined;
+    return r ? { png: Buffer.from(r.png), mode: r.mode } : null;
+  }
+
+  photos(limit: number): PaintingMeta[] {
+    return (this.db.prepare(`${ProfileStore.PAINTING_SELECT} WHERE p.mode = 'photo' ORDER BY p.id DESC LIMIT ?`).all(limit) as Record<string, unknown>[]).map(ProfileStore.meta);
+  }
+
+  mug(id: string): Mug | null {
+    const r = this.db.prepare('SELECT mug_json FROM profiles WHERE id = ?').get(id) as { mug_json: string | null } | undefined;
+    const m: unknown = r?.mug_json ? JSON.parse(r.mug_json) : null;
+    return isMug(m) ? m : null;
+  }
+
+  setMug(id: string, mug: Mug, price: number): boolean {
+    return Number(this.db.prepare('UPDATE profiles SET kp = kp - ?, mug_json = ? WHERE id = ? AND kp >= ?').run(price, JSON.stringify(mug), id, price).changes) === 1;
   }
 
   forSale(): PaintingMeta[] {

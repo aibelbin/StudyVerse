@@ -209,6 +209,14 @@ describe('server', () => {
     expect(r.headers.get('x-content-type-options')).toBe('nosniff');
     expect(Buffer.from(await r.arrayBuffer())).toEqual(png);
     expect((await fetch(`${base}/art/999.png`)).status).toBe(404);
+
+    t += 31_000;
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0]);
+    c.send({ t: 'paint', title: 'Us', price: 1, forSale: false, mode: 'photo', png: jpeg.toString('base64') });
+    await c.next('portfolio');
+    const photo = await fetch(`${base}/art/2.png`);
+    expect(photo.headers.get('content-type')).toBe('image/jpeg');
+    expect(Buffer.from(await photo.arrayBuffer())).toEqual(jpeg);
   });
 
   it('answers 400 to a bad percent-escape and keeps serving', async () => {

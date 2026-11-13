@@ -1,3 +1,4 @@
+import type { Mug } from '../../shared/mug';
 import type { ErrorCode, ServerMsg } from '../../shared/protocol';
 import type { FeedKind } from '../../shared/types';
 
@@ -16,6 +17,8 @@ export interface Port {
   isAdmin(id: string): boolean;
   /** Reloads the player's wallet from the store and pushes `wallet`. */
   walletChanged(id: string): void;
+  /** Sets the player's mug and pushes `playerUpdated`. */
+  mugChanged(id: string, mug: Mug): void;
   /** Pushes the player's `bag`. */
   bagChanged(id: string): void;
   /** The scene the player is in, or null if they aren't in the world. */

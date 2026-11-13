@@ -1,3 +1,4 @@
+import { PALETTE } from '../../shared/art';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -177,7 +178,7 @@ describe('wallet, wardrobe, notes and daily totals', () => {
     const p3 = s.addPainting(a, 'Three', 5, 'pixel', png, false, 3);
     expect(s.forSale().map((p) => p.id)).toEqual([p2, p1]);
     expect(s.painting(p1)).toMatchObject({ artist: a, artistName: 'Ann', title: 'One', price: 10, mode: 'pixel', sold: 0, forSale: true, at: 1 });
-    expect(s.paintingPng(p1)).toEqual(png);
+    expect(s.paintingPng(p1)).toEqual({ png, mode: 'pixel' });
     expect(s.paintingCount(a)).toBe(3);
     expect(s.forSaleCount(a)).toBe(2);
     expect(s.byArtist(a)).toHaveLength(3);
@@ -200,5 +201,22 @@ describe('wallet, wardrobe, notes and daily totals', () => {
     expect(s.prints(b).map((p) => p.id)).toEqual([p1]);
     s.setForSale(p2, a, false);
     expect(s.buyPrint(b, p2, 1, 5)).toEqual({ ok: false, reason: 'gone' });
+    const ph1 = s.addPainting(a, 'Us', 1, 'photo', png, false, 6);
+    const ph2 = s.addPainting(b, 'Me', 1, 'photo', png, false, 7);
+    expect(s.photos(8).map((p) => p.id)).toEqual([ph2, ph1]);
+    expect(s.photos(1).map((p) => p.id)).toEqual([ph2]);
+  });
+
+  it('charges for a mug and keeps it on the profile', () => {
+    const s = new ProfileStore(':memory:');
+    const a = s.create('Ann', DEFAULT_LOOK).profile.id;
+    const mug = { shape: 'tall', glaze: PALETTE[0], accent: PALETTE[1] } as const;
+    expect(s.mug(a)).toBeNull();
+    expect(s.setMug(a, mug, 10)).toBe(false);
+    expect(s.mug(a)).toBeNull();
+    s.addKp(a, 12);
+    expect(s.setMug(a, mug, 10)).toBe(true);
+    expect(s.wallet(a).kp).toBe(2);
+    expect(s.mug(a)).toEqual(mug);
   });
 });

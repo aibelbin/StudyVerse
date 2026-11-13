@@ -19,6 +19,7 @@ import { holdName, type Act, type Anim, type ChatMsg, type Drink, type EmoteKind
 import { isFree, itemById, SLOTS } from '../../shared/wardrobe';
 import { petPrice } from '../../shared/pets/kinds';
 import type { PetKind } from '../../shared/types';
+import type { Mug } from '../../shared/mug';
 import { ProfileStore, type Profile, type Store } from './db';
 import { awardFor, dayOf } from './rewards';
 import { Feed, feedText } from './feed';
@@ -67,6 +68,7 @@ interface Player {
   voice: boolean;
   holding: Holding | null;
   pet: PetView | null;
+  mug: Mug | null;
   lastNoteAt: number;
   lastBrewAt: number;
   /** Recent chat send times, for the rate limit. */
@@ -131,6 +133,7 @@ export class World {
       feed: (kind, text) => this.pushFeed(kind, text),
       isAdmin: (id) => this.admins.has(id),
       walletChanged: (id) => { const q = byId(id); if (q) { q.wallet = this.store.wallet(id); q.conn?.send({ t: 'wallet', wallet: this.publicWallet(q) }); } },
+      mugChanged: (id, mug) => { const q = byId(id); if (q) { q.mug = mug; this.updated(q); } },
       bagChanged: (id) => { const q = byId(id); if (q) this.sendBag(q); },
       sceneOf: (id) => byId(id)?.scene ?? null,
       nameOf: (id) => byId(id)?.name ?? this.store.profileName(id),
@@ -190,7 +193,7 @@ export class World {
       slotId: null, session: null, rainUntil: 0,
       conn, disconnectedAt: null, lastMoveAt: this.now(), lastCheerFeedAt: 0, lastUse: new Map(),
       wallet: this.store.wallet(profile.id),
-      dnd: false, voice: false, holding: null, pet: null, lastNoteAt: 0, lastBrewAt: 0, lastPetAt: 0,
+      dnd: false, voice: false, holding: null, pet: null, mug: this.store.mug(profile.id), lastNoteAt: 0, lastBrewAt: 0, lastPetAt: 0,
       chatTimes: [], lastReactAt: 0, lastActAt: 0, meditateFrom: null, lastStageTextAt: 0,
       golf: { hole: null, strokes: 0, ball: null, lastBallAt: 0, card: Array(HOLES.length).fill(null) },
       status: null, keepsakes: [], keepsakeCount: 0, lastGiftSentAt: 0, lastGiveAt: 0,
@@ -259,6 +262,7 @@ export class World {
       case 'buyPrint': return this.studio.buyPrint(p.id, msg.id);
       case 'getGallery': return this.studio.sendGallery(p.id);
       case 'getPortfolio': return this.studio.sendPortfolio(p.id);
+      case 'throwMug': return this.studio.throwMug(p.id, msg.mug);
       case 'offerCoffee': return this.offerCoffee(p, msg.to);
       case 'answerCoffee': return this.answerCoffee(p, msg.fromId, msg.accept);
       case 'setVoice': {
@@ -1403,7 +1407,7 @@ export class World {
       id: p.id, name: p.name, look: p.look, scene: p.scene,
       x: p.x, z: p.z, facing: p.facing, anim: p.anim,
       slotId: p.slotId, session: p.session, connected: p.conn !== null, rainUntil: p.rainUntil,
-      dnd: p.dnd, voice: p.voice, holding: p.holding, pet: p.pet && { ...p.pet }, mug: null,
+      dnd: p.dnd, voice: p.voice, holding: p.holding, pet: p.pet && { ...p.pet }, mug: p.mug,
       status: p.status, keepsakes: p.keepsakes, keepsakeCount: p.keepsakeCount,
     };
   }

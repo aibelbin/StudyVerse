@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { PAINTING_MAX_BYTES, type PaintMode } from '../../shared/art';
+import { PAINTING_MAX_BYTES, PALETTE, type PaintMode } from '../../shared/art';
+import type { Mug } from '../../shared/mug';
 import type { ErrorCode, ServerMsg } from '../../shared/protocol';
 import { SCENES } from '../../shared/scenes';
 import { SceneBook } from '../../shared/scenes/book';
@@ -54,6 +55,7 @@ function walkToStudio(p: { id: string; c: FakeConn }) {
 }
 
 const PIXEL = makePng(32, 32).toString('base64');
+const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0]).toString('base64');
 function paint(id: string, opts: { title?: string; price?: number; forSale?: boolean; mode?: PaintMode; png?: string } = {}) {
   w.handle(id, { t: 'paint', title: opts.title ?? 'Sunset', price: opts.price ?? 12, forSale: opts.forSale ?? true, mode: opts.mode ?? 'pixel', png: opts.png ?? PIXEL });
 }
@@ -96,7 +98,7 @@ describe('studio', () => {
     expect(a.c.of('portfolio').at(-1)!.mine.map((p) => p.title)).toEqual(['Sunset']);
     expect(b.c.of('portfolio')).toHaveLength(0);
     expect(out.c.of('feed').at(-1)!.event).toMatchObject({ kind: 'art', text: "🎨 Ann hung 'Sunset' in the studio" });
-    expect(store.paintingPng(a.c.of('portfolio').at(-1)!.mine[0].id)).toEqual(Buffer.from(PIXEL, 'base64'));
+    expect(store.paintingPng(a.c.of('portfolio').at(-1)!.mine[0].id)?.png).toEqual(Buffer.from(PIXEL, 'base64'));
   });
 
   it('keeps a painting for yourself quietly', () => {
@@ -261,5 +263,57 @@ describe('studio', () => {
     w.handle(admin.id, { t: 'setSale', id, on: true });
     expect(lastError(admin.c)?.code).toBe('bad_art');
     expect(store.painting(id)!.forSale).toBe(false);
+  });
+
+  it('saves a photo kept, never for sale, pinned on the cork board; refuses PNG bytes and setSale', () => {
+    const a = joinNew('Ann');
+    const b = joinNew('Bo');
+    walkToStudio(a);
+    walkToStudio(b);
+    const errs = a.c.of('error').length;
+    paint(a.id, { mode: 'photo', png: PIXEL });
+    expect(a.c.of('error').slice(errs).map((e) => e.code)).toEqual(['bad_art']);
+    paint(a.id, { title: 'Us', mode: 'photo', forSale: true, png: JPEG });
+    const id = a.c.of('portfolio').at(-1)!.mine[0].id;
+    expect(store.painting(id)).toMatchObject({ mode: 'photo', forSale: false });
+    expect(b.c.of('gallery').at(-1)).toMatchObject({ forSale: [], photos: [{ id, title: 'Us', mode: 'photo' }] });
+    w.handle(a.id, { t: 'setSale', id, on: true });
+    expect(lastError(a.c)?.code).toBe('bad_art');
+    expect(store.painting(id)!.forSale).toBe(false);
+  });
+
+  it('throwMug charges 10 KP, updates the player and the feed; admin free; bad colour and poor refused', () => {
+    const a = joinNew('Ann');
+    const admin = joinNew('Aibel');
+    const poor = joinNew('Cy');
+    w.admins = new Set([admin.id]);
+    store.addKp(a.id, 15);
+    store.addKp(poor.id, 9);
+    const mug: Mug = { shape: 'round', glaze: PALETTE[2], accent: PALETTE[3] };
+    w.handle(a.id, { t: 'throwMug', mug });
+    expect(store.wallet(a.id).kp).toBe(5);
+    expect(a.c.of('wallet').at(-1)!.wallet.kp).toBe(5);
+    expect(admin.c.of('playerUpdated').at(-1)!.player).toMatchObject({ id: a.id, mug });
+    expect(w.view(a.id)!.mug).toEqual(mug);
+    expect(a.c.of('feed').at(-1)!.event).toMatchObject({ kind: 'art', text: '🏺 Ann fired a new mug' });
+
+    w.handle(admin.id, { t: 'throwMug', mug });
+    expect(store.mug(admin.id)).toEqual(mug);
+    expect(store.wallet(admin.id).kp).toBe(0);
+
+    w.handle(a.id, { t: 'throwMug', mug: { ...mug, glaze: '#123456' } });
+    expect(lastError(a.c)?.code).toBe('bad_mug');
+    w.handle(poor.id, { t: 'throwMug', mug });
+    expect(lastError(poor.c)?.code).toBe('no_kp');
+    expect(store.wallet(poor.id).kp).toBe(9);
+    expect(store.mug(poor.id)).toBeNull();
+  });
+
+  it('loads the saved mug at join', () => {
+    const profile = store.create('Ann', DEFAULT_LOOK, t).profile;
+    const mug: Mug = { shape: 'tiny', glaze: PALETTE[0], accent: PALETTE[1] };
+    store.setMug(profile.id, mug, 0);
+    w.join(profile, new FakeConn());
+    expect(w.view(profile.id)!.mug).toEqual(mug);
   });
 });
