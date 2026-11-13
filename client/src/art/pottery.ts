@@ -5,6 +5,7 @@ import type { Wallet } from '../../../shared/types';
 import { h } from '../hud/dom';
 import type { Hud } from '../hud/hud';
 import { mugMesh } from '../world/items';
+import { disposeTree } from '../world/materials';
 
 /** Pottery wheel: pick a shape and two colours, watch it spin, fire it for MUG_PRICE KP. */
 export function openPottery(hud: Hud, wallet: () => Wallet | null, current: Mug | null, onFire: (mug: Mug) => void): void {
@@ -33,10 +34,14 @@ export function openPottery(hud: Hud, wallet: () => Wallet | null, current: Mug 
     if (!live) return;
     live = false;
     cancelAnimationFrame(raf);
+    disposeTree(scene);
     renderer.dispose();
   };
   const rebuild = () => {
-    if (spin) scene.remove(spin);
+    if (spin) {
+      scene.remove(spin);
+      disposeTree(spin);
+    }
     spin = mugMesh(mug);
     scene.add(spin);
   };

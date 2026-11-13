@@ -147,7 +147,7 @@ export class Character {
 
   /** A cup of coffee (or matcha, or cocoa) in the right hand, steaming. */
   setHolding(drink: HoldItem | null, flower?: Flower, gift?: Gift, mug: Mug = DEFAULT_MUG): void {
-    const key = drink === 'bouquet' ? `bouquet:${flower}` : drink === 'gift' ? `gift:${gift}` : `${drink}:${JSON.stringify(mug)}`;
+    const key = drink === 'bouquet' ? `bouquet:${flower}` : drink === 'gift' ? `gift:${gift}` : drink && `${drink}:${mug.shape}:${mug.glaze}:${mug.accent}`;
     if (key === this.cupKind) return;
     this.cupKind = key;
     if (this.cup) {

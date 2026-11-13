@@ -42,10 +42,11 @@ export function mugMesh(mug: Mug, fill?: string): THREE.Group {
   const g = new THREE.Group();
   const glaze = toonMat({ color: mug.glaze, roughness: 0.6 });
   const accent = toonMat({ color: mug.accent });
-  let h: number, r: number;
+  let r: number, mouth: number, top: number; // handle offset, mouth radius, mouth height
   if (mug.shape === 'round') {
-    h = 0.13;
     r = 0.08;
+    mouth = 0.04;
+    top = 0.074; // just above the closed sphere's top (0.072), so the drink shows
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.08, 14, 10), glaze);
     body.scale.set(1, 0.9, 1);
     const base = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.02, 10), glaze);
@@ -53,22 +54,22 @@ export function mugMesh(mug: Mug, fill?: string): THREE.Group {
     g.add(body, base);
   } else {
     const [rt, rb, hh] = { classic: [0.07, 0.055, 0.13], tall: [0.06, 0.05, 0.17], tiny: [0.05, 0.045, 0.09] }[mug.shape];
-    h = hh;
-    r = rt;
+    r = mouth = rt;
+    top = hh / 2;
     const body = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, hh, 14), glaze);
     g.add(body);
   }
   g.children.forEach((m) => (m.castShadow = true));
   const handle = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.012, 6, 12), accent);
   handle.position.x = r;
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(r * 0.92, 0.008, 6, 14), accent);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(mouth * 0.92, 0.008, 6, 14), accent);
   rim.rotation.x = Math.PI / 2;
-  rim.position.y = mug.shape === 'round' ? 0.06 : h / 2;
+  rim.position.y = top;
   g.add(handle, rim);
   if (fill) {
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.9, r * 0.9, 0.01, 14), toonMat({ color: fill }));
-    top.position.y = rim.position.y - 0.005;
-    g.add(top);
+    const drink = new THREE.Mesh(new THREE.CylinderGeometry(mouth * 0.9, mouth * 0.9, 0.01, 14), toonMat({ color: fill }));
+    drink.position.y = top - 0.005;
+    g.add(drink);
   }
   return g;
 }
