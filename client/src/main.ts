@@ -200,7 +200,10 @@ conn.onMessage = (m) => {
           conn.send({ t: 'paint', ...p });
         });
         if (toy.kind === 'gallery') catalogue.show('sale');
-        if (toy.kind === 'photoBooth') game?.takePhoto();
+        if (toy.kind === 'photoBooth') game?.takePhoto((title, png, done) => {
+          paintDone = done;
+          conn.send({ t: 'paint', title, price: 1, forSale: false, mode: 'photo', png });
+        });
         if (toy.kind === 'wheel') openPottery(hud, () => wallet, game?.myView()?.mug ?? null, (mug) => conn.send({ t: 'throwMug', mug }));
       };
       game.onSpot = (spot) => openSpotPicker(hud, spot, {

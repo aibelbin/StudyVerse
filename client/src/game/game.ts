@@ -283,7 +283,7 @@ export class Game {
   }
 
   /** The photo booth: 3-2-1 over your head, a flash, then keep or discard the shot. */
-  takePhoto(): void {
+  takePhoto(save: (title: string, png: string, done: (ok: boolean) => void) => void): void {
     if (!this.booth.canUse(performance.now())) return this.hud.toast('One photo every 10 seconds', 2500);
     this.booth.start(performance.now());
     runCountdown(this.booth, (s) => {
@@ -291,7 +291,7 @@ export class Game {
       if (s !== 'shoot' || !this.scene || this.def?.id !== 'studio') return;
       flash();
       const url = capturePhoto(this.renderer, this.scene);
-      openPhotoPreview(this.hud, url, (title) => this.send({ t: 'paint', title, price: 1, forSale: false, mode: 'photo', png: url.split(',')[1] }), () => {});
+      openPhotoPreview(this.hud, url, (title, done) => save(title, url.split(',')[1], done), () => {});
     });
   }
 

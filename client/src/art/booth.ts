@@ -76,21 +76,23 @@ export function flash(): void {
 }
 
 /** Shows the photo with a caption box: Keep sends it on, Discard drops it. */
-export function openPhotoPreview(hud: Hud, dataUrl: string, onKeep: (title: string) => void, onDiscard: () => void): void {
+export function openPhotoPreview(hud: Hud, dataUrl: string, onKeep: (title: string, done: (ok: boolean) => void) => void, onDiscard: () => void): void {
   const caption = h('input', { type: 'text', maxLength: TITLE_MAX, placeholder: 'Caption', value: 'Photo booth' });
   const keep = () => {
     const title = caption.value.trim();
     if (!title) return hud.toast('Give your photo a caption first');
-    hud.finishModal();
-    onKeep(title);
+    keepBtn.disabled = true;
+    // stays open until the server saves it, so a refused photo (e.g. too soon after the last) isn't lost
+    onKeep(title, (ok) => (ok ? hud.finishModal() : (keepBtn.disabled = false)));
   };
+  const keepBtn = h('button', { type: 'button', className: 'primary', textContent: 'Keep', onclick: keep });
   hud.openModal(h('div', { className: 'photo-preview' },
     h('h2', { textContent: '📸 Your photo' }),
     h('img', { src: dataUrl, alt: 'Your photo' }),
     caption,
     h('div', { className: 'actions' },
       h('button', { type: 'button', textContent: 'Discard', onclick: () => { hud.finishModal(); onDiscard(); } }),
-      h('button', { type: 'button', className: 'primary', textContent: 'Keep', onclick: keep })),
+      keepBtn),
   ), onDiscard);
 }
 
