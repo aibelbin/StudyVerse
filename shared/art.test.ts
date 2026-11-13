@@ -17,8 +17,8 @@ describe('village geometry', () => {
     expect(villageRows(6)).toBe(2);
     expect(villageRows(7)).toBe(3);
     expect(villageRows(12)).toBe(3);
-    expect(villageSize(0)).toEqual({ w: 52, d: 28 });
-    expect(villageSize(7)).toEqual({ w: 52, d: 52 });
+    expect(villageSize(0)).toEqual({ w: 52, d: 38 });
+    expect(villageSize(7)).toEqual({ w: 52, d: 62 });
   });
 });
 

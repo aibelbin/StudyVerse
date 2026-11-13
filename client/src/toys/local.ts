@@ -140,3 +140,24 @@ export function wheelView(): ToyView {
   root.add(sign);
   return { root, update: (ctx) => bob(sign, 1.3, ctx.now) };
 }
+
+/** The village post box: a red pillar box and a sign. */
+export function postBoxView(): ToyView {
+  const root = new THREE.Group();
+  root.add(mesh(new THREE.CylinderGeometry(0.28, 0.3, 1.0, 14), mat('#d9473f'), 0, 0.5, 0));
+  root.add(mesh(new THREE.SphereGeometry(0.28, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat('#c23a33'), 0, 1.0, 0));
+  root.add(mesh(new THREE.BoxGeometry(0.3, 0.05, 0.04), mat('#2a2a30'), 0, 0.8, 0.29));
+  const sign = textSprite('✉️ Post', 0.28, { bg: '#ffffffdd', font: 40, pad: 12 });
+  sign.position.set(0, 1.7, 0);
+  root.add(sign);
+  return { root, update: (ctx) => bob(sign, 1.7, ctx.now) };
+}
+
+/** The observatory's sign (the hut is decor). */
+export function observatoryView(): ToyView {
+  const root = new THREE.Group();
+  const sign = textSprite('🔭 Stars', 0.28, { bg: '#ffffffdd', font: 40, pad: 12 });
+  sign.position.set(0, 2.6, 0);
+  root.add(sign);
+  return { root, update: (ctx) => bob(sign, 2.6, ctx.now) };
+}

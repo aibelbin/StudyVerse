@@ -318,8 +318,37 @@ const builders: Record<DecorKind, Builder> = {
     );
   },
 
-  mailbox: () => group(),
-  observatory: () => group(),
+  /** A cabin's mailbox on a post; the red flag (named 'flag', pivoting at its foot) is up when there's mail. */
+  mailbox(d) {
+    const g = group(
+      mesh(box(0.1, 0.95, 0.1), mat(P.woodDark), 0, 0.475, 0),
+      mesh(box(0.34, 0.26, 0.5), mat('#5a7a9c'), 0, 1.08, 0),
+      mesh(cyl(0.17, 0.17, 0.5, 10), mat('#5a7a9c'), 0, 1.21, 0, false),
+    );
+    g.children.at(-1)!.rotation.x = Math.PI / 2;
+    const flag = mesh(box(0.05, 0.3, 0.03), mat('#d9473f'), 0.2, 1.08, 0.05, false);
+    flag.geometry.translate(0, 0.15, 0);
+    flag.name = 'flag';
+    flag.rotation.z = d.accent === 'up' ? 0 : -1.4;
+    flag.userData.keep = true;
+    g.add(flag);
+    return merged(g);
+  },
+
+  /** The observatory on its hill: a round hut, a dome with a slit and a telescope poking out. */
+  observatory() {
+    const g = group(
+      mesh(cyl(1.5, 1.6, 1.6, 20), mat('#efe6d6'), 0, 0.8, 0),
+      mesh(new THREE.SphereGeometry(1.5, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat('#5a7a9c'), 0, 1.6, 0),
+      mesh(box(0.35, 1.3, 0.1), mat('#1e2a44'), 0, 2.1, 1.38, false),
+      mesh(box(0.7, 1.3, 0.1), mat(P.woodDark), 0, 0.65, 1.58, false),
+    );
+    g.children[2].rotation.x = -0.5;
+    const tube = mesh(cyl(0.12, 0.17, 1.4, 10), mat('#c9c2b4'), 0, 2.3, 0.9);
+    tube.rotation.x = Math.PI / 2 - 0.9;
+    g.add(tube, mesh(box(0.1, 0.9, 0.1), mat('#7a6a5a'), 0, 1.9, 0.6, false));
+    return merged(g);
+  },
 
   bed(_d, r) {
     const g = group(

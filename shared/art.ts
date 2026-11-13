@@ -68,7 +68,7 @@ export const VILLAGE_W = 52;
 
 /** Rows of six lots for n cabins: always at least one spare row. */
 export const villageRows = (n: number) => Math.ceil(n / 6) + 1;
-export const villageSize = (n: number) => ({ w: VILLAGE_W, d: 16 + ROW_D * villageRows(n) });
+export const villageSize = (n: number) => ({ w: VILLAGE_W, d: 26 + ROW_D * villageRows(n) });
 
 export const cabinSceneId = (owner: string) => `cabin:${owner}`;
 export const cabinOwner = (sceneId: string): string | null => (sceneId.startsWith('cabin:') ? sceneId.slice(6) : null);

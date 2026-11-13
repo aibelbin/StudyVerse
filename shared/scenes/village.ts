@@ -1,6 +1,7 @@
 import { cabinLook, cabinSceneId, LOT_XS, lotSpawn, ROW_D, seedOf, villageRows, villageSize, type CabinEntry } from '../art';
 import { building, lampPost, merge, tree, type Parts } from './kit';
 import { edges, GATE_GAP } from './town/edges';
+import { simpleToy } from './kitToys';
 import { OUTDOOR_THEME } from './town';
 import type { Door, SceneDef, Spawn } from './types';
 
@@ -26,12 +27,14 @@ function lot(k: number, x: number, z: number, e: CabinEntry | undefined, doors: 
       { kind: 'cabin', x, z, w: 5, d: 4.5, h: 2.6, color: look.wall, accent: look.roof, label: (e.locked ? '🔒 ' : '') + e.name, seed: seedOf(e.owner) },
       { kind: 'flowers', x: x - 1.9, z: z + 2.6, seed: k * 3 + 1 },
       { kind: 'flowers', x: x + 1.9, z: z + 2.6, seed: k * 3 + 2 },
+      { kind: 'mailbox', x: x + 1.9, z: z + 2.9, accent: e.mail ? 'up' : 'down' },
     ],
-    colliders: [{ x, z, w: 5, d: 4.5 }],
+    colliders: [{ x, z, w: 5, d: 4.5 }, { x: x + 1.9, z: z + 2.9, w: 0.4, d: 0.4 }],
+    toys: [{ id: `mailbox-${e.owner}`, kind: 'mailbox', x: x + 1.9, z: z + 2.9, radius: 1.2 }],
   };
 }
 
-/** The village: the gate from town at the south edge, the studio by it, then rows of six cabin lots going north. */
+/** The village: the gate from town at the south edge, the studio and post office by it, then rows of six cabin lots going north. */
 export function villageScene(roster: CabinEntry[]): SceneDef {
   const size = villageSize(roster.length);
   const hd = size.d / 2;
@@ -63,12 +66,18 @@ export function villageScene(roster: CabinEntry[]): SceneDef {
       decor: [
         { kind: 'path', x: 0, z: 0, w: 3, d: size.d - 4 },
         { kind: 'path', x: -7, z: hd - 6.9, w: 14, d: 2 },
+        { kind: 'path', x: 7, z: hd - 6.9, w: 14, d: 2 },
+        { kind: 'mound', x: 0, z: -hd + 6, w: 5 },
+        { kind: 'observatory', x: 0, z: -hd + 6 },
         { kind: 'gate', x: 0, z: hd - 1.5, label: 'Town' },
         { kind: 'signpost', x: 2.4, z: hd - 6, label: 'Cabins|Studio' },
       ],
       colliders: [{ x: 2.4, z: hd - 6, w: 0.3, d: 0.3 }],
     },
     building(-14, hd - 11, 10, 7, 4, '#fbf3e4', '#b07f5a', 'Studio'),
+    building(14, hd - 11, 8, 6, 3.6, '#f3e3d0', '#5a7a9c', 'Post office'),
+    simpleToy('post', 'postBox', 14, hd - 7.4, 1.6),
+    simpleToy('stargaze', 'observatory', 0, -hd + 8.5, 2.2, { x: 0, z: -hd + 6, w: 3, d: 3 }),
     ...rows,
     {
       life: [
