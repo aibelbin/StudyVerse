@@ -34,9 +34,11 @@ describe('toon materials', () => {
     const own = watch(toonMat());
     const shared = watch(mat('#654321'));
     const scene = new THREE.Scene();
-    scene.add(new THREE.Mesh(geo, own), new THREE.Mesh(new THREE.BoxGeometry(), shared));
+    const dots = watch(new THREE.BufferGeometry());
+    const line = watch(new THREE.LineBasicMaterial());
+    scene.add(new THREE.Mesh(geo, own), new THREE.Mesh(new THREE.BoxGeometry(), shared), new THREE.Points(dots), new THREE.LineSegments(undefined, line));
     disposeTree(scene);
-    expect(freed).toContain(geo);
+    expect(freed).toEqual(expect.arrayContaining([geo, dots, line]));
     expect(freed).toContain(own);
     expect(freed).not.toContain(shared);
   });

@@ -153,7 +153,7 @@ export class SkyRig {
   private lastPool = -1e9;
   night = 0;
 
-  constructor(private built: BuiltScene, def: SceneDef) {
+  constructor(readonly built: BuiltScene, def: SceneDef) {
     this.canvas.width = 2;
     this.canvas.height = 256;
     this.tex = new THREE.CanvasTexture(this.canvas);

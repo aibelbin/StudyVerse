@@ -45,7 +45,7 @@ export function disposeTree(o: THREE.Object3D): void {
   if (o instanceof THREE.Scene && o.background instanceof THREE.Texture) o.background.dispose();
   o.traverse((x) => {
     if (x instanceof THREE.Light) x.dispose();
-    if (x instanceof THREE.Mesh || x instanceof THREE.Sprite) {
+    if (x instanceof THREE.Mesh || x instanceof THREE.Sprite || x instanceof THREE.Points || x instanceof THREE.Line) {
       if (!(x instanceof THREE.Sprite)) x.geometry.dispose(); // sprites share one geometry
       const mats = Array.isArray(x.material) ? x.material : [x.material];
       for (const m of mats) {

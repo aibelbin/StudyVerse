@@ -24,8 +24,9 @@ export class Extras implements GameHooks {
   private constellations: Constellation[] = [];
 
   enterScene(def: SceneDef, built: BuiltScene): void {
+    // a rebuilt scene (village after a roster change, a revisited cabin) needs its own sky and life
     let life = this.lives.get(def.id);
-    if (!life) {
+    if (life?.root.parent !== built.scene) {
       life = buildLife(def);
       built.scene.add(life.root);
       this.lives.set(def.id, life);
@@ -37,7 +38,7 @@ export class Extras implements GameHooks {
     if (!def.theme.indoor && !this.ambience.has(def.id)) this.ambience.set(def.id, new Ambience(this.audio, def));
     if (built.outdoor) {
       let s = this.skies.get(def.id);
-      if (!s) {
+      if (s?.built !== built) {
         this.skies.set(def.id, (s = new SkyRig(built, def)));
         s.setConstellations(this.constellations);
       }
