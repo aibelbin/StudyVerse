@@ -286,6 +286,8 @@ export class Game {
   takePhoto(save: (title: string, png: string, done: (ok: boolean) => void) => void): void {
     if (!this.booth.canUse(performance.now())) return this.hud.toast('One photo every 10 seconds', 2500);
     this.booth.start(performance.now());
+    this.facing = Math.PI / 2; // turn to the booth camera (it stands east of the curtain)
+    this.sendMove(performance.now());
     runCountdown(this.booth, (s) => {
       this.myChar?.overhead.pop(s === 'shoot' ? '📸' : String(s), performance.now());
       if (s !== 'shoot' || !this.scene || this.def?.id !== 'studio') return;
