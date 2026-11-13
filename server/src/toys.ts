@@ -37,6 +37,8 @@ export const HANDLERS: Record<ToyKind, ToyHandler> = {
   giftShop: none,
   easel: none,
   gallery: none,
+  photoBooth: none,
+  wheel: none,
   golfBoard: { actions: [], init: () => ({ kind: 'golfBoard', day: '', top: [], paid: [] }), apply: () => ({}) },
   cushions: {
     actions: [],

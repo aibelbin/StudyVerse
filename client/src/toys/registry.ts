@@ -4,7 +4,7 @@ import type { BoatPose, ToyAction, ToyKind, ToyState } from '../../../shared/toy
 import type { SoundKind } from '../audio/kinds';
 import { bellView, chimesView, jukeboxView, pianoView } from './music';
 import { merryGoRoundView, seesawView, slideView, swingView } from './playground';
-import { boardView, coffeeView, easelView, galleryView, giftShopView, quotesView, shopView } from './local';
+import { boardView, coffeeView, easelView, galleryView, giftShopView, photoBoothView, quotesView, shopView, wheelView } from './local';
 import { campfireView, telescopeView } from './misc';
 import { truckView } from './truck';
 import { plotView } from './garden';
@@ -81,6 +81,8 @@ export function toyPrompt(toy: Toy, state?: ToyState): string | null {
     case 'giftShop': return '[E] browse the gift stall 🎁';
     case 'easel': return '[E] paint something 🎨';
     case 'gallery': return '[E] browse the gallery 🖼️';
+    case 'photoBooth': return '[E] take a photo 📸';
+    case 'wheel': return '[E] throw a mug 🏺';
     case 'golfTee': {
       const h = HOLES[Number(toy.id.split('-').pop()) - 1];
       return h ? `[E] play hole ${h.n} · ${h.name} (par ${h.par}) ⛳` : null;
@@ -129,6 +131,8 @@ function build(toy: Toy, def: SceneDef, fx: ToyFx): ToyView {
     case 'giftShop': return giftShopView();
     case 'easel': return easelView();
     case 'gallery': return galleryView();
+    case 'photoBooth': return photoBoothView();
+    case 'wheel': return wheelView();
     case 'golfTee': return { root: new Group(), update() {} }; // the course draws the tee
   }
 }

@@ -283,6 +283,39 @@ const builders: Record<DecorKind, Builder> = {
     return g;
   },
 
+  /** A curtain on a rod: pleated cloth, origin at the rod's centre on the wall. */
+  curtain(d) {
+    const w = d.w ?? 2.4;
+    const c = mat(d.color ?? '#b56a5a');
+    const g = group(mesh(cyl(0.03, 0.03, w + 0.3, 8), mat(P.woodDark), 0, 2.6, 0));
+    g.children[0].rotation.z = Math.PI / 2;
+    const n = Math.round(w / 0.2);
+    for (let i = 0; i < n; i++) g.add(mesh(box(w / n, 2.4, 0.06), c, -w / 2 + (i + 0.5) * (w / n), 1.4, i % 2 ? 0.04 : -0.04));
+    return g;
+  },
+
+  /** A cork panel in a wooden frame, hung on a wall at d.y. */
+  corkBoard(d) {
+    const w = d.w ?? 2, h = d.h ?? 1.4;
+    return group(
+      mesh(box(w, h, 0.04), mat('#c9955f'), 0, 0, 0),
+      mesh(box(w + 0.12, 0.06, 0.08), mat(P.woodDark), 0, h / 2 + 0.03, 0),
+      mesh(box(w + 0.12, 0.06, 0.08), mat(P.woodDark), 0, -h / 2 - 0.03, 0),
+      mesh(box(0.06, h, 0.08), mat(P.woodDark), -w / 2 - 0.03, 0, 0),
+      mesh(box(0.06, h, 0.08), mat(P.woodDark), w / 2 + 0.03, 0, 0),
+    );
+  },
+
+  /** A low stool, a flywheel disc and a lump of clay. */
+  potteryWheel() {
+    return group(
+      mesh(box(0.7, 0.05, 0.5), mat(P.woodLight), 0, 0.42, 0.45),
+      mesh(cyl(0.2, 0.25, 0.4, 10), mat(P.woodDark), 0, 0.2, 0),
+      mesh(cyl(0.36, 0.36, 0.06, 20), mat('#9a9aa2'), 0, 0.43, 0),
+      mesh(new THREE.SphereGeometry(0.13, 12, 8), mat('#c98a6a'), 0, 0.52, 0),
+    );
+  },
+
   bed(_d, r) {
     const g = group(
       mesh(box(1.2, 0.3, 2), mat(P.woodDark), 0, 0.15, 0),

@@ -7,18 +7,18 @@ export type ToyKind =
   | 'fountain' | 'bell' | 'chimes' | 'stones' | 'campfire' | 'telescope' | 'rowboat'
   | 'shop' | 'board' | 'quotes' | 'coffee' | 'truck'
   | 'koi' | 'cushions' | 'cairn' | 'drums' | 'guitar' | 'keys' | 'stageScreen' | 'plot' | 'golfTee' | 'golfBoard' | 'giftShop'
-  | 'easel' | 'gallery';
+  | 'easel' | 'gallery' | 'photoBooth' | 'wheel';
 
 export const TOY_KINDS: ToyKind[] = [
   'swing', 'seesaw', 'merryGoRound', 'slide', 'piano', 'jukebox', 'ducks',
   'fountain', 'bell', 'chimes', 'stones', 'campfire', 'telescope', 'rowboat',
   'shop', 'board', 'quotes', 'coffee', 'truck',
   'koi', 'cushions', 'cairn', 'drums', 'guitar', 'keys', 'stageScreen', 'plot', 'golfTee', 'golfBoard', 'giftShop',
-  'easel', 'gallery',
+  'easel', 'gallery', 'photoBooth', 'wheel',
 ];
 
 /** Toys whose E opens something on your own screen instead of telling the server. */
-export const LOCAL_TOYS: ToyKind[] = ['telescope', 'shop', 'board', 'quotes', 'coffee', 'stageScreen', 'giftShop', 'easel', 'gallery'];
+export const LOCAL_TOYS: ToyKind[] = ['telescope', 'shop', 'board', 'quotes', 'coffee', 'stageScreen', 'giftShop', 'easel', 'gallery', 'photoBooth', 'wheel'];
 
 export type ToyAction = 'push' | 'slide' | 'note' | 'next' | 'feed' | 'coin' | 'ring' | 'skip' | 'toggle' | 'honk' | 'stack';
 

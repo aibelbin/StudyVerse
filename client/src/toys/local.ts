@@ -119,3 +119,24 @@ export function galleryView(): ToyView {
   root.add(sign);
   return { root, update: (ctx) => bob(sign, 1.4, ctx.now) };
 }
+
+/** The photo booth: a camera on a tripod and a sign (the curtain is decor). */
+export function photoBoothView(): ToyView {
+  const root = new THREE.Group();
+  for (const [x, z] of [[-0.2, 0.15], [0.2, 0.15], [0, -0.2]]) root.add(mesh(new THREE.CylinderGeometry(0.02, 0.025, 1.1, 6), mat(P.woodDark), x, 0.55, z));
+  root.add(mesh(new THREE.BoxGeometry(0.3, 0.2, 0.2), mat('#3a3a42'), 0, 1.2, 0));
+  root.add(mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.12, 10), mat('#8aa0b8'), 0.2, 1.2, 0)).children.at(-1)!.rotation.z = Math.PI / 2;
+  const sign = textSprite('📸 Photo booth', 0.28, { bg: '#ffffffdd', font: 40, pad: 12 });
+  sign.position.set(0, 2.15, 0);
+  root.add(sign);
+  return { root, update: (ctx) => bob(sign, 2.15, ctx.now) };
+}
+
+/** The pottery wheel's sign (the wheel itself is decor). */
+export function wheelView(): ToyView {
+  const root = new THREE.Group();
+  const sign = textSprite('🏺 Pottery', 0.28, { bg: '#ffffffdd', font: 40, pad: 12 });
+  sign.position.set(0, 1.3, 0);
+  root.add(sign);
+  return { root, update: (ctx) => bob(sign, 1.3, ctx.now) };
+}
