@@ -2,10 +2,10 @@
 import { FLOWERS, type Flower } from './garden';
 import { GIFTS, type Gift } from './gifts';
 
-export type PaintMode = 'pixel' | 'free';
-export const PAINT_MODES: PaintMode[] = ['pixel', 'free'];
+export type PaintMode = 'pixel' | 'free' | 'photo';
+export const PAINT_MODES: PaintMode[] = ['pixel', 'free', 'photo'];
 /** Canvas side in pixels per mode (freehand may be saved smaller, see FREE_MIN). */
-export const PAINT_SIZE: Record<PaintMode, number> = { pixel: 32, free: 256 };
+export const PAINT_SIZE: Record<PaintMode, number> = { pixel: 32, free: 256, photo: 256 };
 export const FREE_MIN = 64;
 export const PAINTING_MAX_BYTES = 65536;
 /** Base64 of PAINTING_MAX_BYTES plus padding. */
@@ -16,6 +16,8 @@ export const FOR_SALE_MAX = 3;
 export const PAINTINGS_MAX = 40;
 export const PAINT_GAP_MS = 30_000;
 export const GALLERY_WALL = 16;
+/** Newest photos pinned on the studio cork board. */
+export const GALLERY_PHOTOS = 8;
 /** How close you stand to a cabin spot to use it. */
 export const SPOT_RADIUS = 1.3;
 
@@ -88,6 +90,18 @@ export const CABIN_LOOKS = [
 export const cabinLook = (owner: string) => CABIN_LOOKS[seedOf(owner) % CABIN_LOOKS.length];
 
 // ---------- paintings ----------
+
+export const PALETTE = [
+  '#ffffff', '#e8e4ea', '#9a93a3', '#2a2430',
+  '#5a3d3a', '#8a5a44', '#d9a27a', '#f6d7b8',
+  '#f4a6a6', '#e85d6f', '#b8404f', '#f7b985',
+  '#f2d06b', '#fbe9a0', '#b9d99a', '#6fae6b',
+  '#2f6b55', '#8fd3d0', '#6aa7d8', '#3f5fa8',
+  '#c9b6ec', '#9372c9', '#f3b6dc', '#4a3a6a',
+];
+
+/** True if these bytes start with the JPEG magic FF D8 FF. */
+export const isJpeg = (b: Uint8Array) => b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
 
 export const artUrl = (id: number) => `/art/${id}.png`;
 

@@ -6,6 +6,7 @@ import { GARDEN_ACTIONS, type AdminAction, type ClientMsg, type GardenAction } f
 import { FEATURE_KINDS, isGift, STATUS_MINUTES, STATUS_TEXT_MAX, type Feature } from '../../shared/gifts';
 import { ANNOUNCE_MAX } from '../../shared/constants';
 import { PAINT_B64_MAX, PAINT_MODES, PRICE_RANGE, SPOT_PICK_KINDS, TITLE_MAX, type PaintMode, type SpotPick } from '../../shared/art';
+import { isMug } from '../../shared/mug';
 import { TOY_ACTIONS, type ToyAction } from '../../shared/toys';
 import { ACTS, DRINKS, PET_ANIMS, REACTIONS, type Act, type Anim, type Drink, type EmoteKind, type Look, type PetAnim } from '../../shared/types';
 
@@ -155,6 +156,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     }
     case 'admin':
       return parseAdmin(m);
+    case 'throwMug':
+      return isMug(m.mug) ? { t: 'throwMug', mug: { shape: m.mug.shape, glaze: m.mug.glaze, accent: m.mug.accent } } : null;
     case 'paint': {
       if (typeof m.title !== 'string') return null;
       const title = m.title.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();

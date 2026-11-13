@@ -1,4 +1,5 @@
 import { FLOWERS, type Flower } from './garden';
+import type { Mug } from './mug';
 import { GIFTS, type Gift, type Keepsake, type Status } from './gifts';
 export type Eyes = 'dot' | 'happy' | 'sleepy';
 export type OutfitSlot = 'hat' | 'top' | 'face' | 'back' | 'neck';
@@ -55,6 +56,8 @@ export interface PlayerView {
   /** A drink (or a bouquet from the garden) in hand. */
   holding: Holding | null;
   pet: PetView | null;
+  /** The player's own mug; null = the default cup. */
+  mug: Mug | null;
   /** "🍜 Eating" and so on; null when not set. */
   status: Status | null;
   /** The newest keepsakes (gifts received), and how many in all. */

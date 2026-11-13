@@ -73,7 +73,7 @@ describe('studio', () => {
   it('sends the gallery on entering the studio and answers the getters anywhere', () => {
     const a = joinNew('Ann');
     walkToStudio(a);
-    expect(a.c.of('gallery').at(-1)).toEqual({ t: 'gallery', forSale: [] });
+    expect(a.c.of('gallery').at(-1)).toEqual({ t: 'gallery', forSale: [], photos: [] });
     w.handle(a.id, { t: 'getPortfolio' });
     expect(a.c.of('portfolio').at(-1)).toEqual({ t: 'portfolio', mine: [], prints: [] });
     const b = joinNew('Bo');

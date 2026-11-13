@@ -1403,7 +1403,7 @@ export class World {
       id: p.id, name: p.name, look: p.look, scene: p.scene,
       x: p.x, z: p.z, facing: p.facing, anim: p.anim,
       slotId: p.slotId, session: p.session, connected: p.conn !== null, rainUntil: p.rainUntil,
-      dnd: p.dnd, voice: p.voice, holding: p.holding, pet: p.pet && { ...p.pet },
+      dnd: p.dnd, voice: p.voice, holding: p.holding, pet: p.pet && { ...p.pet }, mug: null,
       status: p.status, keepsakes: p.keepsakes, keepsakeCount: p.keepsakeCount,
     };
   }

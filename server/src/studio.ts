@@ -71,7 +71,7 @@ export class Studio {
 
   /** Everything for sale, to one player or (no toId) to everyone in the studio. */
   sendGallery(toId?: string): void {
-    const msg = { t: 'gallery' as const, forSale: this.store.forSale() };
+    const msg = { t: 'gallery' as const, forSale: this.store.forSale(), photos: [] };
     if (toId) this.port.send(toId, msg);
     else this.port.toScene(STUDIO, msg);
   }

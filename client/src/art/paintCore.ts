@@ -1,12 +1,3 @@
-export const PALETTE = [
-  '#ffffff', '#e8e4ea', '#9a93a3', '#2a2430',
-  '#5a3d3a', '#8a5a44', '#d9a27a', '#f6d7b8',
-  '#f4a6a6', '#e85d6f', '#b8404f', '#f7b985',
-  '#f2d06b', '#fbe9a0', '#b9d99a', '#6fae6b',
-  '#2f6b55', '#8fd3d0', '#6aa7d8', '#3f5fa8',
-  '#c9b6ec', '#9372c9', '#f3b6dc', '#4a3a6a',
-];
-
 export function hexToRgba(hex: string): number[] {
   const h = hex.replace('#', '');
   return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)).concat(255);

@@ -1,3 +1,4 @@
+import type { Mug } from './mug';
 import type { Tilt } from './toys';
 import type { CabinEntry, CabinState, PaintingMeta, PaintMode, SpotPick } from './art';
 
@@ -69,6 +70,7 @@ export type ClientMsg =
   | { t: 'pet'; x: number; z: number; facing: number; anim: PetView['anim'] }
   /** WebRTC signalling for proximity voice, relayed to one player in the same scene. */
   | { t: 'rtc'; to: string; data: string }
+  | { t: 'throwMug'; mug: Mug }
   | { t: 'paint'; title: string; price: number; forSale: boolean; mode: PaintMode; png: string }
   | { t: 'setSale'; id: number; on: boolean }
   | { t: 'buyPrint'; id: number }
@@ -80,6 +82,7 @@ export type ClientMsg =
 
 export type ErrorCode =
   | 'bad_art'
+  | 'bad_mug'
   | 'locked'
   | 'bad_cabin'
   | 'bad_invite'
@@ -110,7 +113,7 @@ export type ErrorCode =
 
 export type ServerMsg =
   | { t: 'village'; cabins: CabinEntry[] }
-  | { t: 'gallery'; forSale: PaintingMeta[] }
+  | { t: 'gallery'; forSale: PaintingMeta[]; photos: PaintingMeta[] }
   | { t: 'portfolio'; mine: PaintingMeta[]; prints: PaintingMeta[] }
   | { t: 'cabinState'; state: CabinState }
   | { t: 'chat'; msg: ChatMsg }

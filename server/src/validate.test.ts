@@ -153,6 +153,16 @@ describe('studio and cabin messages', () => {
     expect(p({ ...paint, png: 'not base64!' })).toBeNull();
     expect(p({ ...paint, mode: 'oil' })).toBeNull();
   });
+  it('accepts photo mode', () => {
+    expect(p({ ...paint, mode: 'photo' })).toEqual({ ...paint, title: 'Sun set', mode: 'photo' });
+  });
+  it('parses and rejects throwMug', () => {
+    const mug = { shape: 'tall', glaze: '#ffffff', accent: '#2a2430' };
+    expect(p({ t: 'throwMug', mug: { ...mug, x: 1 } })).toEqual({ t: 'throwMug', mug });
+    expect(p({ t: 'throwMug', mug: { ...mug, shape: 'cube' } })).toBeNull();
+    expect(p({ t: 'throwMug', mug: { ...mug, glaze: '#123456' } })).toBeNull();
+    expect(p({ t: 'throwMug' })).toBeNull();
+  });
   it('parses and rejects setSale, buyPrint and the getters', () => {
     expect(p({ t: 'setSale', id: 3, on: true })).toEqual({ t: 'setSale', id: 3, on: true });
     expect(p({ t: 'setSale', id: 3 })).toBeNull();

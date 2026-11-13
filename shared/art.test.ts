@@ -1,6 +1,6 @@
 // shared/art.test.ts
 import { describe, expect, it } from 'vitest';
-import { cabinLook, cabinOwner, cabinSceneId, itemLabel, pngSize, seedOf, villageRows, villageSize } from './art';
+import { PALETTE, cabinLook, cabinOwner, isJpeg, cabinSceneId, itemLabel, pngSize, seedOf, villageRows, villageSize } from './art';
 
 /** A PNG header with the given size (the body doesn't matter for pngSize). */
 function header(w: number, h: number): Uint8Array {
@@ -49,5 +49,18 @@ describe('pngSize', () => {
     const bad = header(32, 32);
     bad[1] = 0x41;
     expect(pngSize(bad)).toBeNull();
+  });
+});
+
+describe('palette and jpeg', () => {
+  it('palette has 24 unique entries', () => {
+    expect(PALETTE.length).toBe(24);
+    expect(new Set(PALETTE).size).toBe(24);
+    expect(PALETTE).toContain('#ffffff');
+    expect(PALETTE).toContain('#2a2430');
+  });
+  it('isJpeg checks the magic bytes', () => {
+    expect(isJpeg(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe(true);
+    expect(isJpeg(new Uint8Array([0x89, 0x50, 0x4e]))).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PALETTE, Undo, blank, floodFill, hexToRgba, line, stamp } from './paintCore';
+import { Undo, blank, floodFill, hexToRgba, line, stamp } from './paintCore';
 
 const BLACK = hexToRgba('#000000');
 const RED = hexToRgba('#ff0000');
@@ -50,12 +50,5 @@ describe('paintCore', () => {
     expect(u.pop()![0]).toBe(24);
     expect(u.pop()![0]).toBe(23);
     expect(u.size).toBe(18);
-  });
-
-  it('palette has 24 unique entries', () => {
-    expect(PALETTE.length).toBe(24);
-    expect(new Set(PALETTE).size).toBe(24);
-    expect(PALETTE).toContain('#ffffff');
-    expect(PALETTE).toContain('#2a2430');
   });
 });
