@@ -37,6 +37,12 @@ export class Cabins {
     return this.list;
   }
 
+  /** The roster changed in the store: reload it and tell everyone. */
+  changed(): void {
+    this.refresh();
+    this.broadcast();
+  }
+
   broadcast(): void {
     this.port.toAll({ t: 'village', cabins: this.list });
   }
@@ -64,8 +70,7 @@ export class Cabins {
         if (now - (this.lastLockAt.get(p) ?? -Infinity) < LOCK_GAP_MS) return this.port.error(p, 'bad_cabin', 'Give the latch a moment.');
         this.lastLockAt.set(p, now);
         this.store.setCabinLocked(p, msg.on);
-        this.refresh();
-        this.broadcast();
+        this.changed();
         return this.sendState(p);
       }
       case 'clear':

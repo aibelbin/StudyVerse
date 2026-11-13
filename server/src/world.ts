@@ -36,6 +36,8 @@ import { cabinOwner } from '../../shared/art';
 import { SceneBook } from '../../shared/scenes/book';
 import { Cabins } from './cabins';
 import { Studio } from './studio';
+import { Mail } from './mail';
+import { Sky } from './sky';
 import type { Port } from './port';
 
 /** What the World needs from a network connection. */
@@ -114,6 +116,8 @@ export class World {
   private book: SceneBook;
   private cabins: Cabins;
   private studio: Studio;
+  private mail: Mail;
+  private sky: Sky;
 
   constructor(
     private now: () => number = Date.now,
@@ -137,9 +141,12 @@ export class World {
       bagChanged: (id) => { const q = byId(id); if (q) this.sendBag(q); },
       sceneOf: (id) => byId(id)?.scene ?? null,
       nameOf: (id) => byId(id)?.name ?? this.store.profileName(id),
+      rosterChanged: () => this.cabins.changed(),
     };
     this.cabins = new Cabins(this.store, this.book, port);
     this.studio = new Studio(this.store, port);
+    this.mail = new Mail(this.store, port);
+    this.sky = new Sky(this.store, port);
     try {
       this.features = { ...allOn(), ...(JSON.parse(this.store.getKv('features') ?? '{}') as Partial<Features>) };
     } catch { /* keep everything on */ }
@@ -263,6 +270,11 @@ export class World {
       case 'getGallery': return this.studio.sendGallery(p.id);
       case 'getPortfolio': return this.studio.sendPortfolio(p.id);
       case 'throwMug': return this.studio.throwMug(p.id, msg.mug);
+      case 'sendLetter': return this.mail.send(p.id, msg.to, msg.text);
+      case 'getMail': return this.mail.list(p.id);
+      case 'readMail': return this.mail.read(p.id);
+      case 'deleteLetter': return this.mail.remove(p.id, msg.id);
+      case 'saveConstellation': return this.sky.save(p.id, msg.name, msg.edges);
       case 'offerCoffee': return this.offerCoffee(p, msg.to);
       case 'answerCoffee': return this.answerCoffee(p, msg.fromId, msg.accept);
       case 'setVoice': {
@@ -1296,6 +1308,9 @@ export class World {
       case 'deleteNote':
         if (this.store.deleteNoteAny(a.id)) this.toAll({ t: 'notes', list: this.store.notes(NOTES_SHOWN) });
         break;
+      case 'deleteLetter':
+        this.mail.adminRemove(a.id);
+        break;
       case 'clearStage': {
         const screen = Object.values(this.scenes).flatMap((d) => d.toys).find((x) => x.kind === 'stageScreen');
         if (screen) this.saveToyState(screen.id, { kind: 'stageScreen', text: null, by: null, until: 0 });
@@ -1366,8 +1381,8 @@ export class World {
       chat: this.store.chatFor(p.id, CHAT_KEEP, CHAT_DM_HISTORY, this.store.createdAt(p.id)),
       features: { ...this.features },
       bag: this.bagOf(p),
-      unread: 0, // Task 3
-      constellations: [], // Task 3
+      unread: this.mail.unread(p.id),
+      constellations: this.sky.all(),
     });
   }
 

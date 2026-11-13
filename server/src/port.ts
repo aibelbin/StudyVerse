@@ -25,4 +25,6 @@ export interface Port {
   sceneOf(id: string): string | null;
   /** The player's name (online or not), or null if there's no such profile. */
   nameOf(id: string): string | null;
+  /** Reloads the cabin roster (latches, mail flags) and sends `village` to everyone. */
+  rosterChanged(): void;
 }
