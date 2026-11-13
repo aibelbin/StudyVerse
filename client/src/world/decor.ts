@@ -303,6 +303,8 @@ const builders: Record<DecorKind, Builder> = {
       mesh(box(w + 0.12, 0.06, 0.08), mat(P.woodDark), 0, -h / 2 - 0.03, 0),
       mesh(box(0.06, h, 0.08), mat(P.woodDark), -w / 2 - 0.03, 0, 0),
       mesh(box(0.06, h, 0.08), mat(P.woodDark), w / 2 + 0.03, 0, 0),
+      // two legs down to the floor (makeDecor lifts the group to d.y)
+      ...[-1, 1].map((sx) => mesh(box(0.07, d.y ?? 0, 0.07), mat(P.woodDark), sx * (w / 2 - 0.15), -(d.y ?? 0) / 2, -0.03)),
     );
   },
 

@@ -22,10 +22,10 @@ export const BOOTH_CAM = { x: -3.2, y: 1.6, z: -1, lookAt: { x: -7.5, y: 1.0, z:
 export const CORK_PINS: Spot[] = Array.from({ length: 8 }, (_, i) => ({
   id: `c${i}`,
   kind: 'wall' as const,
-  x: 7.9,
-  z: [-2.1, -1.5, -0.9, -0.3][i % 4],
-  y: i < 4 ? 2.2 : 1.4,
-  rot: -Math.PI / 2,
+  x: 6.2 + [-0.84, -0.28, 0.28, 0.84][i % 4],
+  z: -2.56,
+  y: i < 4 ? 1.55 : 0.95,
+  rot: 0,
 }));
 
 const EASELS: [number, number][] = [[-4.5, 0.2], [0, 1.0], [4.5, 0.2]];
@@ -42,14 +42,14 @@ const parts = merge(
     decor: [
       { kind: 'galleryWall', x: 0, z: -5.92, w: 15 },
       { kind: 'curtain', x: -7.9, z: -1, rot: Math.PI / 2, w: 2.6 },
-      { kind: 'corkBoard', x: 7.93, z: -1.2, y: 1.8, rot: -Math.PI / 2, w: 2.4, h: 1.6 },
+      { kind: 'corkBoard', x: 6.2, z: -2.6, y: 1.25, w: 2.4, h: 1.3 }, // freestanding, facing the camera
       { kind: 'potteryWheel', x: 6.6, z: 2.2 },
       { kind: 'sign', x: 0, z: -5.9, y: 2.95, label: '🎨 the gallery' },
       { kind: 'rug', x: 0, z: 0.6, w: 12, d: 3.2, color: '#f4e3cf', accent: '#e9d2b8' },
       ...EASELS.map(([x, z]) => ({ kind: 'pendant' as const, x, z, y: 2.3 })),
       ...EASELS.map(([x, z]) => ({ kind: 'stool' as const, x, z: z + 1.2 })),
     ],
-    colliders: [],
+    colliders: [{ x: 6.2, z: -2.6, w: 2.5, d: 0.3 }],
   },
 );
 
