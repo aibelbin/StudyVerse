@@ -28,6 +28,7 @@ import { Connection } from './net/connection';
 import { book } from './world/book';
 import { Catalogue } from './art/catalogue';
 import { openPaint } from './art/paint';
+import { openPottery } from './art/pottery';
 import { openSpotPicker } from './art/cabinPanel';
 import { ChatPanel } from './hud/chat';
 
@@ -200,6 +201,7 @@ conn.onMessage = (m) => {
         });
         if (toy.kind === 'gallery') catalogue.show('sale');
         if (toy.kind === 'photoBooth') game?.takePhoto();
+        if (toy.kind === 'wheel') openPottery(hud, () => wallet, game?.myView()?.mug ?? null, (mug) => conn.send({ t: 'throwMug', mug }));
       };
       game.onSpot = (spot) => openSpotPicker(hud, spot, {
         paintings: catalogue.owned(),

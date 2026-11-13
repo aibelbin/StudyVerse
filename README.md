@@ -145,6 +145,7 @@ lots wear a "free lot" sign, and a new row opens as it fills). Inside, E at a wa
 and E at a shelf shows off a keepsake or a bouquet; 🔓/🔒 latches the door so visitors stay outside. The village
 **Studio** has easels for pixel or freehand painting. Put up to three of yours up for sale and they hang on its
 gallery wall; E there opens the catalogue, where prints cost KP and the artist earns it.
+The pottery wheel lets you pick a mug shape and glaze and fire it for 10 KP; everyone sees it when you hold a drink.
 
 The Café's coffee machine is a little barista game: grind, tamp, pull the shot, steam the milk, pour to the line
 and trace latte art. Your score sets the stars on the cup you carry.
