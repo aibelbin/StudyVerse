@@ -33,7 +33,7 @@ const EASELS: [number, number][] = [[-4.5, 0.2], [0, 1.0], [4.5, 0.2]];
 const parts = merge(
   plant(-7.3, -4.8), plant(7.3, -4.8), plant(-7.3, 4.8), plant(7.3, 4.8),
   simpleToy('gallery', 'gallery', 0, -4.6, 3),
-  simpleToy('booth', 'photoBooth', -6.6, -1, 2.4),
+  simpleToy('booth', 'photoBooth', -2.9, -1, 2.4), // just behind BOOTH_CAM, so the tripod never shows in the photo
   simpleToy('wheel', 'wheel', 6.6, 2.2, 1.6, { x: 6.6, z: 2.2, w: 0.9, d: 0.9 }),
   simpleToy('easel-1', 'easel', -4.5, 0.2, 1.6, { x: -4.5, z: 0.2, w: 0.9, d: 0.9 }),
   simpleToy('easel-2', 'easel', 0, 1.0, 1.6, { x: 0, z: 1.0, w: 0.9, d: 0.9 }),
