@@ -31,6 +31,8 @@ import { openPaint } from './art/paint';
 import { openPottery } from './art/pottery';
 import { openSpotPicker } from './art/cabinPanel';
 import { ChatPanel } from './hud/chat';
+import { openInbox, openWriter } from './art/mail';
+import type { CabinEntry } from '../../shared/art';
 
 const TOKEN_KEY = 'vsw-token';
 const hud = new Hud();
@@ -43,6 +45,11 @@ let adminPanel: AdminPanel | null = null;
 let bag: BagItem[] = [];
 let onlineList: OnlineEntry[] = [];
 let features: Features | null = null;
+let cabins: CabinEntry[] = [];
+
+const writeLetter = (to?: string) => openWriter(hud, cabins.filter((c) => c.owner !== hud.meId).map((c) => ({ id: c.owner, name: c.name })), to,
+  (to, text) => conn.send({ t: 'sendLetter', to, text }));
+hud.onMail = () => conn.send({ t: 'getMail' });
 
 const wardrobe = new Wardrobe({
   hud,
@@ -177,6 +184,7 @@ conn.onMessage = (m) => {
     if (m.token) localStorage.setItem(TOKEN_KEY, m.token);
     hello = { t: 'hello', token: localStorage.getItem(TOKEN_KEY)! };
     hud.show();
+    if (!game && m.unread) hud.toast(`📬 You have ${m.unread} unread letter${m.unread > 1 ? 's' : ''}. Check your mailbox ✉️`, 6000);
     if (!game) {
       game = new Game(byId('c') as HTMLCanvasElement, byId('fade'), hud, (msg) => conn.send(msg));
       const extras = new Extras();
@@ -204,6 +212,8 @@ conn.onMessage = (m) => {
           paintDone = done;
           conn.send({ t: 'paint', title, price: 1, forSale: false, mode: 'photo', png });
         });
+        if (toy.kind === 'postBox') writeLetter();
+        if (toy.kind === 'mailbox' && toy.id === `mailbox-${hud.meId}`) hud.onMail();
         if (toy.kind === 'wheel') openPottery(hud, () => wallet, game?.myView()?.mug ?? null, (mug) => conn.send({ t: 'throwMug', mug }));
       };
       game.onSpot = (spot) => openSpotPicker(hud, spot, {
@@ -325,9 +335,21 @@ conn.onMessage = (m) => {
     paintDone?.(m.t === 'portfolio');
     paintDone = null;
   }
-  if (m.t === 'welcome' || m.t === 'village') book.setRoster(m.cabins);
+  if (m.t === 'welcome' || m.t === 'village') {
+    book.setRoster(m.cabins);
+    cabins = m.cabins;
+    hud.mail = !!cabins.find((c) => c.owner === hud.meId)?.mail;
+  }
+  if (m.t === 'letter') {
+    const l = m.letter;
+    hud.toast(l.from === hud.meId ? `✉️ Sent to ${cabins.find((c) => c.owner === l.to)?.name ?? 'them'}` : `📬 You've got mail from ${l.fromName}`, 4000);
+  }
+  if (m.t === 'mail') {
+    openInbox(hud, m.letters, (l) => writeLetter(l.from), (id) => conn.send({ t: 'deleteLetter', id }));
+    if (m.letters.some((l) => !l.read)) conn.send({ t: 'readMail' });
+  }
   game?.onMessage(m);
-  if (m.t === 'village') game?.onVillage();
+  if (m.t === 'village') game?.onVillage(m.cabins);
   if (m.t === 'toyState' || m.t === 'wallet' || m.t === 'playerUpdated') refreshGarden();
 };
 

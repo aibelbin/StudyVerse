@@ -3,7 +3,7 @@ import type { Note } from '../../../shared/types';
 import { h } from './dom';
 import type { Hud } from './hud';
 
-const ago = (ms: number) => {
+export const ago = (ms: number) => {
   const m = Math.round(ms / 60_000);
   if (m < 1) return 'just now';
   if (m < 60) return `${m} min ago`;

@@ -152,6 +152,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 .paint-footer { display: flex; flex-wrap: wrap; gap: 8px; }
 .paint-footer button { min-height: 36px; }
 #status .mini.on { background: #ffd9a0; }
+#status .mini.dot { position: relative; }
+#status .mini.dot::after { content: ''; position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--bad); }
 .coffee .drinks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .coffee .bar { position: relative; height: 26px; border-radius: 13px; background: #f0e2d6; margin: 12px 0; overflow: hidden; }
 .coffee .zone { position: absolute; top: 0; bottom: 0; background: #a8d8a0; }

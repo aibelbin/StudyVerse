@@ -23,6 +23,9 @@ export class Hud {
   onAdmin: () => void = () => {};
   /** 🎒 the bag. */
   onBag: () => void = () => {};
+  /** ✉️ your mail; `mail` puts a dot on it (unread letters). */
+  onMail: () => void = () => {};
+  mail = false;
   /** Shows the 🛡️ button. */
   admin = false;
   /** Gifts switched on (by the admins). */
@@ -73,7 +76,7 @@ export class Hud {
       ? `${s.phase === 'focus' ? '📖 Focus' : '☕ Break'} · ${formatClock(sessionLeftMs(s, now))}`
       : me.slotId ? '🪑 Sitting' : `🚶 Wandering ${def.where}`;
     this.dnd = me.dnd;
-    const key = `${me.name}|${line}|${def.id}|${this.muted}|${this.walletText}|${me.dnd}|${this.voiceState}|${this.quality}|${moodText(me.status)}|${this.admin}|${this.latch}`;
+    const key = `${me.name}|${line}|${def.id}|${this.muted}|${this.walletText}|${me.dnd}|${this.voiceState}|${this.quality}|${moodText(me.status)}|${this.admin}|${this.latch}|${this.mail}`;
     if (key === this.statusKey) return;
     this.statusKey = key;
     byId('status').replaceChildren(
@@ -90,6 +93,7 @@ export class Hud {
           h('button', { className: 'mini', title: this.muted ? 'Sound off' : 'Sound on', textContent: this.muted ? '🔇' : '🔊', onclick: () => this.onToggleMute() }),
           h('button', { className: 'mini', title: this.quality === 'high' ? 'Graphics: High (click for Lite)' : 'Graphics: Lite (click for High)', textContent: this.quality === 'high' ? '✨' : '🍃', onclick: () => this.onToggleQuality() }),
           ...(this.latch !== null ? [h('button', { className: `mini${this.latch ? ' on' : ''}`, title: this.latch ? 'Door latched: visitors bounce off · click to open' : 'Door open · click to latch it', textContent: this.latch ? '🔒' : '🔓', onclick: () => this.onToggleLatch() })] : []),
+          h('button', { className: `mini${this.mail ? ' dot' : ''}`, title: this.mail ? 'You have mail!' : 'Your mail', textContent: '✉️', onclick: () => this.onMail() }),
           h('button', { className: 'mini', title: 'Your bag (I)', textContent: '🎒', onclick: () => this.onBag() }),
           h('button', { className: 'mini', title: 'Full screen (F)', textContent: '⛶', onclick: () => toggleFullscreen() }),
           ...(this.admin ? [h('button', { className: 'mini', title: 'Admin panel', textContent: '🛡️', onclick: () => this.onAdmin() })] : []),

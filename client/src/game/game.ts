@@ -7,7 +7,8 @@ import type { ClientMsg, ErrorCode, ServerMsg } from '../../../shared/protocol';
 import { SCENES } from '../../../shared/scenes';
 import { SLIDE_RUN } from '../../../shared/scenes/kitToys';
 import type { SceneDef, Slot, Spot, Toy } from '../../../shared/scenes/types';
-import { cabinOwner } from '../../../shared/art';
+import { cabinOwner, type CabinEntry } from '../../../shared/art';
+import { mailFlags } from '../art/mail';
 import { BoothTimer, capturePhoto, flash, openPhotoPreview, runCountdown } from '../art/booth';
 import { ArtRooms, roomViews, type RoomViews } from '../art/rooms';
 import {
@@ -142,6 +143,8 @@ export class Game {
   private fps: { el: HTMLElement; frames: number; since: number } | null = null;
   private def: SceneDef | null = null;
   private scene: THREE.Scene | null = null;
+  /** The latest cabin roster, to spot mailbox flag flips. */
+  private cabins: CabinEntry[] = [];
   private me: PlayerView | null = null;
   private myChar: Character | null = null;
   private remotes = new Map<string, Remote>();
@@ -312,6 +315,7 @@ export class Game {
         syncClock(m.serverTime);
         this.toyStates = { ...m.toys };
         this.treeMinutes = m.treeMinutes;
+        this.cabins = m.cabins;
         this.enter(m.you, m.players);
         this.hud.setOnline(m.online);
         this.hud.resetFeed(m.feed);
@@ -485,11 +489,31 @@ export class Game {
     if (this.voice) this.voice.stage = this.def.stage;
   }
 
-  /** A cabin was added: if you are standing in the village, rebuild it around you (a latch flip shows on the next visit). */
-  onVillage(): void {
-    if (this.def?.id !== 'village' || !this.me || book.get('village')!.doors.length === this.def.doors.length) return;
-    const others = [...this.remotes.values()].map((r) => r.view);
-    this.enter({ ...this.me, x: this.x, z: this.z, facing: this.facing }, others);
+  /** A cabin was added: if you are standing in the village, rebuild it around you (a latch flip shows on the next visit). Mailbox flags flip in place. */
+  onVillage(cabins: CabinEntry[]): void {
+    const flipped = mailFlags(this.cabins, cabins);
+    this.cabins = cabins;
+    if (this.def?.id !== 'village' || !this.me) return;
+    if (book.get('village')!.doors.length !== this.def.doors.length) {
+      const others = [...this.remotes.values()].map((r) => r.view);
+      this.enter({ ...this.me, x: this.x, z: this.z, facing: this.facing }, others);
+    }
+    if (!flipped.length) return;
+    const flags = new Map<string, THREE.Object3D>();
+    this.scene?.traverse((o) => {
+      if (o.name === 'flag' && o.parent) flags.set(`${o.parent.position.x},${o.parent.position.z}`, o);
+    });
+    for (const owner of flipped) {
+      const toy = this.def.toys.find((t) => t.id === `mailbox-${owner}`);
+      const flag = toy && flags.get(`${toy.x},${toy.z}`);
+      if (flag) flag.rotation.z = cabins.find((c) => c.owner === owner)!.mail ? 0 : -1.4; // the mailbox decor's up/down poses
+    }
+  }
+
+  private mailboxPrompt(toy: Toy): string {
+    const owner = toy.id.slice('mailbox-'.length);
+    if (owner === this.me?.id) return '[E] check your mail 📬';
+    return `🔒 ${this.cabins.find((c) => c.owner === owner)?.name ?? 'Someone'}'s mailbox`;
   }
 
   private addRemote(v: PlayerView): void {
@@ -1272,7 +1296,7 @@ export class Game {
         const spot = slot.toyId ? this.riderSpot(slot) : slot;
         return { slot, x: spot.x, z: spot.z };
       });
-      const toys = this.def.toys.map((toy) => ({ toy, prompt: toy.kind === 'plot' ? this.plotPrompt(toy) : toyPrompt(toy, this.toyStates[toy.id]) }));
+      const toys = this.def.toys.map((toy) => ({ toy, prompt: toy.kind === 'plot' ? this.plotPrompt(toy) : toy.kind === 'mailbox' ? this.mailboxPrompt(toy) : toyPrompt(toy, this.toyStates[toy.id]) }));
       this.target = pickTarget(this.x, this.z, placed, this.occupied, toys, others, this.art.targets(this.me.id));
     }
     this.hud.setPrompt(this.promptText());
