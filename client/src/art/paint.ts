@@ -1,7 +1,6 @@
-import { PAINT_SIZE, PAINTING_MAX_BYTES, PRICE_RANGE, TITLE_MAX, type PaintMode } from '../../../shared/art';
+import { PAINT_SIZE, PAINTING_MAX_BYTES, PALETTE, PRICE_RANGE, TITLE_MAX, type PaintMode } from '../../../shared/art';
 import { h } from '../hud/dom';
 import type { Hud } from '../hud/hud';
-import { PALETTE } from '../../../shared/art';
 import { Undo, blank, floodFill, hexToRgba, line, stamp } from './paintCore';
 
 export interface PaintSave {

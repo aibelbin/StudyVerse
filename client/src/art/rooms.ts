@@ -12,16 +12,13 @@ export interface RoomViews {
   shelves: Shelves | null;
 }
 
-const isCork = (sp: Spot) => CORK_PINS.some((c) => c.id === sp.id);
-
 /** Builds the frames and shelves for a scene's spots into its root. */
 export function roomViews(def: SceneDef, root: THREE.Object3D): RoomViews {
-  const walls = (def.spots ?? []).filter((sp) => sp.kind === 'wall' && !isCork(sp));
-  const pins = (def.spots ?? []).filter(isCork);
+  const walls = (def.spots ?? []).filter((sp) => sp.kind === 'wall');
   const shelves = (def.spots ?? []).filter((sp) => sp.kind === 'shelf');
   const v = {
     pictures: walls.length ? new Pictures(walls) : null,
-    cork: pins.length ? new Pictures(pins, { size: 0.42, polaroid: true }) : null,
+    cork: def.id === 'studio' ? new Pictures(CORK_PINS, { size: 0.42, polaroid: true }) : null,
     shelves: shelves.length ? new Shelves(shelves) : null,
   };
   for (const x of [v.pictures, v.cork, v.shelves]) if (x) root.add(x.root);
@@ -87,8 +84,7 @@ export class ArtRooms {
   /** The first paintings for sale onto the studio's frames, the newest photos onto its cork board. */
   private applyGallery(): void {
     if (this.def?.id !== 'studio') return;
-    const frames = (this.def.spots ?? []).filter((sp) => !isCork(sp));
-    this.views.pictures?.set(frames.map((f, i) => ({ id: f.id, painting: this.gallery[i] ?? null })));
+    this.views.pictures?.set((this.def.spots ?? []).map((f, i) => ({ id: f.id, painting: this.gallery[i] ?? null })));
     this.views.cork?.set(CORK_PINS.map((f, i) => ({ id: f.id, painting: this.photos[i] ?? null })));
   }
 

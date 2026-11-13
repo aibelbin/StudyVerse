@@ -18,7 +18,7 @@ const GALLERY_FRAMES: Spot[] = Array.from({ length: GALLERY_WALL }, (_, i) => ({
 export const BOOTH_BOX: Box = { x: -6.6, z: -1, w: 2.6, d: 2 };
 export const BOOTH_CAM = { x: -3.2, y: 1.6, z: -1, lookAt: { x: -7.5, y: 1.0, z: -1 } };
 
-/** Cork board pin spots: two rows of four on the east wall. */
+/** Cork board pins (the client's photo cards, not cabin-style spots): two rows of four on the east wall. */
 export const CORK_PINS: Spot[] = Array.from({ length: 8 }, (_, i) => ({
   id: `c${i}`,
   kind: 'wall' as const,
@@ -70,7 +70,7 @@ export const studio: SceneDef = {
     trim: '#b07f5a',
   },
   ...parts,
-  spots: [...GALLERY_FRAMES, ...CORK_PINS],
+  spots: GALLERY_FRAMES,
   doors: [{ id: 'to-village', box: { x: 0, z: 5.6, w: 1.6, d: 0.8 }, toScene: 'village', toSpawn: 'studio-door' }],
   spawns: [{ id: 'entrance', x: 0, z: 4.4, facing: Math.PI }],
 };
