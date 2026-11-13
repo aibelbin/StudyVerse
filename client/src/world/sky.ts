@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import type { SceneDef } from '../../../shared/scenes/types';
+import { skyDir, STAR_COUNT, STAR_SEED, starField, type Constellation } from '../../../shared/stars';
 import type { ToyState } from '../../../shared/toys';
+import { serverNow } from '../game/clock';
 import { glow } from './materials';
 import { SUNBEAM } from './decor';
 import { PALETTE as P } from './palette';
@@ -93,6 +95,21 @@ export function clockHours(date: Date, override: string | null): number {
 
 const LIGHTS = 4;
 
+export const SHOOT_SLOT = 30_000;
+const SHOOT_MS = 600;
+
+/** The shooting star of a 30 s slot (every other slot, at a seeded moment, so one every 30–90 s, ~60 on average) in unit-square sky coords; the same for everyone. */
+export function shootingStar(slot: number): { at: number; from: [number, number]; to: [number, number] } | null {
+  if (slot % 2) return null;
+  const r = rng(slot);
+  const x = 0.15 + r() * 0.7;
+  const y = r() * 0.4;
+  const dx = (r() < 0.5 ? -1 : 1) * (0.15 + r() * 0.15);
+  return { at: slot * SHOOT_SLOT + r() * (SHOOT_SLOT - SHOOT_MS), from: [x, y], to: [x + dx, y + 0.15 + r() * 0.15] };
+}
+
+const DOME = (x: number, y: number, r: number) => skyDir(x, y).map((v) => v * r) as [number, number, number];
+
 /** A soft round glow (radial gradient) for the sun and the moon. */
 function glowSprite(color: string, size: number): THREE.Sprite {
   const c = document.createElement('canvas');
@@ -122,6 +139,15 @@ export class SkyRig {
   private moon: THREE.Mesh;
   private moonGlow: THREE.Sprite;
   private sunGlow: THREE.Sprite;
+  /** The shared star field, everyone's constellations and the shooting star, on the dome facing north. */
+  private dome = new THREE.Group();
+  private field = starField(STAR_SEED, STAR_COUNT).map((s) => DOME(s.x, s.y, 145));
+  private fieldStars: THREE.Points;
+  private lines = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: '#cfdcff', fog: false, transparent: true, depthWrite: false }));
+  private shoot = new THREE.Line(
+    new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(6), 3)),
+    new THREE.LineBasicMaterial({ color: '#ffffff', fog: false, transparent: true, depthWrite: false }),
+  );
   private lights: THREE.PointLight[] = [];
   private spots: { x: number; z: number; y: number; fire?: string }[];
   private lastPool = -1e9;
@@ -154,7 +180,11 @@ export class SkyRig {
     this.moon = new THREE.Mesh(new THREE.SphereGeometry(7, 24, 16), new THREE.MeshBasicMaterial({ color: '#fff6d8', fog: false, transparent: true }));
     this.moonGlow = glowSprite('#fff2c8', 44);
     this.sunGlow = glowSprite('#fff4d0', 70);
-    built.scene.add(this.stars, this.stars2, this.moon, this.moonGlow, this.sunGlow);
+    this.fieldStars = layer(this.field.flat());
+    (this.fieldStars.material as THREE.PointsMaterial).size = 3;
+    this.shoot.frustumCulled = false;
+    this.dome.add(this.fieldStars, this.lines, this.shoot);
+    built.scene.add(this.stars, this.stars2, this.moon, this.moonGlow, this.sunGlow, this.dome);
 
     this.spots = def.decor.filter((d) => d.kind === 'lampPost').map((d) => ({ x: d.x, z: d.z, y: 2.4 }));
     for (const t of def.toys) if (t.kind === 'campfire') this.spots.push({ x: t.x, z: t.z, y: 0.8, fire: t.id });
@@ -163,6 +193,11 @@ export class SkyRig {
       this.lights.push(l);
       built.scene.add(l);
     }
+  }
+
+  setConstellations(cs: Constellation[]): void {
+    this.lines.geometry.dispose();
+    this.lines.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(cs.flatMap((c) => c.edges.flatMap(([a, b]) => [...this.field[a], ...this.field[b]])), 3));
   }
 
   update(hours: number, focus: { x: number; z: number }, now: number, toys: Record<string, ToyState>): void {
@@ -195,6 +230,21 @@ export class SkyRig {
       st.position.set(focus.x, 0, focus.z);
       (st.material as THREE.PointsMaterial).opacity = starA * (0.7 + 0.3 * Math.sin(tw + ph));
       st.visible = s.night > 0.2;
+    }
+    this.dome.position.set(focus.x, 0, focus.z);
+    this.dome.visible = s.night > 0.2;
+    (this.fieldStars.material as THREE.PointsMaterial).opacity = starA;
+    (this.lines.material as THREE.LineBasicMaterial).opacity = starA * 0.55;
+    const t = serverNow();
+    const shot = shootingStar(Math.floor(t / SHOOT_SLOT));
+    const k = shot ? (t - shot.at) / SHOOT_MS : -1;
+    this.shoot.visible = !!shot && s.night > 0.6 && k >= 0 && k < 1;
+    if (shot && this.shoot.visible) {
+      const at = (q: number) => DOME(shot.from[0] + (shot.to[0] - shot.from[0]) * q, shot.from[1] + (shot.to[1] - shot.from[1]) * q, 140);
+      const p = this.shoot.geometry.getAttribute('position') as THREE.BufferAttribute;
+      p.set([...at(Math.max(0, k - 0.35)), ...at(k)]);
+      p.needsUpdate = true;
+      (this.shoot.material as THREE.LineBasicMaterial).opacity = 1 - k * 0.7;
     }
     const moonA = Math.min(1, Math.max(0, (s.night - 0.3) * 2));
     this.moon.visible = this.moonGlow.visible = s.night > 0.3;

@@ -1,4 +1,5 @@
 import type { SceneDef } from '../../../shared/scenes/types';
+import type { Constellation } from '../../../shared/stars';
 import { Ambience } from '../audio/ambience';
 import { AudioEngine } from '../audio/engine';
 import { JukeboxPlayer } from '../audio/jukebox';
@@ -20,6 +21,7 @@ export class Extras implements GameHooks {
   private ambience = new Map<string, Ambience>();
   private def: SceneDef | null = null;
   private timeOverride = new URLSearchParams(location.search).get('time');
+  private constellations: Constellation[] = [];
 
   enterScene(def: SceneDef, built: BuiltScene): void {
     let life = this.lives.get(def.id);
@@ -35,11 +37,19 @@ export class Extras implements GameHooks {
     if (!def.theme.indoor && !this.ambience.has(def.id)) this.ambience.set(def.id, new Ambience(this.audio, def));
     if (built.outdoor) {
       let s = this.skies.get(def.id);
-      if (!s) this.skies.set(def.id, (s = new SkyRig(built, def)));
+      if (!s) {
+        this.skies.set(def.id, (s = new SkyRig(built, def)));
+        s.setConstellations(this.constellations);
+      }
       this.sky = s;
     } else {
       this.sky = null;
     }
+  }
+
+  setConstellations(cs: Constellation[]): void {
+    this.constellations = cs;
+    for (const s of this.skies.values()) s.setConstellations(cs);
   }
 
   frame(f: FrameInfo): void {

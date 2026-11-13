@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clockHours, lerpHex, skyAt } from './sky';
+import { clockHours, lerpHex, SHOOT_SLOT, shootingStar, skyAt } from './sky';
 
 describe('skyAt', () => {
   it('is bright at noon and dark late at night', () => {
@@ -54,5 +54,16 @@ describe('clockHours', () => {
     expect(mid.horizon).not.toBe(golden.horizon);
     expect(mid.horizon).not.toBe(dusk.horizon);
     expect(skyAt(13)).toMatchObject({ top: '#7cc4f2', horizon: '#cfeaf8', bottom: '#fdf0dc' });
+  });
+});
+
+describe('shootingStar', () => {
+  it('falls in every other 30 s slot, inside its slot, the same for everyone', () => {
+    const slot = 58_000_000;
+    expect(shootingStar(slot + 1)).toBeNull();
+    const s = shootingStar(slot)!;
+    expect(shootingStar(slot)).toEqual(s);
+    expect(s.at).toBeGreaterThanOrEqual(slot * SHOOT_SLOT);
+    expect(s.at + 600).toBeLessThan((slot + 1) * SHOOT_SLOT);
   });
 });

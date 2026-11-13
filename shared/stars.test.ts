@@ -1,6 +1,6 @@
 // shared/stars.test.ts
 import { describe, expect, it } from 'vitest';
-import { isConstellationInput, STAR_COUNT, STAR_SEED, starField } from './stars';
+import { isConstellationInput, skyDir, STAR_COUNT, STAR_SEED, starField } from './stars';
 
 describe('starField', () => {
   it('is deterministic and inside the unit square', () => {
@@ -29,5 +29,18 @@ describe('isConstellationInput', () => {
     expect(isConstellationInput('Bear', [[0, 1, 2]])).toBe(false);
     expect(isConstellationInput('Bear', [[0, 1], [1, 0]])).toBe(false);
     expect(isConstellationInput('Bear', 'nope')).toBe(false);
+  });
+});
+
+describe('skyDir', () => {
+  it('maps the unit square onto a 120° band of the northern sky, top row highest', () => {
+    const el = (d: number[]) => (Math.asin(d[1]) * 180) / Math.PI;
+    const az = (d: number[]) => (Math.atan2(d[0], -d[2]) * 180) / Math.PI;
+    for (const [x, y] of [[0, 0], [0.5, 0.5], [1, 1], [0.3, 0.8]]) expect(Math.hypot(...skyDir(x, y))).toBeCloseTo(1);
+    expect(el(skyDir(0.5, 0))).toBeCloseTo(70);
+    expect(el(skyDir(0.5, 1))).toBeCloseTo(25);
+    expect(az(skyDir(0, 0.5))).toBeCloseTo(-60);
+    expect(az(skyDir(1, 0.5))).toBeCloseTo(60);
+    expect(skyDir(0.5, 0.5)[2]).toBeLessThan(0);
   });
 });

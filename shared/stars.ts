@@ -36,3 +36,10 @@ export function isConstellationInput(name: string, edges: unknown): edges is [nu
   }
   return true;
 }
+
+/** A unit-square star → a unit direction on the night dome: x across a 120° band centred on north (−z, where the camera looks), y from 70° (top) down to 25° elevation. The sky and the editor both draw with this. */
+export function skyDir(x: number, y: number): [number, number, number] {
+  const az = (x - 0.5) * ((120 * Math.PI) / 180);
+  const el = ((70 - 45 * y) * Math.PI) / 180;
+  return [Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)];
+}

@@ -32,6 +32,8 @@ import { openPottery } from './art/pottery';
 import { openSpotPicker } from './art/cabinPanel';
 import { ChatPanel } from './hud/chat';
 import { openInbox, openWriter } from './art/mail';
+import { openStars } from './art/stars';
+import type { Constellation } from '../../shared/stars';
 import type { CabinEntry } from '../../shared/art';
 
 const TOKEN_KEY = 'vsw-token';
@@ -46,6 +48,8 @@ let bag: BagItem[] = [];
 let onlineList: OnlineEntry[] = [];
 let features: Features | null = null;
 let cabins: CabinEntry[] = [];
+let constellations: Constellation[] = [];
+let extras: Extras | null = null;
 
 const writeLetter = (to?: string) => openWriter(hud, cabins.filter((c) => c.owner !== hud.meId).map((c) => ({ id: c.owner, name: c.name })), to,
   (to, text) => conn.send({ t: 'sendLetter', to, text }));
@@ -187,12 +191,12 @@ conn.onMessage = (m) => {
     if (!game && m.unread) hud.toast(`📬 You have ${m.unread} unread letter${m.unread > 1 ? 's' : ''}. Check your mailbox ✉️`, 6000);
     if (!game) {
       game = new Game(byId('c') as HTMLCanvasElement, byId('fade'), hud, (msg) => conn.send(msg));
-      const extras = new Extras();
-      game.hooks = extras;
-      hud.muted = extras.audio.muted;
+      const ex = (extras = new Extras());
+      game.hooks = ex;
+      hud.muted = ex.audio.muted;
       hud.onToggleMute = () => {
-        extras.audio.setMuted(!extras.audio.muted);
-        hud.muted = extras.audio.muted;
+        ex.audio.setMuted(!ex.audio.muted);
+        hud.muted = ex.audio.muted;
       };
       game.onLocalToy = (toy) => {
         if (toy.kind === 'shop') wardrobe.open('hat');
@@ -214,6 +218,10 @@ conn.onMessage = (m) => {
         });
         if (toy.kind === 'postBox') writeLetter();
         if (toy.kind === 'mailbox' && toy.id === `mailbox-${hud.meId}`) hud.onMail();
+        if (toy.kind === 'observatory') {
+          if ((game?.night ?? 0) < 0.5) hud.toast('Come back after dark ✨', 3000);
+          else openStars(hud, constellations, hud.meId, (name, edges) => conn.send({ t: 'saveConstellation', name, edges }));
+        }
         if (toy.kind === 'wheel') openPottery(hud, () => wallet, game?.myView()?.mug ?? null, (mug) => conn.send({ t: 'throwMug', mug }));
       };
       game.onSpot = (spot) => openSpotPicker(hud, spot, {
@@ -347,6 +355,10 @@ conn.onMessage = (m) => {
   if (m.t === 'mail') {
     openInbox(hud, m.letters, (l) => writeLetter(l.from), (id) => conn.send({ t: 'deleteLetter', id }));
     if (m.letters.some((l) => !l.read)) conn.send({ t: 'readMail' });
+  }
+  if (m.t === 'welcome' || m.t === 'sky') {
+    constellations = m.constellations;
+    extras?.setConstellations(constellations);
   }
   game?.onMessage(m);
   if (m.t === 'village') game?.onVillage(m.cabins);

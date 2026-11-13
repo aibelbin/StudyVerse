@@ -174,7 +174,8 @@ export class Game {
   private breathSitAt: number | null = null;
   private breathDone = false;
   private sippedAt = 0;
-  private night = 0;
+  /** 0 by day … 1 at night (the observatory is night-only). */
+  night = 0;
   private timeOverride = new URLSearchParams(location.search).get('time');
   private sliding = new Map<string, { start: number; toy: Toy }>();
   private telescope = false;
