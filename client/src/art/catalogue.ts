@@ -93,16 +93,19 @@ export class Catalogue {
   }
 
   private mineView(): HTMLElement {
-    const n = this.mine.filter((p) => p.forSale).length;
+    const paintings = this.mine.filter((p) => p.mode !== 'photo');
+    const photos = this.mine.filter((p) => p.mode === 'photo');
+    const n = paintings.filter((p) => p.forSale).length;
     return h('div', {},
       h('p', { className: 'sub', textContent: `${n}/${FOR_SALE_MAX} for sale` }),
-      this.mine.length
-        ? h('div', { className: 'art-grid' }, ...this.mine.map((p) => this.tile(p, h('button', {
+      paintings.length
+        ? h('div', { className: 'art-grid' }, ...paintings.map((p) => this.tile(p, h('button', {
           type: 'button', className: p.forSale ? 'primary' : '', textContent: p.forSale ? 'For sale ✓' : 'For sale',
           disabled: !p.forSale && n >= FOR_SALE_MAX,
           onclick: () => this.send({ t: 'setSale', id: p.id, on: !p.forSale }),
         }))))
         : h('p', { className: 'sub', textContent: 'You have not painted anything yet.' }),
+      ...(photos.length ? [h('h3', { textContent: 'Photos' }), h('div', { className: 'art-grid' }, ...photos.map((p) => this.tile(p)))] : []),
       h('h3', { textContent: 'Prints you own' }),
       this.prints.length
         ? h('div', { className: 'art-grid' }, ...this.prints.map((p) => this.tile(p)))

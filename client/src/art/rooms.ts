@@ -1,31 +1,40 @@
 import type * as THREE from 'three';
 import { cabinOwner, itemLabel, type CabinState, type PaintingMeta } from '../../../shared/art';
 import type { ClientMsg, ServerMsg } from '../../../shared/protocol';
+import { CORK_PINS } from '../../../shared/scenes/studio';
 import type { SceneDef, Spot } from '../../../shared/scenes/types';
 import { Pictures, Shelves } from './views';
 
-/** A scene's picture frames and shelves (null where it has none). */
+/** A scene's picture frames, cork-board photos and shelves (null where it has none). */
 export interface RoomViews {
   pictures: Pictures | null;
+  cork: Pictures | null;
   shelves: Shelves | null;
 }
 
+const isCork = (sp: Spot) => CORK_PINS.some((c) => c.id === sp.id);
+
 /** Builds the frames and shelves for a scene's spots into its root. */
 export function roomViews(def: SceneDef, root: THREE.Object3D): RoomViews {
-  const walls = (def.spots ?? []).filter((sp) => sp.kind === 'wall');
+  const walls = (def.spots ?? []).filter((sp) => sp.kind === 'wall' && !isCork(sp));
+  const pins = (def.spots ?? []).filter(isCork);
   const shelves = (def.spots ?? []).filter((sp) => sp.kind === 'shelf');
-  const v = { pictures: walls.length ? new Pictures(walls) : null, shelves: shelves.length ? new Shelves(shelves) : null };
-  if (v.pictures) root.add(v.pictures.root);
-  if (v.shelves) root.add(v.shelves.root);
+  const v = {
+    pictures: walls.length ? new Pictures(walls) : null,
+    cork: pins.length ? new Pictures(pins, { size: 0.42, polaroid: true }) : null,
+    shelves: shelves.length ? new Shelves(shelves) : null,
+  };
+  for (const x of [v.pictures, v.cork, v.shelves]) if (x) root.add(x.root);
   return v;
 }
 
 /** The studio's gallery and the cabin you're in: what the server last said, shown on the scene's frames and shelves. */
 export class ArtRooms {
   private gallery: PaintingMeta[] = [];
+  private photos: PaintingMeta[] = [];
   private cabin: CabinState | null = null;
   private def: SceneDef | null = null;
-  private views: RoomViews = { pictures: null, shelves: null };
+  private views: RoomViews = { pictures: null, cork: null, shelves: null };
 
   constructor(private send: (m: ClientMsg) => void) {}
 
@@ -40,6 +49,7 @@ export class ArtRooms {
   onMessage(m: ServerMsg): void {
     if (m.t === 'gallery') {
       this.gallery = m.forSale;
+      this.photos = m.photos;
       this.applyGallery();
     } else if (m.t === 'cabinState' && this.def && m.state.owner === cabinOwner(this.def.id)) {
       this.cabin = m.state;
@@ -74,10 +84,12 @@ export class ArtRooms {
     return spot.kind === 'wall' ? '[E] hang a painting here' : '[E] put something on the shelf';
   }
 
-  /** The first paintings for sale, onto the studio's frames. */
+  /** The first paintings for sale onto the studio's frames, the newest photos onto its cork board. */
   private applyGallery(): void {
     if (this.def?.id !== 'studio') return;
-    this.views.pictures?.set((this.def.spots ?? []).map((f, i) => ({ id: f.id, painting: this.gallery[i] ?? null })));
+    const frames = (this.def.spots ?? []).filter((sp) => !isCork(sp));
+    this.views.pictures?.set(frames.map((f, i) => ({ id: f.id, painting: this.gallery[i] ?? null })));
+    this.views.cork?.set(CORK_PINS.map((f, i) => ({ id: f.id, painting: this.photos[i] ?? null })));
   }
 
   /** The cabin's paintings onto its wall frames and its keepsakes and bouquets onto its shelves. */

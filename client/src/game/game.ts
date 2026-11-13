@@ -8,6 +8,7 @@ import { SCENES } from '../../../shared/scenes';
 import { SLIDE_RUN } from '../../../shared/scenes/kitToys';
 import type { SceneDef, Slot, Spot, Toy } from '../../../shared/scenes/types';
 import { cabinOwner } from '../../../shared/art';
+import { BoothTimer, capturePhoto, flash, openPhotoPreview, runCountdown } from '../art/booth';
 import { ArtRooms, roomViews, type RoomViews } from '../art/rooms';
 import {
   angleDelta, BOAT_SPEED, boatOnWater, boatPoseAt, LOCAL_TOYS, slotWorld, type BoatPose, type Tilt, type ToyAction, type ToyState,
@@ -130,6 +131,7 @@ export class Game {
   private localPet: LocalPet | null = null;
   private treeMinutes = 0;
   private art = new ArtRooms((m) => this.send(m));
+  private booth = new BoothTimer();
 
   private renderer: THREE.WebGLRenderer;
   private rig = new CameraRig();
@@ -278,6 +280,19 @@ export class Game {
 
   stop(): void {
     this.renderer.setAnimationLoop(null);
+  }
+
+  /** The photo booth: 3-2-1 over your head, a flash, then keep or discard the shot. */
+  takePhoto(): void {
+    if (!this.booth.canUse(performance.now())) return this.hud.toast('One photo every 10 seconds', 2500);
+    this.booth.start(performance.now());
+    runCountdown(this.booth, (s) => {
+      this.myChar?.overhead.pop(s === 'shoot' ? '📸' : String(s), performance.now());
+      if (s !== 'shoot' || !this.scene || this.def?.id !== 'studio') return;
+      flash();
+      const url = capturePhoto(this.renderer, this.scene);
+      openPhotoPreview(this.hud, url, (title) => this.send({ t: 'paint', title, price: 1, forSale: false, mode: 'photo', png: url.split(',')[1] }), () => {});
+    });
   }
 
   /** A speech bubble over whoever said something in Everyone chat, if they're in this scene. */

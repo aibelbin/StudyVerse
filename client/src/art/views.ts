@@ -24,13 +24,14 @@ function paintingTexture(p: PaintingMeta): THREE.Texture {
   return tex;
 }
 
-/** Wooden frames on a wall; each shows a painting, or stays an empty frame. */
+/** Wooden frames on a wall (or white polaroid cards); each shows a painting, or stays empty. */
 export class Pictures {
   readonly root = new THREE.Group();
   private planes = new Map<string, THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>>();
 
-  constructor(frames: Spot[], size = 0.8) {
+  constructor(frames: Spot[], { size = 0.8, polaroid = false } = {}) {
     const wood = mat(P.woodDark);
+    const card = mat('#fbfaf6');
     const t = 0.06;
     const bar = (w: number, h: number) => new THREE.BoxGeometry(w, h, 0.04);
     const plane = new THREE.PlaneGeometry(size, size);
@@ -39,7 +40,8 @@ export class Pictures {
       g.position.set(f.x, f.y, f.z);
       g.rotation.y = f.rot;
       const o = size / 2 + t / 2;
-      g.add(
+      if (polaroid) g.add(mesh(new THREE.BoxGeometry(size + 0.08, size + 0.2, 0.01), card, 0, -0.06, 0.015, false)); // the wide bottom strip
+      else g.add(
         mesh(bar(size + t * 2, t), wood, 0, o, 0.02, false),
         mesh(bar(size + t * 2, t), wood, 0, -o, 0.02, false),
         mesh(bar(t, size), wood, -o, 0, 0.02, false),

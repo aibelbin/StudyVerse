@@ -199,6 +199,7 @@ conn.onMessage = (m) => {
           conn.send({ t: 'paint', ...p });
         });
         if (toy.kind === 'gallery') catalogue.show('sale');
+        if (toy.kind === 'photoBooth') game?.takePhoto();
       };
       game.onSpot = (spot) => openSpotPicker(hud, spot, {
         paintings: catalogue.owned(),
