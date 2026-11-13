@@ -8,7 +8,8 @@ import { BODY, buildItem } from './outfits';
 import { Overhead } from './overhead';
 import { textSprite } from './text';
 import { disposeTree, toonMat } from './materials';
-import { bouquetMesh, giftSprite } from './items';
+import { bouquetMesh, giftSprite, mugMesh } from './items';
+import { DEFAULT_MUG, type Mug } from '../../../shared/mug';
 
 const INK = '#2a2430';
 
@@ -145,8 +146,8 @@ export class Character {
   }
 
   /** A cup of coffee (or matcha, or cocoa) in the right hand, steaming. */
-  setHolding(drink: HoldItem | null, flower?: Flower, gift?: Gift): void {
-    const key = drink === 'bouquet' ? `bouquet:${flower}` : drink === 'gift' ? `gift:${gift}` : drink;
+  setHolding(drink: HoldItem | null, flower?: Flower, gift?: Gift, mug: Mug = DEFAULT_MUG): void {
+    const key = drink === 'bouquet' ? `bouquet:${flower}` : drink === 'gift' ? `gift:${gift}` : `${drink}:${JSON.stringify(mug)}`;
     if (key === this.cupKind) return;
     this.cupKind = key;
     if (this.cup) {
@@ -174,13 +175,7 @@ export class Character {
       return;
     }
     const fill = { espresso: '#5a3220', latte: '#c9a27a', matcha: '#8cc77a', cocoa: '#6b3e2a' }[drink];
-    const g = new THREE.Group();
-    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.055, 0.13, 14), toonMat({ color: '#fffaf2', roughness: 0.6 }));
-    cup.castShadow = true;
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.064, 0.064, 0.01, 14), toonMat({ color: fill }));
-    top.position.y = 0.06;
-    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.066, 0.05, 14), toonMat({ color: '#c98a5a' }));
-    g.add(cup, top, sleeve);
+    const g = mugMesh(mug, fill);
     const steamMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.5, depthWrite: false });
     for (let i = 0; i < 3; i++) {
       const puff = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 4), steamMat);

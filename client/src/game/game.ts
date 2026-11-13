@@ -55,6 +55,7 @@ import { GolfCourse } from '../golf/course';
 import { GolfPlay } from '../golf/play';
 import { Floaters } from '../toys/floaters';
 import { PetModel } from '../pets/model';
+import { DEFAULT_MUG } from '../../../shared/mug';
 
 interface Remote {
   view: PlayerView;
@@ -1189,7 +1190,7 @@ export class Game {
       r.char.facing = facing;
       r.char.setDim(!r.view.connected);
       r.char.overhead.setBadge(this.badgeFor(r.view));
-      r.char.setHolding(r.view.holding?.item ?? null, r.view.holding?.flower, r.view.holding?.gift);
+      r.char.setHolding(r.view.holding?.item ?? null, r.view.holding?.flower, r.view.holding?.gift, r.view.mug ?? DEFAULT_MUG);
       r.char.overhead.setStatus(moodText(r.view.status));
       r.char.overhead.setSession(r.view.session, sNow);
       r.char.overhead.setRain(r.view.rainUntil > sNow);
@@ -1243,7 +1244,7 @@ export class Game {
       { id: this.me.id, x: this.x, z: this.z, voice: this.me.voice, dnd: this.me.dnd },
       [...this.remotes.values()].map((r) => ({ id: r.view.id, x: r.char.root.position.x, z: r.char.root.position.z, voice: r.view.voice && r.view.connected, dnd: r.view.dnd })),
     );
-    c.setHolding(this.me.holding?.item ?? null, this.me.holding?.flower, this.me.holding?.gift);
+    c.setHolding(this.me.holding?.item ?? null, this.me.holding?.flower, this.me.holding?.gift, this.me.mug ?? DEFAULT_MUG);
     c.overhead.setStatus(moodText(this.me.status));
     c.update(dt, nowP);
 
