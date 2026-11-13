@@ -20,7 +20,7 @@ export function openPottery(hud: Hud, wallet: () => Wallet | null, current: Mug 
   sun.position.set(2, 3, 3);
   scene.add(sun);
   const cam = new THREE.PerspectiveCamera(32, 1, 0.1, 20);
-  cam.position.set(0, 0.16, 0.45);
+  cam.position.set(0, 0.2, 0.7);
   cam.lookAt(0, 0.07, 0);
   let spin: THREE.Group | null = null;
   let raf = 0;

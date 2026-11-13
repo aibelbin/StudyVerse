@@ -60,7 +60,7 @@ button.primary { background: var(--acc); color: #fff; border-color: transparent;
 button.mini { padding: 2px 7px; border-radius: 8px; font-size: 13px; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 
-.modal-back { position: fixed; inset: 0; background: #3d2f3a55; display: grid; place-items: center; }
+.modal-back { position: fixed; inset: 0; background: #3d2f3a55; display: grid; place-items: center; z-index: 30; }
 .modal { padding: 20px 22px; width: min(460px, 92vw); }
 .modal h2 { margin: 0 0 12px; font-size: 20px; }
 .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
