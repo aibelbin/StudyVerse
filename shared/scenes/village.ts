@@ -26,7 +26,7 @@ function lot(k: number, x: number, z: number, e: CabinEntry | undefined, doors: 
     decor: [
       { kind: 'cabin', x, z, w: 5, d: 4.5, h: 2.6, color: look.wall, accent: look.roof, label: (e.locked ? '🔒 ' : '') + e.name, seed: seedOf(e.owner) },
       { kind: 'flowers', x: x - 1.9, z: z + 2.6, seed: k * 3 + 1 },
-      { kind: 'flowers', x: x + 1.9, z: z + 2.6, seed: k * 3 + 2 },
+      { kind: 'flowers', x: x + 0.9, z: z + 2.6, seed: k * 3 + 2 }, // between the door and the mailbox
       { kind: 'mailbox', x: x + 1.9, z: z + 2.9, accent: e.mail ? 'up' : 'down' },
     ],
     colliders: [{ x, z, w: 5, d: 4.5 }, { x: x + 1.9, z: z + 2.9, w: 0.4, d: 0.4 }],
@@ -64,11 +64,11 @@ export function villageScene(roster: CabinEntry[]): SceneDef {
     edges(size.w, size.d, undefined, [{ side: 'south', at: 0, w: GATE_GAP }]),
     {
       decor: [
-        { kind: 'path', x: 0, z: 0, w: 3, d: size.d - 4 },
+        { kind: 'path', x: 0, z: 3.25, w: 3, d: size.d - 10.5 }, // gate to the foot of the observatory hill
         { kind: 'path', x: -7, z: hd - 6.9, w: 14, d: 2 },
         { kind: 'path', x: 7, z: hd - 6.9, w: 14, d: 2 },
         { kind: 'mound', x: 0, z: -hd + 6, w: 5 },
-        { kind: 'observatory', x: 0, z: -hd + 6 },
+        { kind: 'observatory', x: 0, z: -hd + 6, y: 0.35 }, // the mound's surface at the hut's rim
         { kind: 'gate', x: 0, z: hd - 1.5, label: 'Town' },
         { kind: 'signpost', x: 2.4, z: hd - 6, label: 'Cabins|Studio' },
       ],

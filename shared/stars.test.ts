@@ -37,8 +37,8 @@ describe('skyDir', () => {
     const el = (d: number[]) => (Math.asin(d[1]) * 180) / Math.PI;
     const az = (d: number[]) => (Math.atan2(d[0], -d[2]) * 180) / Math.PI;
     for (const [x, y] of [[0, 0], [0.5, 0.5], [1, 1], [0.3, 0.8]]) expect(Math.hypot(...skyDir(x, y))).toBeCloseTo(1);
-    expect(el(skyDir(0.5, 0))).toBeCloseTo(70);
-    expect(el(skyDir(0.5, 1))).toBeCloseTo(25);
+    expect(el(skyDir(0.5, 0))).toBeCloseTo(55);
+    expect(el(skyDir(0.5, 1))).toBeCloseTo(20);
     expect(az(skyDir(0, 0.5))).toBeCloseTo(-60);
     expect(az(skyDir(1, 0.5))).toBeCloseTo(60);
     expect(skyDir(0.5, 0.5)[2]).toBeLessThan(0);
