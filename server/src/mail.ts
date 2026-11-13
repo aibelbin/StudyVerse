@@ -1,7 +1,6 @@
 import { LETTER_GAP_MS, LETTERS_PER_DAY, MAIL_SHOWN } from '../../shared/mail';
 import type { Store } from './db';
 import type { Port } from './port';
-import { dayOf } from './rewards';
 
 /** Letters between cabin owners. Private: a letter only ever goes to its sender and recipient, never to a feed or broadcast. */
 export class Mail {
@@ -13,8 +12,7 @@ export class Mail {
     if (!this.store.cabinOf(to)) return err("There's no mailbox for them.");
     const now = this.port.now();
     if (this.store.lettersSentSince(p, now - LETTER_GAP_MS + 1) > 0) return err('Let the ink dry a moment before the next letter.');
-    const [y, m, d] = dayOf(now).split('-').map(Number);
-    if (this.store.lettersSentSince(p, new Date(y, m - 1, d).getTime()) >= LETTERS_PER_DAY) return err(`You've sent ${LETTERS_PER_DAY} letters today. More tomorrow!`);
+    if (this.store.lettersSentSince(p, new Date(now).setHours(0, 0, 0, 0)) >= LETTERS_PER_DAY) return err(`You've sent ${LETTERS_PER_DAY} letters today. More tomorrow!`);
     const hadMail = this.store.unreadCount(to) > 0;
     const letter = this.store.addLetter(p, this.port.nameOf(p) ?? 'Someone', to, text, now);
     this.port.send(to, { t: 'letter', letter });

@@ -56,6 +56,9 @@ describe('constellations', () => {
     for (const x of [a, b]) expect(x.c.of('sky').at(-1)!.constellations).toEqual([{ owner: a.id, ownerName: 'Ann', name: 'Kettle', edges: [[0, 1], [1, 2]] }]);
     t += 1000;
     save(a.id, 'Teapot', [[5, 6]]);
+    expect(a.c.of('error').at(-1)!.code).toBe('bad_star'); // too soon
+    t += 1000;
+    save(a.id, 'Teapot', [[5, 6]]);
     expect(b.c.of('sky').at(-1)!.constellations).toEqual([{ owner: a.id, ownerName: 'Ann', name: 'Teapot', edges: [[5, 6]] }]);
     t += 1000;
     save(b.id, 'Cat', [[7, 8]]);
