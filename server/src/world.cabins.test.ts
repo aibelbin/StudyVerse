@@ -65,7 +65,7 @@ beforeEach(() => {
 describe('cabins', () => {
   it('gives each newcomer the next lot and tells everyone', () => {
     const a = joinNew('Ann');
-    expect(a.c.of('welcome')[0].cabins).toEqual([{ owner: a.id, name: 'Ann', lot: 0, locked: false }]);
+    expect(a.c.of('welcome')[0].cabins).toEqual([{ owner: a.id, name: 'Ann', lot: 0, locked: false, mail: false }]);
     const b = joinNew('Bo');
     expect(b.c.of('welcome')[0].cabins.map((e) => [e.name, e.lot])).toEqual([['Ann', 0], ['Bo', 1]]);
     for (const c of [a.c, b.c]) expect(c.of('village').at(-1)!.cabins.map((e) => e.lot)).toEqual([0, 1]);

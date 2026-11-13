@@ -9,7 +9,7 @@ describe('ArtRooms', () => {
   it('offers spots only in your own cabin; [E] takes down what is there or opens the picker', () => {
     const sent: ClientMsg[] = [];
     const art = new ArtRooms((m) => sent.push(m));
-    art.enter(cabinScene({ owner: 'me', name: 'Me', lot: 0, locked: false }), { pictures: null, cork: null, shelves: null });
+    art.enter(cabinScene({ owner: 'me', name: 'Me', lot: 0, locked: false, mail: false }), { pictures: null, cork: null, shelves: null });
     expect(art.targets('you')).toEqual([]);
     art.onMessage({ t: 'cabinState', state: { owner: 'someone', locked: true, items: [] } }); // another cabin's
     expect(art.latch('me')).toBeNull();

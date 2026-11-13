@@ -1,6 +1,8 @@
 import type { Mug } from './mug';
 import type { Tilt } from './toys';
 import type { CabinEntry, CabinState, PaintingMeta, PaintMode, SpotPick } from './art';
+import type { Letter } from './mail';
+import type { Constellation } from './stars';
 
 export type GardenAction = 'claim' | 'plant' | 'water' | 'harvest' | 'vase';
 
@@ -18,6 +20,7 @@ export type AdminAction =
   | { action: 'announce'; text: string }
   | { action: 'deleteChat'; id: number }
   | { action: 'deleteNote'; id: number }
+  | { action: 'deleteLetter'; id: number }
   | { action: 'clearStage' };
 export const GARDEN_ACTIONS: GardenAction[] = ['claim', 'plant', 'water', 'harvest', 'vase'];
 import type { ToyAction, ToyState } from './toys';
@@ -78,10 +81,18 @@ export type ClientMsg =
   | { t: 'getPortfolio' }
   | { t: 'cabin'; action: 'place'; spot: string; item: SpotPick }
   | { t: 'cabin'; action: 'clear'; spot: string }
-  | { t: 'cabin'; action: 'lock'; on: boolean };
+  | { t: 'cabin'; action: 'lock'; on: boolean }
+  | { t: 'sendLetter'; to: string; text: string }
+  | { t: 'getMail' }
+  /** Marks all your letters read. */
+  | { t: 'readMail' }
+  | { t: 'deleteLetter'; id: number }
+  | { t: 'saveConstellation'; name: string; edges: [number, number][] };
 
 export type ErrorCode =
   | 'bad_art'
+  | 'bad_letter'
+  | 'bad_star'
   | 'bad_mug'
   | 'locked'
   | 'bad_cabin'
@@ -113,6 +124,11 @@ export type ErrorCode =
 
 export type ServerMsg =
   | { t: 'village'; cabins: CabinEntry[] }
+  /** A letter just arrived for you. */
+  | { t: 'letter'; letter: Letter }
+  /** Your inbox, newest first. */
+  | { t: 'mail'; letters: Letter[] }
+  | { t: 'sky'; constellations: Constellation[] }
   | { t: 'gallery'; forSale: PaintingMeta[]; photos: PaintingMeta[] }
   | { t: 'portfolio'; mine: PaintingMeta[]; prints: PaintingMeta[] }
   | { t: 'cabinState'; state: CabinState }
@@ -154,6 +170,9 @@ export type ServerMsg =
       features: Features;
       /** Your bag: gifts and bouquets. */
       bag: BagItem[];
+      /** How many of your letters are unread. */
+      unread: number;
+      constellations: Constellation[];
     }
   | { t: 'bag'; items: BagItem[] }
   | { t: 'giftReceived'; fromId: string; fromName: string; toId: string; gift: Gift; flower?: Flower }

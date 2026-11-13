@@ -144,9 +144,39 @@ describe('wallet, wardrobe, notes and daily totals', () => {
     expect(s.cabinOf('nobody')).toBeNull();
     s.setCabinLocked(a, true);
     expect(s.cabins()).toEqual([
-      { owner: a, name: 'Ann', lot: 0, locked: true },
-      { owner: b, name: 'Bo', lot: 1, locked: false },
+      { owner: a, name: 'Ann', lot: 0, locked: true, mail: false },
+      { owner: b, name: 'Bo', lot: 1, locked: false, mail: false },
     ]);
+  });
+
+  it('keeps letters per recipient, with an unread flag on the cabin', () => {
+    const s = new ProfileStore(':memory:');
+    const a = s.create('Ann', DEFAULT_LOOK).profile.id;
+    const b = s.create('Bo', DEFAULT_LOOK).profile.id;
+    s.addCabin(b, 0, 1);
+    const l1 = s.addLetter(a, 'Ann', b, 'hi', 10);
+    const l2 = s.addLetter(a, 'Ann', b, 'again', 20);
+    expect(s.letters(b, 50).map((l) => l.text)).toEqual(['again', 'hi']);
+    expect(s.letters(a, 50)).toEqual([]);
+    expect(s.unreadCount(b)).toBe(2);
+    expect(s.cabins()[0].mail).toBe(true);
+    expect(s.lettersSentSince(a, 15)).toBe(1);
+    expect(s.markRead(b)).toBe(true);
+    expect(s.markRead(b)).toBe(false);
+    expect(s.cabins()[0].mail).toBe(false);
+    expect(s.letters(b, 50)[0]).toEqual({ ...l2, read: true });
+    expect(s.deleteLetter(l1.id, a)).toBe(false);
+    expect(s.deleteLetter(l1.id, b)).toBe(true);
+    expect(s.deleteLetterAny(l2.id)).toBe(true);
+    expect(s.letters(b, 50)).toEqual([]);
+  });
+
+  it('upserts one constellation per owner with their name', () => {
+    const s = new ProfileStore(':memory:');
+    const a = s.create('Ann', DEFAULT_LOOK).profile.id;
+    s.setConstellation(a, 'Cup', [[0, 1]], 1);
+    s.setConstellation(a, 'Bear', [[1, 2], [2, 3]], 2);
+    expect(s.constellations()).toEqual([{ owner: a, ownerName: 'Ann', name: 'Bear', edges: [[1, 2], [2, 3]] }]);
   });
 
   it('upserts and takes cabin items, and reads a keepsake', () => {

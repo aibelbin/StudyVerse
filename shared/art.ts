@@ -26,6 +26,8 @@ export interface CabinEntry {
   name: string;
   lot: number;
   locked: boolean;
+  /** Has unread letters (the mailbox flag is up). */
+  mail: boolean;
 }
 
 export interface PaintingMeta {

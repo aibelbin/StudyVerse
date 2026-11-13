@@ -180,3 +180,35 @@ describe('studio and cabin messages', () => {
     expect(p({ t: 'cabin', action: 'lock' })).toBeNull();
   });
 });
+
+describe('letters and constellations', () => {
+  const p = (o: object) => parseClientMsg(JSON.stringify(o));
+  it('parses sendLetter, cleaning the text', () => {
+    expect(p({ t: 'sendLetter', to: 'b', text: ' hi\nthere ', x: 1 })).toEqual({ t: 'sendLetter', to: 'b', text: 'hi there' });
+    expect(p({ t: 'sendLetter', to: 'b', text: 'x'.repeat(280) })).toEqual({ t: 'sendLetter', to: 'b', text: 'x'.repeat(280) });
+  });
+  it('rejects bad letters', () => {
+    expect(p({ t: 'sendLetter', to: 'b', text: '   ' })).toBeNull();
+    expect(p({ t: 'sendLetter', to: 'b', text: 'x'.repeat(281) })).toBeNull();
+    expect(p({ t: 'sendLetter', to: '', text: 'hi' })).toBeNull();
+    expect(p({ t: 'sendLetter', to: 'b' })).toBeNull();
+  });
+  it('parses the mail getters and deleteLetter', () => {
+    expect(p({ t: 'getMail' })).toEqual({ t: 'getMail' });
+    expect(p({ t: 'readMail' })).toEqual({ t: 'readMail' });
+    expect(p({ t: 'deleteLetter', id: 4 })).toEqual({ t: 'deleteLetter', id: 4 });
+    expect(p({ t: 'deleteLetter', id: '4' })).toBeNull();
+    expect(p({ t: 'admin', action: 'deleteLetter', id: 4 })).toEqual({ t: 'admin', action: 'deleteLetter', id: 4 });
+    expect(p({ t: 'admin', action: 'deleteLetter' })).toBeNull();
+  });
+  it('parses saveConstellation as a fresh copy with a cleaned name', () => {
+    expect(p({ t: 'saveConstellation', name: ' Big\tBear ', edges: [[0, 1], [1, 2]], x: 1 })).toEqual({ t: 'saveConstellation', name: 'Big Bear', edges: [[0, 1], [1, 2]] });
+  });
+  it('rejects bad constellations', () => {
+    expect(p({ t: 'saveConstellation', name: ' ', edges: [[0, 1]] })).toBeNull();
+    expect(p({ t: 'saveConstellation', name: 'Bear', edges: [] })).toBeNull();
+    expect(p({ t: 'saveConstellation', name: 'Bear', edges: [[0, 1], [1, 0]] })).toBeNull();
+    expect(p({ t: 'saveConstellation', name: 'Bear', edges: [[0, 120]] })).toBeNull();
+    expect(p({ t: 'saveConstellation', edges: [[0, 1]] })).toBeNull();
+  });
+});

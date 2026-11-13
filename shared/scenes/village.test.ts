@@ -40,7 +40,7 @@ function invariants(s: SceneDef) {
   for (const d of s.decor) expect(inside(s.size.w, s.size.d, d.x, d.z, 0) || s.theme.indoor === false, `${d.kind}@${d.x},${d.z}`).toBe(true);
 }
 
-const entry = (i: number): CabinEntry => ({ owner: `p${i}`, name: `Player ${i}`, lot: i, locked: i === 2 });
+const entry = (i: number): CabinEntry => ({ owner: `p${i}`, name: `Player ${i}`, lot: i, locked: i === 2, mail: false });
 const roster = (n: number) => Array.from({ length: n }, (_, i) => entry(i));
 
 describe('village', () => {
@@ -151,7 +151,7 @@ describe('SceneBook', () => {
     expect(book.get('cabin:x')).toBeUndefined();
     const v0 = book.get('village')!;
     expect(book.get('village')).toBe(v0);
-    book.setRoster([{ owner: 'x', name: 'Ex', lot: 0, locked: false }]);
+    book.setRoster([{ owner: 'x', name: 'Ex', lot: 0, locked: false, mail: false }]);
     expect(book.version).toBe(1);
     const cabin = book.get('cabin:x')!;
     expect(cabin.name).toBe("Ex's cabin");

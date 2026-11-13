@@ -134,5 +134,6 @@ function build(toy: Toy, def: SceneDef, fx: ToyFx): ToyView {
     case 'photoBooth': return photoBoothView();
     case 'wheel': return wheelView();
     case 'golfTee': return { root: new Group(), update() {} }; // the course draws the tee
+    case 'postBox': case 'mailbox': case 'observatory': return { root: new Group(), update() {} }; // placeholder until Task 2
   }
 }

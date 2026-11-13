@@ -318,6 +318,9 @@ const builders: Record<DecorKind, Builder> = {
     );
   },
 
+  mailbox: () => group(),
+  observatory: () => group(),
+
   bed(_d, r) {
     const g = group(
       mesh(box(1.2, 0.3, 2), mat(P.woodDark), 0, 0.15, 0),

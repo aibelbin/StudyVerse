@@ -1366,6 +1366,8 @@ export class World {
       chat: this.store.chatFor(p.id, CHAT_KEEP, CHAT_DM_HISTORY, this.store.createdAt(p.id)),
       features: { ...this.features },
       bag: this.bagOf(p),
+      unread: 0, // Task 3
+      constellations: [], // Task 3
     });
   }
 

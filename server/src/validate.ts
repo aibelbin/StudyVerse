@@ -7,6 +7,8 @@ import { FEATURE_KINDS, isGift, STATUS_MINUTES, STATUS_TEXT_MAX, type Feature } 
 import { ANNOUNCE_MAX } from '../../shared/constants';
 import { PAINT_B64_MAX, PAINT_MODES, PRICE_RANGE, SPOT_PICK_KINDS, TITLE_MAX, type PaintMode, type SpotPick } from '../../shared/art';
 import { isMug } from '../../shared/mug';
+import { LETTER_MAX } from '../../shared/mail';
+import { isConstellationInput } from '../../shared/stars';
 import { TOY_ACTIONS, type ToyAction } from '../../shared/toys';
 import { ACTS, DRINKS, PET_ANIMS, REACTIONS, type Act, type Anim, type Drink, type EmoteKind, type Look, type PetAnim } from '../../shared/types';
 
@@ -177,6 +179,23 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'getPortfolio' };
     case 'cabin':
       return parseCabin(m);
+    case 'sendLetter': {
+      if (!isStr(m.to, 64) || typeof m.text !== 'string') return null;
+      const text = m.text.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+      return text && [...text].length <= LETTER_MAX ? { t: 'sendLetter', to: m.to, text } : null;
+    }
+    case 'getMail':
+      return { t: 'getMail' };
+    case 'readMail':
+      return { t: 'readMail' };
+    case 'deleteLetter':
+      return Number.isInteger(m.id) ? { t: 'deleteLetter', id: m.id as number } : null;
+    case 'saveConstellation': {
+      if (typeof m.name !== 'string') return null;
+      const name = m.name.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!isConstellationInput(name, m.edges)) return null;
+      return { t: 'saveConstellation', name, edges: m.edges.map(([a, b]) => [a, b] as [number, number]) };
+    }
     case 'buySeed':
       return isFlower(m.flower) ? { t: 'buySeed', flower: m.flower } : null;
     case 'stageText': {
@@ -240,7 +259,7 @@ function parseAdmin(m: Record<string, unknown>): ClientMsg | null {
       const text = m.text.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
       return text && text.length <= ANNOUNCE_MAX ? wrap({ action: 'announce', text }) : null;
     }
-    case 'deleteChat': case 'deleteNote':
+    case 'deleteChat': case 'deleteNote': case 'deleteLetter':
       return Number.isInteger(m.id) ? wrap({ action: m.action, id: m.id as number }) : null;
     default: return null;
   }

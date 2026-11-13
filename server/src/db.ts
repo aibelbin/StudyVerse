@@ -4,6 +4,8 @@ import type { ChatMsg, Look, Note, PetInfo, PetKind, Wallet } from '../../shared
 import type { CabinEntry, PaintMode, PaintingMeta } from '../../shared/art';
 import { DEFAULT_LOOK, normalizeLook } from '../../shared/wardrobe';
 import { isMug, type Mug } from '../../shared/mug';
+import type { Letter } from '../../shared/mail';
+import type { Constellation } from '../../shared/stars';
 
 export interface Profile {
   id: string;
@@ -99,6 +101,18 @@ export interface Store {
   /** True for the artist and for anyone holding a print. */
   ownsPainting(owner: string, id: number): boolean;
   buyPrint(buyer: string, id: number, pay: number, at: number): { ok: true; artist: string; price: number; title: string } | { ok: false; reason: 'gone' | 'own' | 'owned' | 'kp' };
+  addLetter(from: string, fromName: string, to: string, text: string, at: number): Letter;
+  /** Newest first. */
+  letters(to: string, limit: number): Letter[];
+  unreadCount(to: string): number;
+  /** True if any letter was unread. */
+  markRead(to: string): boolean;
+  deleteLetter(id: number, to: string): boolean;
+  deleteLetterAny(id: number): boolean;
+  lettersSentSince(from: string, since: number): number;
+  /** One per owner: replaces the old one. */
+  setConstellation(owner: string, name: string, edges: [number, number][], at: number): void;
+  constellations(): Constellation[];
 }
 
 export class ProfileStore implements Store {
@@ -144,6 +158,11 @@ export class ProfileStore implements Store {
         png BLOB NOT NULL, for_sale INTEGER NOT NULL DEFAULT 0, sold INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS paintings_sale ON paintings (for_sale, id);
       CREATE TABLE IF NOT EXISTS prints (painting_id INTEGER NOT NULL, owner_id TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (painting_id, owner_id));
+      CREATE TABLE IF NOT EXISTS letters (id INTEGER PRIMARY KEY AUTOINCREMENT, from_id TEXT NOT NULL, from_name TEXT NOT NULL, to_id TEXT NOT NULL,
+        text TEXT NOT NULL, at INTEGER NOT NULL, read INTEGER NOT NULL DEFAULT 0);
+      CREATE INDEX IF NOT EXISTS letters_to ON letters (to_id, id);
+      CREATE INDEX IF NOT EXISTS letters_from ON letters (from_id, at);
+      CREATE TABLE IF NOT EXISTS constellations (owner_id TEXT PRIMARY KEY, name TEXT NOT NULL, edges_json TEXT NOT NULL, at INTEGER NOT NULL);
     `);
     const kcols = new Set((this.db.prepare('PRAGMA table_info(keepsakes)').all() as { name: string }[]).map((c) => c.name));
     if (!kcols.has('flower')) this.db.exec('ALTER TABLE keepsakes ADD COLUMN flower TEXT');
@@ -324,8 +343,52 @@ export class ProfileStore implements Store {
   }
 
   cabins(): CabinEntry[] {
-    return (this.db.prepare('SELECT c.owner_id AS owner, p.name AS name, c.lot AS lot, c.locked AS locked FROM cabins c JOIN profiles p ON p.id = c.owner_id ORDER BY c.lot').all() as { owner: string; name: string; lot: number; locked: number }[])
-      .map((r) => ({ owner: r.owner, name: r.name, lot: Number(r.lot), locked: !!r.locked }));
+    return (this.db.prepare(`SELECT c.owner_id AS owner, p.name AS name, c.lot AS lot, c.locked AS locked,
+        EXISTS (SELECT 1 FROM letters l WHERE l.to_id = c.owner_id AND l.read = 0) AS mail
+      FROM cabins c JOIN profiles p ON p.id = c.owner_id ORDER BY c.lot`).all() as { owner: string; name: string; lot: number; locked: number; mail: number }[])
+      .map((r) => ({ owner: r.owner, name: r.name, lot: Number(r.lot), locked: !!r.locked, mail: !!r.mail }));
+  }
+
+  addLetter(from: string, fromName: string, to: string, text: string, at: number): Letter {
+    const id = Number(this.db.prepare('INSERT INTO letters (from_id, from_name, to_id, text, at) VALUES (?, ?, ?, ?, ?)').run(from, fromName, to, text, at).lastInsertRowid);
+    return { id, from, fromName, to, text, at, read: false };
+  }
+
+  letters(to: string, limit: number): Letter[] {
+    return (this.db.prepare('SELECT id, from_id, from_name, to_id, text, at, read FROM letters WHERE to_id = ? ORDER BY id DESC LIMIT ?').all(to, limit) as {
+      id: number; from_id: string; from_name: string; to_id: string; text: string; at: number; read: number;
+    }[]).map((r) => ({ id: Number(r.id), from: r.from_id, fromName: r.from_name, to: r.to_id, text: r.text, at: Number(r.at), read: !!r.read }));
+  }
+
+  unreadCount(to: string): number {
+    return Number((this.db.prepare('SELECT COUNT(*) AS n FROM letters WHERE to_id = ? AND read = 0').get(to) as { n: number }).n);
+  }
+
+  markRead(to: string): boolean {
+    return Number(this.db.prepare('UPDATE letters SET read = 1 WHERE to_id = ? AND read = 0').run(to).changes) > 0;
+  }
+
+  deleteLetter(id: number, to: string): boolean {
+    return Number(this.db.prepare('DELETE FROM letters WHERE id = ? AND to_id = ?').run(id, to).changes) === 1;
+  }
+
+  deleteLetterAny(id: number): boolean {
+    return Number(this.db.prepare('DELETE FROM letters WHERE id = ?').run(id).changes) === 1;
+  }
+
+  lettersSentSince(from: string, since: number): number {
+    return Number((this.db.prepare('SELECT COUNT(*) AS n FROM letters WHERE from_id = ? AND at >= ?').get(from, since) as { n: number }).n);
+  }
+
+  setConstellation(owner: string, name: string, edges: [number, number][], at: number): void {
+    this.db.prepare('INSERT INTO constellations (owner_id, name, edges_json, at) VALUES (?, ?, ?, ?) ON CONFLICT(owner_id) DO UPDATE SET name = excluded.name, edges_json = excluded.edges_json, at = excluded.at')
+      .run(owner, name, JSON.stringify(edges), at);
+  }
+
+  constellations(): Constellation[] {
+    return (this.db.prepare('SELECT c.owner_id AS owner, p.name AS owner_name, c.name AS name, c.edges_json AS edges_json FROM constellations c JOIN profiles p ON p.id = c.owner_id ORDER BY c.at').all() as {
+      owner: string; owner_name: string; name: string; edges_json: string;
+    }[]).map((r) => ({ owner: r.owner, ownerName: r.owner_name, name: r.name, edges: JSON.parse(r.edges_json) as [number, number][] }));
   }
 
   setCabinLocked(owner: string, on: boolean): void {
