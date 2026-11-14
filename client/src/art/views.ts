@@ -1,5 +1,6 @@
+import { art } from '../net/server';
 import * as THREE from 'three';
-import { artUrl, type CabinItem, type PaintingMeta } from '../../../shared/art';
+import { type CabinItem, type PaintingMeta } from '../../../shared/art';
 import type { Spot } from '../../../shared/scenes/types';
 import { bouquetMesh, giftSprite } from '../world/items';
 import { disposeTree, mat, mesh } from '../world/materials';
@@ -12,7 +13,7 @@ const textures = new Map<number, THREE.Texture>();
 function paintingTexture(p: PaintingMeta): THREE.Texture {
   let tex = textures.get(p.id);
   if (!tex) {
-    tex = loader.load(artUrl(p.id));
+    tex = loader.load(art(p.id));
     tex.colorSpace = THREE.SRGBColorSpace;
     if (p.mode === 'pixel') {
       tex.magFilter = THREE.NearestFilter;

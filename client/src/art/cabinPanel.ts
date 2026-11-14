@@ -1,4 +1,5 @@
-import { artUrl, type PaintingMeta, type SpotPick } from '../../../shared/art';
+import { art } from '../net/server';
+import { type PaintingMeta, type SpotPick } from '../../../shared/art';
 import { FLOWERS } from '../../../shared/garden';
 import { GIFTS, type BagItem, type Keepsake } from '../../../shared/gifts';
 import type { Spot } from '../../../shared/scenes/types';
@@ -31,7 +32,7 @@ export function openSpotPicker(hud: Hud, spot: Spot, o: SpotPickerOpts): void {
   const tiles: HTMLElement[] = [];
   if (spot.kind === 'wall') {
     for (const p of o.paintings) {
-      const img = h('img', { className: `spot-thumb${p.mode === 'pixel' ? ' pixel' : ''}`, src: artUrl(p.id), alt: p.title, loading: 'lazy' });
+      const img = h('img', { className: `spot-thumb${p.mode === 'pixel' ? ' pixel' : ''}`, src: art(p.id), alt: p.title, loading: 'lazy' });
       tiles.push(tile(hud, img, p.title, `by ${p.artistName}`, { kind: 'painting', id: p.id }, o.pick));
     }
   } else {

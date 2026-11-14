@@ -104,7 +104,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     const art = /^\/art\/(\d+)\.png$/.exec(req.url ?? '');
     if (art) {
       const pic = store.paintingPng(Number(art[1]));
-      if (pic) res.writeHead(200, { 'content-type': pic.mode === 'photo' ? 'image/jpeg' : 'image/png', 'cache-control': 'public, max-age=31536000, immutable', 'x-content-type-options': 'nosniff' }).end(pic.png);
+      if (pic) res.writeHead(200, { 'content-type': pic.mode === 'photo' ? 'image/jpeg' : 'image/png', 'cache-control': 'public, max-age=31536000, immutable', 'x-content-type-options': 'nosniff', 'access-control-allow-origin': '*' }).end(pic.png);
       else res.writeHead(404).end('not found');
       return;
     }

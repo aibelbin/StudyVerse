@@ -1,4 +1,5 @@
-import { FOR_SALE_MAX, artUrl, type PaintingMeta } from '../../../shared/art';
+import { art } from '../net/server';
+import { FOR_SALE_MAX, type PaintingMeta } from '../../../shared/art';
 import type { ClientMsg } from '../../../shared/protocol';
 import type { Wallet } from '../../../shared/types';
 import { h } from '../hud/dom';
@@ -53,7 +54,7 @@ export class Catalogue {
   }
 
   private thumb(p: PaintingMeta): HTMLElement {
-    return h('img', { className: p.mode === 'pixel' ? 'pixel' : '', src: artUrl(p.id), alt: p.title, loading: 'lazy' });
+    return h('img', { className: p.mode === 'pixel' ? 'pixel' : '', src: art(p.id), alt: p.title, loading: 'lazy' });
   }
 
   private tile(p: PaintingMeta, ...actions: HTMLElement[]): HTMLElement {

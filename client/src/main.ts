@@ -25,6 +25,7 @@ import { Voice } from './voice/voice';
 import { petsTab } from './hud/petsTab';
 import type { Wallet } from '../../shared/types';
 import { Connection } from './net/connection';
+import { handedToken, moveTo, wsUrl } from './net/server';
 import { book } from './world/book';
 import { Catalogue } from './art/catalogue';
 import { Journal } from './fun/journal';
@@ -39,7 +40,7 @@ import type { CabinEntry } from '../../shared/art';
 
 const TOKEN_KEY = 'vsw-token';
 const hud = new Hud();
-const conn = new Connection(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
+const conn = new Connection(wsUrl());
 let game: Game | null = null;
 let hello: ClientMsg | null = null;
 let wallet: Wallet | null = null;
@@ -376,7 +377,17 @@ hud.onEditLook = () => {
 };
 hud.onEndBreak = () => conn.send({ t: 'cancelSession' });
 
+// A sign-in handed over from the old address keeps your profile; the old address then sends people here.
+const handed = handedToken(location.hash);
+if (handed) {
+  localStorage.setItem(TOKEN_KEY, handed);
+  history.replaceState(null, '', location.pathname + location.search);
+}
 const token = localStorage.getItem(TOKEN_KEY);
+const away = moveTo(location, token);
+if (away) location.replace(away);
 if (token) hello = { t: 'hello', token };
-conn.connect();
-if (!token) void askJoin();
+if (!away) {
+  conn.connect();
+  if (!token) void askJoin();
+}
