@@ -237,6 +237,7 @@ export class Character {
       if (this.dimmed) this.applyDim(true);
     }
     this.umbrella.visible = on;
+    this.overhead.group.position.y = on ? 2.45 : 1.95; // name tag clears the canopy
   }
 
   /** Raise the cup for a sip (the ☕ emote). */
