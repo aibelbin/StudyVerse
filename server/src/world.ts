@@ -38,6 +38,9 @@ import { Cabins } from './cabins';
 import { Studio } from './studio';
 import { Mail } from './mail';
 import { Sky } from './sky';
+import { Catches } from './catches';
+import { WeatherCycle } from './weather';
+import type { WeatherKind } from '../../shared/weather';
 import type { Port } from './port';
 
 /** What the World needs from a network connection. */
@@ -118,6 +121,8 @@ export class World {
   private studio: Studio;
   private mail: Mail;
   private sky: Sky;
+  private weather: WeatherCycle;
+  private catches: Catches;
 
   constructor(
     private now: () => number = Date.now,
@@ -131,7 +136,7 @@ export class World {
     const port: Port = {
       now: () => this.now(),
       send: (id, msg) => byId(id)?.conn?.send(msg),
-      toScene: (scene, msg) => this.toScene(scene, msg),
+      toScene: (scene, msg, exceptId) => this.toScene(scene, msg, exceptId),
       toAll: (msg) => this.toAll(msg),
       error: (id, code, message) => { const q = byId(id); if (q) this.error(q, code, message); },
       feed: (kind, text) => this.pushFeed(kind, text),
@@ -140,6 +145,7 @@ export class World {
       mugChanged: (id, mug) => { const q = byId(id); if (q) { q.mug = mug; this.updated(q); } },
       bagChanged: (id) => { const q = byId(id); if (q) this.sendBag(q); },
       sceneOf: (id) => byId(id)?.scene ?? null,
+      posOf: (id) => { const q = byId(id); return q ? { x: q.x, z: q.z } : null; },
       nameOf: (id) => byId(id)?.name ?? this.store.profileName(id),
       rosterChanged: () => this.cabins.changed(),
     };
@@ -147,6 +153,8 @@ export class World {
     this.studio = new Studio(this.store, port);
     this.mail = new Mail(this.store, port);
     this.sky = new Sky(this.store, port);
+    this.weather = new WeatherCycle(this.store, port, rand);
+    this.catches = new Catches(this.store, this.book, port, () => this.weather.raining(), rand);
     try {
       this.features = { ...allOn(), ...(JSON.parse(this.store.getKv('features') ?? '{}') as Partial<Features>) };
     } catch { /* keep everything on */ }
@@ -275,6 +283,8 @@ export class World {
       case 'readMail': return this.mail.read(p.id);
       case 'deleteLetter': return this.mail.remove(p.id, msg.id);
       case 'saveConstellation': return this.sky.save(p.id, msg.name, msg.edges);
+      case 'catch': return this.catches.catch(p.id, msg.kind, msg.species, msg.hour);
+      case 'getJournal': return this.catches.journal(p.id);
       case 'offerCoffee': return this.offerCoffee(p, msg.to);
       case 'answerCoffee': return this.answerCoffee(p, msg.fromId, msg.accept);
       case 'setVoice': {
@@ -306,9 +316,15 @@ export class World {
     }
   }
 
+  /** Debug (env WEATHER): start with this weather. */
+  forceWeather(kind: WeatherKind): void {
+    this.weather.force(kind);
+  }
+
   /** Call about once a second: advances timers and expires disconnected players. */
   tick(): void {
     const t = this.now();
+    this.weather.tick();
     for (const p of [...this.players.values()]) {
       if (p.session) {
         const { session, event } = stepSession(p.session, t);
@@ -1383,6 +1399,8 @@ export class World {
       bag: this.bagOf(p),
       unread: this.mail.unread(p.id),
       constellations: this.sky.all(),
+      weather: this.weather.now(),
+      journal: this.store.journal(p.id),
     });
   }
 

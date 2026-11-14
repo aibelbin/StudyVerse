@@ -42,6 +42,7 @@ export const HANDLERS: Record<ToyKind, ToyHandler> = {
   postBox: none,
   mailbox: none,
   observatory: none,
+  fishing: none,
   golfBoard: { actions: [], init: () => ({ kind: 'golfBoard', day: '', top: [], paid: [] }), apply: () => ({}) },
   cushions: {
     actions: [],

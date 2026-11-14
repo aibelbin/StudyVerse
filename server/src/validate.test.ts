@@ -212,3 +212,20 @@ describe('letters and constellations', () => {
     expect(p({ t: 'saveConstellation', edges: [[0, 1]] })).toBeNull();
   });
 });
+
+describe('catches', () => {
+  const p = (o: object) => parseClientMsg(JSON.stringify(o));
+  it('parses catch as a fresh copy with the hour clamped to 0–23', () => {
+    expect(p({ t: 'catch', kind: 'fish', species: 'carp', hour: 14.7, x: 1 })).toEqual({ t: 'catch', kind: 'fish', species: 'carp', hour: 14 });
+    expect(p({ t: 'catch', kind: 'bug', species: 'moth', hour: 99 })).toEqual({ t: 'catch', kind: 'bug', species: 'moth', hour: 23 });
+    expect(p({ t: 'catch', kind: 'bug', species: 'moth', hour: -3 })).toEqual({ t: 'catch', kind: 'bug', species: 'moth', hour: 0 });
+    expect(p({ t: 'getJournal' })).toEqual({ t: 'getJournal' });
+  });
+  it('rejects bad catches', () => {
+    expect(p({ t: 'catch', kind: 'fish', species: 'shark', hour: 12 })).toBeNull();
+    expect(p({ t: 'catch', kind: 'fish', species: '__proto__', hour: 12 })).toBeNull();
+    expect(p({ t: 'catch', kind: 'bird', species: 'carp', hour: 12 })).toBeNull();
+    expect(p({ t: 'catch', kind: 'fish', species: 'carp', hour: '12' })).toBeNull();
+    expect(p({ t: 'catch', kind: 'fish', species: 'carp' })).toBeNull();
+  });
+});

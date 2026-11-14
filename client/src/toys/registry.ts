@@ -85,6 +85,7 @@ export function toyPrompt(toy: Toy, state?: ToyState): string | null {
     case 'wheel': return '[E] throw a mug 🏺';
     case 'postBox': return '[E] write a letter ✉️';
     case 'observatory': return '[E] look at the stars 🔭';
+    case 'fishing': return '[E] cast your line 🎣';
     case 'golfTee': {
       const h = HOLES[Number(toy.id.split('-').pop()) - 1];
       return h ? `[E] play hole ${h.n} · ${h.name} (par ${h.par}) ⛳` : null;
@@ -139,5 +140,6 @@ function build(toy: Toy, def: SceneDef, fx: ToyFx): ToyView {
     case 'postBox': return postBoxView();
     case 'observatory': return observatoryView();
     case 'mailbox': return { root: new Group(), update() {} }; // the decor draws it
+    case 'fishing': return { root: new Group(), update() {} }; // placeholder until round 4 Task 2
   }
 }

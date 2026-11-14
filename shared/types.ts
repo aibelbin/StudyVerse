@@ -100,7 +100,7 @@ export interface OnlineEntry {
   status?: Status | null;
 }
 
-export type FeedKind = 'arrive' | 'leave' | 'start' | 'finish' | 'quit' | 'cheer' | 'coffee' | 'gift' | 'meditate' | 'garden' | 'golf' | 'giftSent' | 'art';
+export type FeedKind = 'arrive' | 'leave' | 'start' | 'finish' | 'quit' | 'cheer' | 'coffee' | 'gift' | 'meditate' | 'garden' | 'golf' | 'giftSent' | 'art' | 'catch';
 
 export interface FeedEvent {
   kind: FeedKind;

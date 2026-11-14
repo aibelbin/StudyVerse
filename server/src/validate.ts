@@ -9,6 +9,7 @@ import { PAINT_B64_MAX, PAINT_MODES, PRICE_RANGE, SPOT_PICK_KINDS, TITLE_MAX, ty
 import { isMug } from '../../shared/mug';
 import { LETTER_MAX } from '../../shared/mail';
 import { isConstellationInput } from '../../shared/stars';
+import { isSpecies } from '../../shared/catches';
 import { TOY_ACTIONS, type ToyAction } from '../../shared/toys';
 import { ACTS, DRINKS, PET_ANIMS, REACTIONS, type Act, type Anim, type Drink, type EmoteKind, type Look, type PetAnim } from '../../shared/types';
 
@@ -196,6 +197,11 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (!isConstellationInput(name, m.edges)) return null;
       return { t: 'saveConstellation', name, edges: m.edges.map(([a, b]) => [a, b] as [number, number]) };
     }
+    case 'catch':
+      if ((m.kind !== 'fish' && m.kind !== 'bug') || !isSpecies(m.species) || !isNum(m.hour)) return null;
+      return { t: 'catch', kind: m.kind, species: m.species, hour: Math.min(23, Math.max(0, Math.floor(m.hour))) };
+    case 'getJournal':
+      return { t: 'getJournal' };
     case 'buySeed':
       return isFlower(m.flower) ? { t: 'buySeed', flower: m.flower } : null;
     case 'stageText': {

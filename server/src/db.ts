@@ -6,6 +6,7 @@ import { DEFAULT_LOOK, normalizeLook } from '../../shared/wardrobe';
 import { isMug, type Mug } from '../../shared/mug';
 import type { Letter } from '../../shared/mail';
 import type { Constellation } from '../../shared/stars';
+import type { JournalEntry, SpeciesId } from '../../shared/catches';
 
 export interface Profile {
   id: string;
@@ -113,6 +114,9 @@ export interface Store {
   /** One per owner: replaces the old one. */
   setConstellation(owner: string, name: string, edges: [number, number][], at: number): void;
   constellations(): Constellation[];
+  /** Counts one more of this species and keeps the biggest size; first = it's new for them. */
+  addCatch(id: string, species: SpeciesId, size: number | null, at: number): { first: boolean };
+  journal(id: string): JournalEntry[];
 }
 
 export class ProfileStore implements Store {
@@ -163,6 +167,8 @@ export class ProfileStore implements Store {
       CREATE INDEX IF NOT EXISTS letters_to ON letters (to_id, id);
       CREATE INDEX IF NOT EXISTS letters_from ON letters (from_id, at);
       CREATE TABLE IF NOT EXISTS constellations (owner_id TEXT PRIMARY KEY, name TEXT NOT NULL, edges_json TEXT NOT NULL, at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS catches (profile_id TEXT NOT NULL, species TEXT NOT NULL, count INTEGER NOT NULL, best INTEGER, first_at INTEGER NOT NULL,
+        PRIMARY KEY (profile_id, species));
     `);
     const kcols = new Set((this.db.prepare('PRAGMA table_info(keepsakes)').all() as { name: string }[]).map((c) => c.name));
     if (!kcols.has('flower')) this.db.exec('ALTER TABLE keepsakes ADD COLUMN flower TEXT');
@@ -389,6 +395,19 @@ export class ProfileStore implements Store {
     return (this.db.prepare('SELECT c.owner_id AS owner, p.name AS owner_name, c.name AS name, c.edges_json AS edges_json FROM constellations c JOIN profiles p ON p.id = c.owner_id ORDER BY c.at').all() as {
       owner: string; owner_name: string; name: string; edges_json: string;
     }[]).map((r) => ({ owner: r.owner, ownerName: r.owner_name, name: r.name, edges: JSON.parse(r.edges_json) as [number, number][] }));
+  }
+
+  addCatch(id: string, species: SpeciesId, size: number | null, at: number): { first: boolean } {
+    // a species is always all-fish (sized) or all-bug (null), so MAX never mixes a number with NULL
+    const r = this.db.prepare(`INSERT INTO catches (profile_id, species, count, best, first_at) VALUES (?, ?, 1, ?, ?)
+      ON CONFLICT(profile_id, species) DO UPDATE SET count = count + 1, best = MAX(best, excluded.best) RETURNING count`).get(id, species, size, at) as { count: number };
+    return { first: r.count === 1 };
+  }
+
+  journal(id: string): JournalEntry[] {
+    return (this.db.prepare('SELECT species, count, best, first_at FROM catches WHERE profile_id = ? ORDER BY first_at').all(id) as {
+      species: SpeciesId; count: number; best: number | null; first_at: number;
+    }[]).map((r) => ({ species: r.species, count: r.count, best: r.best, firstAt: r.first_at }));
   }
 
   setCabinLocked(owner: string, on: boolean): void {

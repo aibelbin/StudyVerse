@@ -3,6 +3,8 @@ import type { Tilt } from './toys';
 import type { CabinEntry, CabinState, PaintingMeta, PaintMode, SpotPick } from './art';
 import type { Letter } from './mail';
 import type { Constellation } from './stars';
+import type { CatchKind, JournalEntry, SpeciesId } from './catches';
+import type { Weather } from './weather';
 
 export type GardenAction = 'claim' | 'plant' | 'water' | 'harvest' | 'vase';
 
@@ -87,12 +89,16 @@ export type ClientMsg =
   /** Marks all your letters read. */
   | { t: 'readMail' }
   | { t: 'deleteLetter'; id: number }
-  | { t: 'saveConstellation'; name: string; edges: [number, number][] };
+  | { t: 'saveConstellation'; name: string; edges: [number, number][] }
+  /** hour = the catcher's local clock hour (0–23), for night-only species. */
+  | { t: 'catch'; kind: CatchKind; species: SpeciesId; hour: number }
+  | { t: 'getJournal' };
 
 export type ErrorCode =
   | 'bad_art'
   | 'bad_letter'
   | 'bad_star'
+  | 'bad_catch'
   | 'bad_mug'
   | 'locked'
   | 'bad_cabin'
@@ -129,6 +135,12 @@ export type ServerMsg =
   /** Your inbox, newest first. */
   | { t: 'mail'; letters: Letter[] }
   | { t: 'sky'; constellations: Constellation[] }
+  | { t: 'weather'; weather: Weather }
+  /** You caught something; size in cm for fish; first = a new journal entry (+KP). */
+  | { t: 'caught'; species: SpeciesId; size?: number; first: boolean }
+  /** Someone in your scene caught something. */
+  | { t: 'catchPop'; id: string; species: SpeciesId }
+  | { t: 'journal'; entries: JournalEntry[] }
   | { t: 'gallery'; forSale: PaintingMeta[]; photos: PaintingMeta[] }
   | { t: 'portfolio'; mine: PaintingMeta[]; prints: PaintingMeta[] }
   | { t: 'cabinState'; state: CabinState }
@@ -173,6 +185,8 @@ export type ServerMsg =
       /** How many of your letters are unread. */
       unread: number;
       constellations: Constellation[];
+      weather: Weather;
+      journal: JournalEntry[];
     }
   | { t: 'bag'; items: BagItem[] }
   | { t: 'giftReceived'; fromId: string; fromName: string; toId: string; gift: Gift; flower?: Flower }

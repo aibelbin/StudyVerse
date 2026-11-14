@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import type { IceServer } from '../../shared/protocol';
 import { resolve } from 'node:path';
 import { startServer } from './server';
+import { WEATHER_KINDS } from '../../shared/weather';
 
 const inviteCode = process.env.INVITE_CODE;
 if (!inviteCode) {
@@ -30,7 +31,10 @@ if (process.env.ICE_SERVERS) {
 
 // ADMIN_IDS: comma-separated profile ids with admin powers (∞ KP, the admin panel).
 const adminIds = (process.env.ADMIN_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-const server = await startServer({ port, dbPath, inviteCode, staticDir, tls, iceServers, adminIds });
+// WEATHER: debug only, forces the starting weather (clear, cloudy, rain or rainbow).
+const weather = WEATHER_KINDS.find((k) => k === process.env.WEATHER);
+if (process.env.WEATHER && !weather) console.error(`WEATHER must be one of ${WEATHER_KINDS.join(', ')}; ignoring it.`);
+const server = await startServer({ port, dbPath, inviteCode, staticDir, tls, iceServers, adminIds, weather });
 const scheme = tls ? 'https' : 'http';
 console.log(`🏡 Virtual Study World on ${scheme}://localhost:${server.port}${staticDir ? '' : ' (API only, run `npm run build` for the client)'}`);
 

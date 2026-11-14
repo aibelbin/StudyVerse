@@ -2,6 +2,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { createServer as createHttpsServer } from 'node:https';
 import type { IceServer } from '../../shared/protocol';
+import type { WeatherKind } from '../../shared/weather';
 import type { AddressInfo } from 'node:net';
 import { extname, join, normalize } from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -25,6 +26,8 @@ export interface ServerOptions {
   /** Serve HTTPS + WSS (browsers only allow microphones on secure pages). */
   tls?: { cert: Buffer; key: Buffer } | null;
   iceServers?: IceServer[];
+  /** Debug: force the starting weather. */
+  weather?: WeatherKind;
 }
 
 export const HEARTBEAT_MS = 20_000;
@@ -91,6 +94,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
   const world = new World(opts.now, Math.random, undefined, store);
   world.admins = new Set(opts.adminIds ?? []);
   if (opts.iceServers?.length) world.ice = opts.iceServers;
+  if (opts.weather) world.forceWeather(opts.weather);
 
   const handler = (req: IncomingMessage, res: ServerResponse) => {
     if (req.url === '/health') {

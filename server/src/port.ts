@@ -9,7 +9,7 @@ import type { FeedKind } from '../../shared/types';
 export interface Port {
   now(): number;
   send(id: string, msg: ServerMsg): void;
-  toScene(scene: string, msg: ServerMsg): void;
+  toScene(scene: string, msg: ServerMsg, exceptId?: string): void;
   toAll(msg: ServerMsg): void;
   error(id: string, code: ErrorCode, message: string): void;
   feed(kind: FeedKind, text: string): void;
@@ -23,6 +23,8 @@ export interface Port {
   bagChanged(id: string): void;
   /** The scene the player is in, or null if they aren't in the world. */
   sceneOf(id: string): string | null;
+  /** Where the player stands, or null if they aren't in the world. */
+  posOf(id: string): { x: number; z: number } | null;
   /** The player's name (online or not), or null if there's no such profile. */
   nameOf(id: string): string | null;
   /** Reloads the cabin roster (latches, mail flags) and sends `village` to everyone. */
