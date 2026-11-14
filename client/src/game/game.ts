@@ -129,6 +129,7 @@ export class Game {
   onFrame: () => void = () => {};
   /** I: the bag. */
   onBagKey: () => void = () => {};
+  onJournalKey: () => void = () => {};
   /** Called once, after the town has been drawn for the first time (the loading screen fades then). */
   onFirstFrame: () => void = () => {};
   private drawnOnce = false;
@@ -243,6 +244,9 @@ export class Game {
     this.input.on('e', () => this.interact());
     this.input.on('i', () => {
       if (!this.hud.modalOpen()) this.onBagKey();
+    });
+    this.input.on('j', () => {
+      if (!this.hud.modalOpen()) this.onJournalKey();
     });
     this.input.on('f', () => {
       if (!this.hud.modalOpen()) toggleFullscreen();

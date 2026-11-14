@@ -27,6 +27,7 @@ import type { Wallet } from '../../shared/types';
 import { Connection } from './net/connection';
 import { book } from './world/book';
 import { Catalogue } from './art/catalogue';
+import { Journal } from './fun/journal';
 import { openPaint } from './art/paint';
 import { openPottery } from './art/pottery';
 import { openSpotPicker } from './art/cabinPanel';
@@ -71,6 +72,7 @@ const wardrobe = new Wardrobe({
 });
 
 let paintDone: ((ok: boolean) => void) | null = null;
+const journal = new Journal(hud, (m) => conn.send(m));
 const catalogue = new Catalogue(hud, () => wallet, () => hud.meId, (m) => conn.send(m));
 
 const chat = new ChatPanel(byId('chat'));
@@ -274,6 +276,8 @@ conn.onMessage = (m) => {
         give: (id, to) => conn.send({ t: 'giveItem', id, to }),
       });
       game.onBagKey = () => hud.onBag();
+      hud.onJournal = () => journal.show();
+      game.onJournalKey = () => journal.show();
       hud.onMe = () => {
         const me = g.myView();
         if (me) openMe(hud, me, (emoji, text, minutes) => conn.send({ t: 'setStatus', emoji, text, minutes }), (k) => conn.send({ t: 'useKeepsake', id: k.id }));
@@ -336,6 +340,8 @@ conn.onMessage = (m) => {
     if (chatOff) chat.close();
     adminPanel?.setFeatures(m.features);
   }
+  if (m.t === 'welcome' || m.t === 'journal') journal.set(m.t === 'welcome' ? m.journal : m.entries);
+  if (m.t === 'caught') conn.send({ t: 'getJournal' });
   if (m.t === 'gallery') catalogue.setGallery(m.forSale);
   if (m.t === 'portfolio') catalogue.setPortfolio(m.mine, m.prints);
   // a pending painting: saved (portfolio), refused (bad_art), or the connection was reset (welcome)

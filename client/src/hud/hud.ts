@@ -21,6 +21,8 @@ export class Hud {
   /** 🎁 next to someone: send them a gift. */
   onSendGift: (id: string, name: string) => void = () => {};
   onAdmin: () => void = () => {};
+  /** 📖 the field journal. */
+  onJournal: () => void = () => {};
   /** 🎒 the bag. */
   onBag: () => void = () => {};
   /** ✉️ your mail; `mail` puts a dot on it (unread letters). */
@@ -94,6 +96,7 @@ export class Hud {
           h('button', { className: 'mini', title: this.quality === 'high' ? 'Graphics: High (click for Lite)' : 'Graphics: Lite (click for High)', textContent: this.quality === 'high' ? '✨' : '🍃', onclick: () => this.onToggleQuality() }),
           ...(this.latch !== null ? [h('button', { className: `mini${this.latch ? ' on' : ''}`, title: this.latch ? 'Door latched: visitors bounce off · click to open' : 'Door open · click to latch it', textContent: this.latch ? '🔒' : '🔓', onclick: () => this.onToggleLatch() })] : []),
           h('button', { className: `mini${this.mail ? ' dot' : ''}`, title: this.mail ? 'You have mail!' : 'Your mail', textContent: '✉️', onclick: () => this.onMail() }),
+          h('button', { className: 'mini', title: 'Field journal (J)', textContent: '📖', onclick: () => this.onJournal() }),
           h('button', { className: 'mini', title: 'Your bag (I)', textContent: '🎒', onclick: () => this.onBag() }),
           h('button', { className: 'mini', title: 'Full screen (F)', textContent: '⛶', onclick: () => toggleFullscreen() }),
           ...(this.admin ? [h('button', { className: 'mini', title: 'Admin panel', textContent: '🛡️', onclick: () => this.onAdmin() })] : []),
