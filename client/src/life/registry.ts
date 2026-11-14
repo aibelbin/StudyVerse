@@ -3,12 +3,19 @@ import type { SceneDef } from '../../../shared/scenes/types';
 import { birds, chimneySmoke, clouds, fireflies, flyers, leaves } from './air';
 import { crawlers, leafPiles } from './ground';
 import type { LifeCtx, LifeSystem } from './kit';
+import { nearestCritter, type Critter } from './math';
 import { dragonflies, ducks, fish, frogs, sailboats } from './water';
 
 export type { LifeCtx } from './kit';
 
 /** Every ambient critter system for a scene, driven by one update call. */
-export function buildLife(def: SceneDef): { root: THREE.Group; update(ctx: LifeCtx): void; feed(x: number, z: number, t: number): void } {
+export function buildLife(def: SceneDef): {
+  root: THREE.Group;
+  update(ctx: LifeCtx): void;
+  feed(x: number, z: number, t: number): void;
+  nearest(x: number, z: number, reach: number): Critter | null;
+  hide(id: number, until: number): void;
+} {
   const systems: LifeSystem[] = [];
   const w = def.water;
   if (w) systems.push(sailboats(w));
@@ -33,9 +40,15 @@ export function buildLife(def: SceneDef): { root: THREE.Group; update(ctx: LifeC
   }
   const root = new THREE.Group();
   for (const s of systems) root.add(s.root);
+  const crit = systems.flatMap((s) => s.critters ?? []);
   return {
     root,
     update: (ctx) => systems.forEach((s) => s.update(ctx)),
     feed: (x, z, t) => systems.forEach((s) => s.feed?.(x, z, t)),
+    nearest: (x, z, reach) => nearestCritter(crit, x, z, reach),
+    hide(id, until) {
+      const c = crit.find((k) => k.id === id);
+      if (c) [c.hiddenUntil, c.shown] = [until, false];
+    },
   };
 }

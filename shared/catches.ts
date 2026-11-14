@@ -70,3 +70,6 @@ export const FIRST_CATCH_KP = 3;
 export const FISH_REACH = 2.5;
 export const FISH_GAP_MS = 5000;
 export const BUG_GAP_MS = 3000;
+export const BUG_REACH = 1.2;
+/** A netted critter is gone this long. */
+export const CRITTER_HIDE_MS = 60_000;

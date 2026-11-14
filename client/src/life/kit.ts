@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { LifeZone } from '../../../shared/scenes/types';
-import { LIFE_RADIUS } from './math';
+import { LIFE_RADIUS, type Critter } from './math';
 import { toonMat } from '../world/materials';
 
 export interface LifeCtx {
@@ -16,6 +16,8 @@ export interface LifeSystem {
   root: THREE.Object3D;
   update(ctx: LifeCtx): void;
   feed?(x: number, z: number, t: number): void;
+  /** Catchable ones, for the net. */
+  critters?: Critter[];
 }
 
 /** Skip work for zones nobody can see. */

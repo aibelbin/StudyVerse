@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Decor, LifeZone } from '../../../shared/scenes/types';
 import { Instances, lambert, nearby, type LifeCtx, type LifeSystem } from './kit';
-import { hash } from './math';
+import { critters, hash, track } from './math';
 import { toonMat } from '../world/materials';
 
 /** Ladybugs and snails pottering in slow little circles. */
@@ -16,8 +16,10 @@ export function crawlers(zone: LifeZone, kind: 'ladybugs' | 'snails'): LifeSyste
   const body = new Instances(new THREE.BoxGeometry(0.06, 0.04, snail ? 0.22 : 0.05), lambert(snail ? '#d8c9a0' : '#3b3346'), n);
   root.add(shell.mesh, body.mesh);
   const speed = snail ? 0.04 : 0.15;
+  const crit = critters(kind, n);
   return {
     root,
+    critters: crit,
     update(ctx) {
       if (!nearby(zone, ctx)) return;
       for (let i = 0; i < n; i++) {
@@ -28,6 +30,11 @@ export function crawlers(zone: LifeZone, kind: 'ladybugs' | 'snails'): LifeSyste
         const x = cx + Math.cos(a) * r;
         const z = cz + Math.sin(a) * r;
         const yaw = -a; // tangent to the circle
+        if (!track(crit[i], x, z, ctx.t)) {
+          shell.hide(i);
+          body.hide(i);
+          continue;
+        }
         shell.set(i, x, snail ? 0.09 : 0.01, z, yaw);
         body.set(i, x + Math.sin(yaw) * 0.04, 0.02, z + Math.cos(yaw) * 0.04, yaw);
       }

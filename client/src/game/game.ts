@@ -6,7 +6,7 @@ import { inBox, moveWithCollision, pointInPolygon } from '../../../shared/geomet
 import type { ClientMsg, ErrorCode, ServerMsg } from '../../../shared/protocol';
 import { SCENES } from '../../../shared/scenes';
 import { SLIDE_RUN } from '../../../shared/scenes/kitToys';
-import type { SceneDef, Slot, Spot, Toy } from '../../../shared/scenes/types';
+import type { LifeKind, SceneDef, Slot, Spot, Toy } from '../../../shared/scenes/types';
 import { cabinOwner, type CabinEntry } from '../../../shared/art';
 import { mailFlags } from '../art/mail';
 import { BoothTimer, capturePhoto, flash, openPhotoPreview, runCountdown } from '../art/booth';
@@ -55,8 +55,8 @@ import { CLOUDS } from '../world/ground';
 import { initialQuality, QUALITY_KEY, SlowFrames, type Quality } from '../world/quality';
 import { GolfCourse } from '../golf/course';
 import { GolfPlay } from '../golf/play';
-import { caughtText, Fishing } from '../fun/fishing';
-import { SPECIES } from '../../../shared/catches';
+import { bugsOf, caughtText, Fishing, pickSpecies } from '../fun/fishing';
+import { BUG_GAP_MS, CRITTER_HIDE_MS, isNight, possible, SPECIES } from '../../../shared/catches';
 import type { Weather } from '../../../shared/weather';
 import { towardWater } from '../toys/water';
 import { Floaters } from '../toys/floaters';
@@ -96,6 +96,9 @@ export interface GameHooks {
   frame(info: FrameInfo): void;
   /** Called when the scene changes. */
   enterScene(def: SceneDef, built: BuiltScene): void;
+  /** The closest catchable critter you can see within net reach. */
+  nearestCritter(x: number, z: number): { id: number; kind: LifeKind } | null;
+  hideCritter(id: number, ms: number): void;
 }
 
 export interface FrameInfo {
@@ -113,7 +116,7 @@ const ROW_SEND_MS = 100;
 const ROW_TURN = 2.5; // rad/s
 
 export class Game {
-  hooks: GameHooks = { sound() {}, feedDucks() {}, frame() {}, enterScene() {} };
+  hooks: GameHooks = { sound() {}, feedDucks() {}, frame() {}, enterScene() {}, nearestCritter: () => null, hideCritter() {} };
   /** E on a toy that opens something on this screen only (Boutique, notice board, coffee machine). */
   onLocalToy: (toy: Toy) => void = () => {};
   /** E on your own garden plot. */
@@ -175,6 +178,7 @@ export class Game {
   private slowFrames = new SlowFrames();
   private golf: GolfPlay;
   private fishing: Fishing;
+  private nettedAt = -1e9;
   /** The town's latest weather (the fish picker checks for rain). */
   weather: Weather | null = null;
   /** Server time you sat on a meditation cushion (null when not on one). */
@@ -228,7 +232,7 @@ export class Game {
       pop: (text) => this.myChar?.overhead.pop(text, performance.now()),
       toast: (text) => this.hud.toast(text, 2500),
       send: (m) => this.send(m),
-      hour: () => Math.floor(clockHours(new Date(), this.timeOverride)),
+      hour: () => this.hour(),
       raining: () => this.weather?.kind === 'rain',
     });
     this.input.on('q', () => {
@@ -1090,8 +1094,35 @@ export class Game {
       return;
     }
     if (t.kind === 'spot') return this.art.use(t.spot, this.onSpot);
+    if (t.kind === 'critter') return this.net(t.id, t.critter);
     const r = this.remotes.get(t.id);
     if (r) this.hud.openPlayerCard(r.view, (kind: EmoteKind) => this.send({ t: 'emote', kind, targetId: t.id }));
+  }
+
+  private hour(): number {
+    return Math.floor(clockHours(new Date(), this.timeOverride));
+  }
+
+  /** Swing the net at a critter: it's gone for a minute and the server hears what you caught. */
+  private net(id: number, kind: LifeKind): void {
+    const now = performance.now();
+    if (now - this.nettedAt < BUG_GAP_MS) return;
+    this.nettedAt = now;
+    this.myChar?.swingNet(now);
+    this.hooks.hideCritter(id, CRITTER_HIDE_MS);
+    const hour = this.hour();
+    const species = pickSpecies(bugsOf(kind), { night: isNight(hour), raining: this.weather?.kind === 'rain' });
+    if (species) this.send({ t: 'catch', kind: 'bug', species, hour });
+  }
+
+  /** A critter in net reach that has a bug you could catch right now (snails only in the rain). */
+  private critterTarget(): Target | null {
+    const c = this.hooks.nearestCritter(this.x, this.z);
+    const ids = c ? bugsOf(c.kind) : [];
+    const now = { night: isNight(this.hour()), raining: this.weather?.kind === 'rain' };
+    if (!c || !ids.some((id) => possible(id, now))) return null;
+    const s = SPECIES[ids[0]];
+    return { kind: 'critter', id: c.id, critter: c.kind, prompt: `[E] catch the ${s.name} ${s.emoji}`, dist: 0 };
   }
 
   /** Face the lake and cast 3 m out. */
@@ -1170,7 +1201,7 @@ export class Game {
       return '[Space] start a study session · [E] stand up';
     }
     const t = this.target;
-    if (t?.kind === 'toy' || t?.kind === 'spot') return t.prompt;
+    if (t?.kind === 'toy' || t?.kind === 'spot' || t?.kind === 'critter') return t.prompt;
     if (t?.kind === 'slot') return slotPrompt(t.slot, t.slot.toyId ? this.toyById(t.slot.toyId) : undefined);
     const cup = me.holding;
     const drink = cup && cup.item !== 'gift' && cup.item !== 'bouquet' ? cup : null;
@@ -1339,7 +1370,7 @@ export class Game {
         return { slot, x: spot.x, z: spot.z };
       });
       const toys = this.def.toys.map((toy) => ({ toy, prompt: toy.kind === 'plot' ? this.plotPrompt(toy) : toy.kind === 'mailbox' ? this.mailboxPrompt(toy) : toyPrompt(toy, this.toyStates[toy.id]) }));
-      this.target = pickTarget(this.x, this.z, placed, this.occupied, toys, others, this.art.targets(this.me.id));
+      this.target = pickTarget(this.x, this.z, placed, this.occupied, toys, others, this.art.targets(this.me.id)) ?? this.critterTarget();
     }
     this.hud.setPrompt(this.promptText());
     this.onFrame();

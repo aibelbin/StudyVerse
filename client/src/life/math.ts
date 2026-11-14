@@ -1,3 +1,5 @@
+import type { LifeKind } from '../../../shared/scenes/types';
+
 /** Critters further than this (plus their zone radius) from the camera target stop updating. */
 export const LIFE_RADIUS = 35;
 
@@ -42,4 +44,36 @@ export function catmullLoop(points: [number, number][], u: number): { x: number;
     z: c(p0[1], p1[1], p2[1], p3[1]),
     heading: Math.atan2(dc(p0[0], p1[0], p2[0], p3[0]), dc(p0[1], p1[1], p2[1], p3[1])),
   };
+}
+
+/** A catchable critter's last drawn spot. shown = drawn this frame (not netted, fireflies only after dark). */
+export interface Critter {
+  id: number;
+  kind: LifeKind;
+  x: number;
+  z: number;
+  shown: boolean;
+  hiddenUntil: number;
+}
+
+let nextCritter = 0;
+export const critters = (kind: LifeKind, n: number): Critter[] =>
+  Array.from({ length: n }, () => ({ id: nextCritter++, kind, x: 0, z: 0, shown: false, hiddenUntil: 0 }));
+
+/** Note where a critter is now; false while it's netted (draw it hidden). */
+export function track(c: Critter, x: number, z: number, t: number): boolean {
+  c.x = x;
+  c.z = z;
+  return (c.shown = t >= c.hiddenUntil);
+}
+
+/** The closest shown critter within reach of (x, z). */
+export function nearestCritter(list: Critter[], x: number, z: number, reach: number): Critter | null {
+  let best: Critter | null = null;
+  let bd = reach;
+  for (const c of list) {
+    const d = Math.hypot(c.x - x, c.z - z);
+    if (c.shown && d <= bd) [best, bd] = [c, d];
+  }
+  return best;
 }

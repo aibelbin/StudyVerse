@@ -1,12 +1,13 @@
 import { INTERACT_RADIUS, SEAT_RADIUS } from '../../../shared/constants';
 import { SPOT_RADIUS } from '../../../shared/art';
-import type { Slot, Spot, Toy } from '../../../shared/scenes/types';
+import type { LifeKind, Slot, Spot, Toy } from '../../../shared/scenes/types';
 
 export type Target =
   | { kind: 'slot'; slot: Slot; dist: number }
   | { kind: 'toy'; toy: Toy; prompt: string; dist: number }
   | { kind: 'player'; id: string; dist: number }
-  | { kind: 'spot'; spot: Spot; prompt: string; dist: number };
+  | { kind: 'spot'; spot: Spot; prompt: string; dist: number }
+  | { kind: 'critter'; id: number; critter: LifeKind; prompt: string; dist: number };
 
 /** A slot where it is right now (seats on boats and the merry-go-round move). */
 export interface PlacedSlot {

@@ -3,7 +3,7 @@ import { pointInPolygon } from '../../../shared/geometry';
 import type { LifeZone, SceneDef, Water } from '../../../shared/scenes/types';
 import { mesh, toonMat } from '../world/materials';
 import { Instances, lambert, nearby, type LifeSystem } from './kit';
-import { catmullLoop, hash, noise1 } from './math';
+import { catmullLoop, critters, hash, noise1, track } from './math';
 
 /** Sailboats lapping fixed loops, timed from the server clock so everyone sees the same regatta. */
 export function sailboats(water: Water): LifeSystem {
@@ -175,6 +175,7 @@ export function dragonflies(zone: LifeZone, water: Water): LifeSystem {
   const bodies = new Instances(geo, lambert('#3f8fd8'), zone.count);
   const wings = new Instances(wingGeo, toonMat({ color: '#dff4ff', transparent: true, opacity: 0.7 }), zone.count);
   root.add(bodies.mesh, wings.mesh);
+  const crit = critters('dragonflies', zone.count);
   const point = (i: number, k: number) => {
     const x = zone.x + (hash(zone.seed, i, k, 1) - 0.5) * zone.r * 1.6;
     const z = zone.z + (hash(zone.seed, i, k, 2) - 0.5) * zone.r;
@@ -182,6 +183,7 @@ export function dragonflies(zone: LifeZone, water: Water): LifeSystem {
   };
   return {
     root,
+    critters: crit,
     update(ctx) {
       if (!nearby(zone, ctx)) return;
       for (let i = 0; i < zone.count; i++) {
@@ -195,6 +197,11 @@ export function dragonflies(zone: LifeZone, water: Water): LifeSystem {
         const z = a.z + (b.z - a.z) * e;
         const y = 0.7 + Math.sin(ctx.t / 300 + i) * 0.08;
         const yaw = Math.atan2(b.x - a.x, b.z - a.z);
+        if (!track(crit[i], x, z, ctx.t)) {
+          bodies.hide(i);
+          wings.hide(i);
+          continue;
+        }
         bodies.set(i, x, y, z, yaw);
         wings.set(i, x, y + 0.02, z, yaw, 1, 0, Math.sin(ctx.t / 25 + i) * 0.3);
       }

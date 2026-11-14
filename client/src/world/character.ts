@@ -45,6 +45,8 @@ export class Character {
   private cupKind: string | null = null;
   private steam: THREE.Mesh[] = [];
   private sipAt = -1e9;
+  private net: THREE.Group | null = null;
+  private netAt = -1e9;
   private actKind: Act | null = null;
   private actAt = 0;
   private pops: { at: number; emoji: string }[] = [];
@@ -197,6 +199,25 @@ export class Character {
     this.pops = e ? [700, 1400].map((d) => ({ at: now + d, emoji: e })) : [];
   }
 
+  /** A quick bug-net swing in the right hand (~0.5 s). */
+  swingNet(now: number): void {
+    this.netAt = now;
+    if (this.net) return;
+    const g = new THREE.Group();
+    const wood = toonMat({ color: '#a0703c' });
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.5, 6), wood);
+    handle.position.y = -0.3;
+    const hoop = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.012, 6, 16), wood);
+    hoop.position.y = -0.67;
+    const bag = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.2, 10, 1, true), toonMat({ color: '#ffffff', transparent: true, opacity: 0.6, side: THREE.DoubleSide }));
+    bag.rotation.x = -Math.PI / 2; // open end on the hoop
+    bag.position.set(0, -0.67, -0.1);
+    g.add(handle, hoop, bag);
+    g.position.set(0, -0.1, 0.05);
+    this.arms[1].add(g);
+    this.net = g;
+  }
+
   /** Raise the cup for a sip (the ☕ emote). */
   sip(now: number): void {
     this.sipAt = now;
@@ -268,6 +289,9 @@ export class Character {
         (p.material as THREE.MeshBasicMaterial).opacity = 0.5 * (1 - k);
       });
     }
+    const swing = (now - this.netAt) / 500;
+    if (this.net) this.net.visible = swing < 1;
+    if (swing < 1) a1.rotation.x = -2.6 + swing * 2.2; // up high, then a sweep down
     const breathe = 1 + Math.sin(now * 0.0025) * 0.015;
     this.body.scale.set(1, breathe, 1);
     const blinking = this.eyeKey === 'dot' && (now + this.blinkAt) % 4200 < 120;

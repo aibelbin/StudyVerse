@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { isNight, possible, SPECIES, SPECIES_IDS, type SpeciesId } from '../../../shared/catches';
 import type { ClientMsg } from '../../../shared/protocol';
+import type { LifeKind } from '../../../shared/scenes/types';
 import type { SoundKind } from '../audio/kinds';
 import { disposeTree, mat, mesh } from '../world/materials';
 import { PALETTE as P } from '../world/palette';
@@ -38,6 +39,9 @@ export function pickSpecies(ids: SpeciesId[], now: { night: boolean; raining: bo
 }
 
 const FISH = SPECIES_IDS.filter((id) => SPECIES[id].kind === 'fish');
+
+/** The bugs netted from a critter kind; the first is its everyday one. */
+export const bugsOf = (kind: LifeKind): SpeciesId[] => SPECIES_IDS.filter((id) => SPECIES[id].base === kind);
 
 /** The toast for something you caught (fish or bug). */
 export function caughtText(species: SpeciesId, size: number | undefined, first: boolean): string {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { catmullLoop, hash, noise1 } from './math';
+import { catmullLoop, critters, hash, nearestCritter, noise1 } from './math';
 
 describe('catmullLoop', () => {
   const pts: [number, number][] = [[0, 0], [10, 0], [10, 10], [0, 10]];
@@ -39,5 +39,17 @@ describe('noise1 and hash', () => {
       expect(h).toBeGreaterThanOrEqual(0);
       expect(h).toBeLessThan(1);
     }
+  });
+});
+
+describe('nearestCritter', () => {
+  const at = (x: number, z: number, shown = true) => ({ ...critters('bees', 1)[0], x, z, shown });
+  it('picks the closest shown one within reach', () => {
+    const near = at(0.5, 0);
+    const list = [at(1, 0), near, at(0.2, 0, false), at(2, 0)];
+    expect(nearestCritter(list, 0, 0, 1.2)).toBe(near);
+  });
+  it('is null when none is in reach', () => {
+    expect(nearestCritter([at(1.3, 0), at(0, 0, false)], 0, 0, 1.2)).toBeNull();
   });
 });

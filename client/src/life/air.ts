@@ -3,7 +3,7 @@ import { pointInPolygon } from '../../../shared/geometry';
 import type { LifeZone, SceneDef } from '../../../shared/scenes/types';
 import { PALETTE as P } from '../world/palette';
 import { Instances, lambert, nearby, type LifeSystem } from './kit';
-import { hash, noise1 } from './math';
+import { critters, hash, noise1, track } from './math';
 import { toonMat } from '../world/materials';
 import { chimneyLocal } from '../world/decor';
 import type { Decor } from '../../../shared/scenes/types';
@@ -14,11 +14,13 @@ export function flyers(zone: LifeZone, def: SceneDef, kind: 'butterflies' | 'bee
   const beds = def.decor.filter((d) => d.kind === 'flowers' && Math.hypot(d.x - zone.x, d.z - zone.z) < zone.r);
   const home = (i: number) => (beds.length ? beds[i % beds.length] : { x: zone.x, z: zone.z });
   const n = zone.count;
+  const crit = critters(kind, n);
   if (kind === 'bees') {
     const bees = new Instances(new THREE.SphereGeometry(0.06, 6, 4).scale(1, 0.9, 1.4), lambert('#ffd36e'), n);
     root.add(bees.mesh);
     return {
       root,
+      critters: crit,
       update(ctx) {
         if (!nearby(zone, ctx)) return;
         for (let i = 0; i < n; i++) {
@@ -26,6 +28,10 @@ export function flyers(zone: LifeZone, def: SceneDef, kind: 'butterflies' | 'bee
           const a = ctx.t / (420 + i * 37) + i;
           const x = h.x + Math.sin(a) * 0.55 + noise1(i, ctx.t / 400) * 0.15;
           const z = h.z + Math.cos(a * 1.3) * 0.4;
+          if (!track(crit[i], x, z, ctx.t)) {
+            bees.hide(i);
+            continue;
+          }
           bees.set(i, x, 0.45 + Math.sin(ctx.t / 150 + i) * 0.08, z, a + Math.PI / 2);
         }
         bees.commit();
@@ -43,6 +49,7 @@ export function flyers(zone: LifeZone, def: SceneDef, kind: 'butterflies' | 'bee
   root.add(left.mesh, right.mesh);
   return {
     root,
+    critters: crit,
     update(ctx) {
       if (!nearby(zone, ctx)) return;
       for (let i = 0; i < n; i++) {
@@ -50,6 +57,11 @@ export function flyers(zone: LifeZone, def: SceneDef, kind: 'butterflies' | 'bee
         const s = ctx.t / 1000;
         const x = h.x + Math.sin(s * (0.31 + hash(i, 1) * 0.2) + i) * 2.2 + noise1(zone.seed + i, s * 0.4) * 1.5;
         const z = h.z + Math.cos(s * (0.27 + hash(i, 2) * 0.2) + i * 2) * 1.8 + noise1(zone.seed - i, s * 0.4) * 1.5;
+        if (!track(crit[i], x, z, ctx.t)) {
+          left.hide(i);
+          right.hide(i);
+          continue;
+        }
         const y = 0.7 + Math.sin(s * 1.7 + i) * 0.25 + noise1(i * 3, s) * 0.15;
         const yaw = s * 0.8 + i;
         const flap = Math.sin(ctx.t / 55 + i) * 1.1;
@@ -191,10 +203,13 @@ export function fireflies(zone: LifeZone): LifeSystem {
   });
   const points = new THREE.Points(geo, mat);
   points.frustumCulled = false;
+  const crit = critters('fireflies', n);
   return {
     root: points,
+    critters: crit,
     update(ctx) {
       points.visible = ctx.night > 0.3;
+      if (!points.visible) for (const c of crit) c.shown = false;
       if (!points.visible || !nearby(zone, ctx)) return;
       mat.opacity = Math.min(1, (ctx.night - 0.3) * 1.6) * (0.75 + Math.sin(ctx.t / 700) * 0.25);
       const s = ctx.t / 1000;
@@ -204,6 +219,7 @@ export function fireflies(zone: LifeZone): LifeSystem {
         pos[i * 3] = zone.x + Math.cos(a) * r + noise1(i, s * 0.25) * 1.5;
         pos[i * 3 + 1] = 0.6 + hash(i, 3) * 1.6 + noise1(i + 99, s * 0.3) * 0.4;
         pos[i * 3 + 2] = zone.z + Math.sin(a) * r + noise1(i + 7, s * 0.25) * 1.5;
+        if (!track(crit[i], pos[i * 3], pos[i * 3 + 2], ctx.t)) pos[i * 3 + 1] = -50;
       }
       geo.attributes.position.needsUpdate = true;
     },

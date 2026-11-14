@@ -1,3 +1,4 @@
+import { BUG_REACH } from '../../../shared/catches';
 import type { SceneDef } from '../../../shared/scenes/types';
 import type { Constellation } from '../../../shared/stars';
 import { Ambience } from '../audio/ambience';
@@ -77,5 +78,13 @@ export class Extras implements GameHooks {
 
   feedDucks(x: number, z: number): void {
     this.life?.feed(x, z, this.lastNow);
+  }
+
+  nearestCritter(x: number, z: number) {
+    return this.life?.nearest(x, z, BUG_REACH) ?? null;
+  }
+
+  hideCritter(id: number, ms: number): void {
+    this.life?.hide(id, this.lastNow + ms);
   }
 }
