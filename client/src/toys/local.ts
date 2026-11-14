@@ -161,3 +161,14 @@ export function observatoryView(): ToyView {
   root.add(sign);
   return { root, update: (ctx) => bob(sign, 2.6, ctx.now) };
 }
+
+/** A fishing spot: a little wooden sign on a post, just behind where you stand. */
+export function fishingView(): ToyView {
+  const root = new THREE.Group();
+  root.add(mesh(new THREE.BoxGeometry(0.08, 1.1, 0.08), mat(P.woodDark), 0, 0.55, 0.6));
+  root.add(mesh(new THREE.BoxGeometry(0.6, 0.3, 0.05), mat(P.woodLight), 0, 1.05, 0.64));
+  const sign = textSprite('🎣 Fishing', 0.28, { bg: '#ffffffdd', font: 40, pad: 12 });
+  sign.position.set(0, 1.6, 0.6);
+  root.add(sign);
+  return { root, update: (ctx) => bob(sign, 1.6, ctx.now) };
+}

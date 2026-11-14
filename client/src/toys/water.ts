@@ -8,7 +8,7 @@ import type { ToyFx, ToyView } from './registry';
 import { waterMat } from '../world/ground';
 
 /** Unit vector from the toy towards the middle of the scene's water. */
-function towardWater(toy: Toy, def: SceneDef): { x: number; z: number } {
+export function towardWater(toy: Toy, def: SceneDef): { x: number; z: number } {
   const o = def.water?.outline ?? [];
   const cx = o.reduce((a, p) => a + p[0], 0) / Math.max(o.length, 1);
   const cz = o.reduce((a, p) => a + p[1], 0) / Math.max(o.length, 1);

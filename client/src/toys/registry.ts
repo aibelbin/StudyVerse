@@ -4,7 +4,7 @@ import type { BoatPose, ToyAction, ToyKind, ToyState } from '../../../shared/toy
 import type { SoundKind } from '../audio/kinds';
 import { bellView, chimesView, jukeboxView, pianoView } from './music';
 import { merryGoRoundView, seesawView, slideView, swingView } from './playground';
-import { boardView, coffeeView, easelView, galleryView, observatoryView, postBoxView, giftShopView, photoBoothView, quotesView, shopView, wheelView } from './local';
+import { boardView, coffeeView, easelView, fishingView, galleryView, observatoryView, postBoxView, giftShopView, photoBoothView, quotesView, shopView, wheelView } from './local';
 import { campfireView, telescopeView } from './misc';
 import { truckView } from './truck';
 import { plotView } from './garden';
@@ -140,6 +140,6 @@ function build(toy: Toy, def: SceneDef, fx: ToyFx): ToyView {
     case 'postBox': return postBoxView();
     case 'observatory': return observatoryView();
     case 'mailbox': return { root: new Group(), update() {} }; // the decor draws it
-    case 'fishing': return { root: new Group(), update() {} }; // placeholder until round 4 Task 2
+    case 'fishing': return fishingView();
   }
 }

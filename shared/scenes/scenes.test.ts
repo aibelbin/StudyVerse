@@ -82,8 +82,7 @@ describe('scene data', () => {
   it('the town is 150 x 130 and every kind of toy is somewhere', () => {
     expect(SCENES.town.size).toEqual({ w: 150, d: 130 });
     const village = villageScene([{ lot: 0, owner: 'a', name: 'A', locked: false, mail: false }]); // mailboxes only exist for cabins
-    const notYet = ['fishing']; // placed in the town by round 4 Task 2: drop this then
-    for (const k of TOY_KINDS.filter((k) => !notYet.includes(k))) expect([...scenes, village].some((s) => s.toys.some((t) => t.kind === k)), k).toBe(true);
+    for (const k of TOY_KINDS) expect([...scenes, village].some((s) => s.toys.some((t) => t.kind === k)), k).toBe(true);
   });
 
   it('boats moor on the water, sailboats sail on it, landings are on shore', () => {
@@ -96,6 +95,33 @@ describe('scene data', () => {
       expect(inside(150, 130, l.x, l.z, PLAYER_RADIUS)).toBe(true);
       expect(SCENES.town.colliders.some((c) => inBox(c, l.x, l.z, PLAYER_RADIUS)), `${l.x},${l.z}`).toBe(false);
     }
+  });
+
+  it('fishing spots stand on the shore or the dock, with water 3 m out', () => {
+    const t = SCENES.town;
+    const o = t.water!.outline;
+    const dock = t.decor.find((d) => d.kind === 'dock')!;
+    const onDock = (x: number, z: number) => inBox({ x: dock.x, z: dock.z, w: dock.w!, d: dock.d! }, x, z);
+    const toShore = (x: number, z: number) => Math.min(...o.map((a, i) => {
+      const b = o[(i + 1) % o.length];
+      const [dx, dz] = [b[0] - a[0], b[1] - a[1]];
+      const k = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz)));
+      return Math.hypot(x - a[0] - k * dx, z - a[1] - k * dz);
+    }));
+    const [cx, cz] = [o.reduce((s, p) => s + p[0], 0) / o.length, o.reduce((s, p) => s + p[1], 0) / o.length];
+    const spots = t.toys.filter((x) => x.kind === 'fishing');
+    expect(spots.length).toBe(3);
+    for (const s of spots) {
+      expect(t.colliders.some((c) => inBox(c, s.x, s.z, PLAYER_RADIUS)), s.id).toBe(false);
+      if (!onDock(s.x, s.z)) {
+        expect(pointInPolygon(o, s.x, s.z), s.id).toBe(false);
+        expect(toShore(s.x, s.z), s.id).toBeLessThanOrEqual(2);
+      }
+      const len = Math.hypot(cx - s.x, cz - s.z); // the bobber lands 3 m towards the middle of the lake
+      const [bx, bz] = [s.x + ((cx - s.x) / len) * 3, s.z + ((cz - s.z) / len) * 3];
+      expect(pointInPolygon(o, bx, bz) && !onDock(bx, bz), s.id).toBe(true);
+    }
+    expect(spots.some((s) => onDock(s.x, s.z))).toBe(true);
   });
 
   it('you can board each boat from the dock', () => {

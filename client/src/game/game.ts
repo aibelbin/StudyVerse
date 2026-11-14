@@ -55,6 +55,10 @@ import { CLOUDS } from '../world/ground';
 import { initialQuality, QUALITY_KEY, SlowFrames, type Quality } from '../world/quality';
 import { GolfCourse } from '../golf/course';
 import { GolfPlay } from '../golf/play';
+import { caughtText, Fishing } from '../fun/fishing';
+import { SPECIES } from '../../../shared/catches';
+import type { Weather } from '../../../shared/weather';
+import { towardWater } from '../toys/water';
 import { Floaters } from '../toys/floaters';
 import { PetModel } from '../pets/model';
 import { DEFAULT_MUG } from '../../../shared/mug';
@@ -170,6 +174,9 @@ export class Game {
   quality: Quality = 'high';
   private slowFrames = new SlowFrames();
   private golf: GolfPlay;
+  private fishing: Fishing;
+  /** The town's latest weather (the fish picker checks for rain). */
+  weather: Weather | null = null;
   /** Server time you sat on a meditation cushion (null when not on one). */
   private breathSitAt: number | null = null;
   private breathDone = false;
@@ -214,6 +221,15 @@ export class Game {
       },
       sound: (kind, x, z) => this.fx.sound(kind, x, z),
       pop: (x, y, z, text) => this.rt?.pops.text(text, x, y, z, performance.now(), 0.8, 2200),
+    });
+    this.fishing = new Fishing({
+      scene: () => this.scene,
+      sound: (kind, x, z) => this.fx.sound(kind, x, z),
+      pop: (text) => this.myChar?.overhead.pop(text, performance.now()),
+      toast: (text) => this.hud.toast(text, 2500),
+      send: (m) => this.send(m),
+      hour: () => Math.floor(clockHours(new Date(), this.timeOverride)),
+      raining: () => this.weather?.kind === 'rain',
     });
     this.input.on('q', () => {
       if (!this.hud.modalOpen()) this.golf.quit();
@@ -315,6 +331,7 @@ export class Game {
       case 'welcome':
         syncClock(m.serverTime);
         this.toyStates = { ...m.toys };
+        this.weather = m.weather;
         this.treeMinutes = m.treeMinutes;
         this.cabins = m.cabins;
         this.enter(m.you, m.players);
@@ -361,6 +378,16 @@ export class Game {
         }
         break;
       }
+      case 'weather':
+        this.weather = m.weather;
+        break;
+      case 'caught':
+        this.myChar?.overhead.pop(SPECIES[m.species].emoji, performance.now());
+        this.hud.toast(caughtText(m.species, m.size, m.first), 3500);
+        break;
+      case 'catchPop':
+        this.charOf(m.id)?.overhead.pop(SPECIES[m.species].emoji, performance.now());
+        break;
       case 'golfBall':
       case 'golfDone':
       case 'golfGone':
@@ -440,6 +467,7 @@ export class Game {
     this.pets.clear();
     this.localPet = null;
     this.def = book.get(you.scene)!;
+    this.fishing.stop();
     // a village or cabin from an older roster is rebuilt; cabins (there are many) aren't kept once you leave
     const stale = [...this.runtimes].filter(([id, r]) => !SCENES[id] && (r.version !== book.version || (cabinOwner(id) && id !== you.scene)));
     for (const [id] of stale) this.runtimes.delete(id);
@@ -907,6 +935,7 @@ export class Game {
       if (!pressing) return;
       this.setTelescope(false);
     }
+    if (pressing && this.fishing.active) this.fishing.stop(); // walking off reels in
     if (!pressing) {
       this.stopMoving(nowP);
       return;
@@ -1027,6 +1056,7 @@ export class Game {
   private interact(): void {
     if (!this.me || this.transitioning || this.hud.modalOpen() || this.sliding.has(this.me.id)) return;
     if (this.telescope) return this.setTelescope(false);
+    if (this.fishing.active) return this.fishing.strike(performance.now());
     if (this.me.slotId) {
       if (this.dw && this.driving && this.driving.speed > 1) {
         this.exiting = true; // brake to a stop first, then hop out (see drive)
@@ -1049,6 +1079,7 @@ export class Game {
         this.fx.say(this.me.id, QUOTES[Math.floor(Math.random() * QUOTES.length)]);
         return;
       }
+      if (t.toy.kind === 'fishing') return this.cast(t.toy);
       if (LOCAL_TOYS.includes(t.toy.kind)) return this.onLocalToy(t.toy);
       if (t.toy.kind === 'plot') return this.usePlot(t.toy);
       if (t.toy.kind === 'golfTee') return this.golf.tee(Number(t.toy.id.split('-').pop()));
@@ -1061,6 +1092,14 @@ export class Game {
     if (t.kind === 'spot') return this.art.use(t.spot, this.onSpot);
     const r = this.remotes.get(t.id);
     if (r) this.hud.openPlayerCard(r.view, (kind: EmoteKind) => this.send({ t: 'emote', kind, targetId: t.id }));
+  }
+
+  /** Face the lake and cast 3 m out. */
+  private cast(toy: Toy): void {
+    const dir = towardWater({ ...toy, x: this.x, z: this.z }, this.def!);
+    this.facing = Math.atan2(dir.x, dir.z);
+    this.sendMove(performance.now());
+    if (this.myChar) this.fishing.start(this.myChar.root, this.x, this.z, dir, performance.now());
   }
 
   private openSessionPicker(): void {
@@ -1115,6 +1154,8 @@ export class Game {
     const golfing = this.golf.prompt();
     if (golfing) return golfing;
     if (this.telescope) return '✨ Stargazing… [E] or move to stop';
+    const fishing = this.fishing.prompt(performance.now());
+    if (fishing) return fishing;
     if (me.slotId) {
       const slot = this.slotById(me.slotId);
       if (slot && !slot.deskId) {
@@ -1315,6 +1356,7 @@ export class Game {
 
     this.rt.golf?.update(sNow);
     this.golf.update(dt, sNow);
+    this.fishing.update(nowP);
     this.rt.pops.update(performance.now());
     const focus = this.golf.focus();
     this.rig.follow(focus?.x ?? this.x, focus?.z ?? this.z, dt);

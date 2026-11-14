@@ -12,7 +12,7 @@ import { south, STAGE_BOX } from './town/south';
 import { STAGE } from './town/stage';
 import { square, squareDoors, squareSpawns } from './town/square';
 import { woods } from './town/woods';
-import type { Decor, Door, SceneDef, Spawn, Theme, Water } from './types';
+import type { Decor, Door, SceneDef, Spawn, Theme, Toy, Water } from './types';
 
 // Everything laid out for the 150×100 town, then moved north to make room for the south strip.
 const base = merge(square, parking, lake, woods, park, playground);
@@ -35,6 +35,13 @@ const gate: Decor[] = [
   { kind: 'signpost', x: 66, z: TOWN_STREET_Z - 2.6, label: 'Village & Studio|Square' },
 ];
 const gateColliders: Box[] = [{ x: 66, z: TOWN_STREET_Z - 2.6, w: 0.3, d: 0.3 }];
+
+/** Fishing spots: the dock end (beside the skipping stones) and two shore points. */
+const fishing: Toy[] = [
+  { id: 'fishing-dock', kind: 'fishing', x: 39.6, z: -37.6, radius: 1 },
+  { id: 'fishing-north', kind: 'fishing', x: 54.7, z: -32, radius: 1.2 },
+  { id: 'fishing-west', kind: 'fishing', x: 21.1, z: -47.5, radius: 1.2 },
+];
 
 const MAP = { x: 0, z: 0, w: 144, d: 124 };
 const lots = zones.decor.filter((d) => d.kind === 'parking').map((d) => ({ x: d.x, z: d.z, w: d.w ?? 0, d: d.d ?? 0 }));
@@ -67,7 +74,7 @@ export const town: SceneDef = {
   decor: [...paths, ...zones.decor, ...gate, ...grass, ...rocks],
   colliders: [...zones.colliders, ...gateColliders],
   slots: zones.slots,
-  toys: zones.toys,
+  toys: [...zones.toys, ...fishing],
   life: zones.life,
   water: townWater,
   parking: zones.parking,
