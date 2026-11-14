@@ -50,6 +50,7 @@ export class Character {
   private actKind: Act | null = null;
   private actAt = 0;
   private pops: { at: number; emoji: string }[] = [];
+  private umbrella: THREE.Group | null = null;
 
   constructor(look: Look, name: string, isMe = false) {
     const part = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number, parent: THREE.Object3D = this.rig) => {
@@ -216,6 +217,26 @@ export class Character {
     g.position.set(0, -0.1, 0.05);
     this.arms[1].add(g);
     this.net = g;
+  }
+
+  /** An umbrella held up in the left hand, over the head (built on first use). */
+  setUmbrella(on: boolean): void {
+    if (!on && !this.umbrella) return;
+    if (!this.umbrella) {
+      const g = new THREE.Group();
+      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.8, 6), toonMat({ color: '#7a5636' }));
+      handle.position.y = 0.4;
+      const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.22, 12, 1, true), toonMat({ color: '#ff8fa8', side: THREE.DoubleSide }));
+      canopy.position.y = 0.86;
+      canopy.castShadow = true;
+      g.add(handle, canopy);
+      g.position.set(-0.38, 0.5, 0); // the left hand (arms[0] is -x), on the rig so it doesn't swing with the walk
+      g.rotation.z = -0.35; // tilted in so the canopy sits over the head
+      this.rig.add(g);
+      this.umbrella = g;
+      if (this.dimmed) this.applyDim(true);
+    }
+    this.umbrella.visible = on;
   }
 
   /** Raise the cup for a sip (the ☕ emote). */

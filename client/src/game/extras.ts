@@ -1,13 +1,15 @@
 import { BUG_REACH } from '../../../shared/catches';
 import type { SceneDef } from '../../../shared/scenes/types';
 import type { Constellation } from '../../../shared/stars';
-import { Ambience } from '../audio/ambience';
+import { Ambience, RainLoop } from '../audio/ambience';
 import { AudioEngine } from '../audio/engine';
 import { JukeboxPlayer } from '../audio/jukebox';
 import type { SoundKind } from '../audio/kinds';
 import { buildLife } from '../life/registry';
+import { CLOUDS } from '../world/ground';
 import type { BuiltScene } from '../world/sceneBuilder';
 import { clockHours, skyAt, SkyRig, tintIndoorWindows } from '../world/sky';
+import { fadeMix, WeatherRig, type WeatherMix } from '../world/weather';
 import type { FrameInfo, GameHooks } from './game';
 
 /** Time-of-day, ambient life and sound, layered on top of the game. One instance per page. */
@@ -23,6 +25,9 @@ export class Extras implements GameHooks {
   private def: SceneDef | null = null;
   private timeOverride = new URLSearchParams(location.search).get('time');
   private constellations: Constellation[] = [];
+  private mix: WeatherMix = { cloud: 0, rain: 0, rainbow: 0 };
+  private weather: WeatherRig | null = null;
+  private rain = new RainLoop(this.audio);
 
   enterScene(def: SceneDef, built: BuiltScene): void {
     // a rebuilt scene (village after a roster change, a revisited cabin) needs its own sky and life
@@ -35,6 +40,8 @@ export class Extras implements GameHooks {
     this.life = life;
     this.def = def;
     this.audio.setScene(def.id);
+    this.weather?.dispose();
+    this.weather = built.outdoor ? new WeatherRig(built.scene, def) : null;
     for (const t of def.toys) if (t.kind === 'jukebox' && !this.jukeboxes.has(t.id)) this.jukeboxes.set(t.id, new JukeboxPlayer(this.audio, t.x, t.z));
     if (!def.theme.indoor && !this.ambience.has(def.id)) this.ambience.set(def.id, new Ambience(this.audio, def));
     if (built.outdoor) {
@@ -56,7 +63,11 @@ export class Extras implements GameHooks {
 
   frame(f: FrameInfo): void {
     const hours = clockHours(new Date(), this.timeOverride);
-    if (this.sky) this.sky.update(hours, f.me, performance.now(), f.toyStates);
+    const m = (this.mix = fadeMix(this.mix, f.weather, f.dt));
+    this.weather?.update(m, f.me, f.dt, f.quality);
+    CLOUDS.wet.value = f.built.outdoor ? m.rain : 0;
+    this.rain.update(m.rain, !f.built.outdoor);
+    if (this.sky) this.sky.update(hours, f.me, performance.now(), f.toyStates, m.cloud, m.rain);
     else tintIndoorWindows(skyAt(hours).night);
     this.lastNow = f.now;
     const night = this.sky?.night ?? 0;

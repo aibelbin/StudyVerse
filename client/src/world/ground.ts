@@ -107,8 +107,8 @@ function cloudTexture(): THREE.CanvasTexture {
   return cloudTex;
 }
 
-/** Shared by every ground material: seconds (for the drift) and strength (0 at night or on Lite). */
-export const CLOUDS = { t: { value: 0 }, k: { value: 0 } };
+/** Shared by every ground material: seconds (for the drift), strength (0 at night or on Lite) and rain wetness 0..1 (darker ground, lake ripples). */
+export const CLOUDS = { t: { value: 0 }, k: { value: 0 }, wet: { value: 0 } };
 
 /** Adds drifting cloud shadows to a ground material (in its own shader, so it costs almost nothing). */
 export function withCloudShadows(m: THREE.Material): void {
@@ -116,12 +116,13 @@ export function withCloudShadows(m: THREE.Material): void {
     sh.uniforms.cloudMap = { value: cloudTexture() };
     sh.uniforms.cloudT = CLOUDS.t;
     sh.uniforms.cloudK = CLOUDS.k;
+    sh.uniforms.cloudWet = CLOUDS.wet;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec2 vCloudXZ;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvCloudXZ = (modelMatrix * vec4(transformed, 1.0)).xz;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D cloudMap;\nuniform float cloudT;\nuniform float cloudK;\nvarying vec2 vCloudXZ;')
-      .replace('#include <map_fragment>', '#include <map_fragment>\n{ float cl = texture2D(cloudMap, vCloudXZ / 70.0 - vec2(cloudT / 70.0, cloudT / 300.0)).r; diffuseColor.rgb *= 1.0 - cloudK * cl; }');
+      .replace('#include <common>', '#include <common>\nuniform sampler2D cloudMap;\nuniform float cloudT;\nuniform float cloudK;\nuniform float cloudWet;\nvarying vec2 vCloudXZ;')
+      .replace('#include <map_fragment>', '#include <map_fragment>\n{ float cl = texture2D(cloudMap, vCloudXZ / 70.0 - vec2(cloudT / 70.0, cloudT / 300.0)).r; diffuseColor.rgb *= (1.0 - cloudK * cl) * (1.0 - 0.22 * cloudWet); }');
   };
 }
 
@@ -137,11 +138,12 @@ export function waterMat(color: string): THREE.MeshToonMaterial {
   const m = toonMat({ color });
   m.onBeforeCompile = (sh) => {
     sh.uniforms.waterT = CLOUDS.t;
+    sh.uniforms.waterRain = CLOUDS.wet;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec2 vWaterXZ;')
       .replace('#include <project_vertex>', '#include <project_vertex>\nvWaterXZ = (modelMatrix * vec4(transformed, 1.0)).xz;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float waterT;\nvarying vec2 vWaterXZ;')
+      .replace('#include <common>', '#include <common>\nuniform float waterT;\nuniform float waterRain;\nvarying vec2 vWaterXZ;')
       .replace('#include <map_fragment>', `#include <map_fragment>
 {
   vec2 p = vWaterXZ;
@@ -150,6 +152,12 @@ export function waterMat(color: string): THREE.MeshToonMaterial {
   float rip = a + 0.5 * b;
   diffuseColor.rgb += smoothstep(0.85, 1.35, rip) * 0.16;
   diffuseColor.rgb -= smoothstep(0.9, 1.4, -rip) * 0.05;
+  // rain: one expanding ring per 1.25 m cell, each on its own beat
+  vec2 cell = floor(p * 0.8);
+  float h = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+  float ph = fract(waterT * 0.9 + h);
+  float d = length(fract(p * 0.8) - 0.5 - (vec2(fract(h * 7.0), fract(h * 13.0)) - 0.5) * 0.4);
+  diffuseColor.rgb += smoothstep(0.05, 0.0, abs(d - ph * 0.4)) * (1.0 - ph) * 0.3 * waterRain;
 }`);
   };
   m.customProgramCacheKey = () => 'water';

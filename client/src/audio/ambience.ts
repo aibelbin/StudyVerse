@@ -1,6 +1,6 @@
 import type { SceneDef } from '../../../shared/scenes/types';
 import type { AudioEngine, Emitter } from './engine';
-import { burst, chirp, tone } from './voices';
+import { burst, chirp, noise, tone } from './voices';
 
 /** Birdsong by day, water near the lake and crackle by a lit fire (no crickets: the user found them annoying). */
 export class Ambience {
@@ -77,5 +77,32 @@ export class Ambience {
         }
       }
     }
+  }
+}
+
+/** A soft looped hiss of rain at `level` 0..1; indoors a quieter, muffled roof. Skips the town bus, which is silent indoors. */
+export class RainLoop {
+  private gain: GainNode | null = null;
+  private filter: BiquadFilterNode | null = null;
+
+  constructor(private engine: AudioEngine) {}
+
+  update(level: number, indoor: boolean): void {
+    if (!this.gain && level <= 0) return;
+    const c = this.engine.ctx();
+    if (!c) return;
+    if (!this.gain || !this.filter) {
+      const src = c.createBufferSource();
+      src.buffer = noise(c);
+      src.loop = true;
+      this.filter = c.createBiquadFilter();
+      this.filter.type = 'lowpass';
+      this.gain = c.createGain();
+      this.gain.gain.value = 0;
+      src.connect(this.filter).connect(this.gain).connect(c.destination);
+      src.start();
+    }
+    this.gain.gain.setTargetAtTime(this.engine.muted ? 0 : level * (indoor ? 0.025 : 0.06), c.currentTime, 0.3);
+    this.filter.frequency.setTargetAtTime(indoor ? 450 : 1800, c.currentTime, 0.3);
   }
 }

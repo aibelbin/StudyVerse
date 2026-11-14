@@ -57,7 +57,7 @@ import { GolfCourse } from '../golf/course';
 import { GolfPlay } from '../golf/play';
 import { bugsOf, caughtText, Fishing, pickSpecies } from '../fun/fishing';
 import { BUG_GAP_MS, CRITTER_HIDE_MS, isNight, possible, SPECIES } from '../../../shared/catches';
-import type { Weather } from '../../../shared/weather';
+import type { Weather, WeatherKind } from '../../../shared/weather';
 import { towardWater } from '../toys/water';
 import { Floaters } from '../toys/floaters';
 import { PetModel } from '../pets/model';
@@ -109,6 +109,8 @@ export interface FrameInfo {
   dt: number;
   me: { x: number; z: number };
   toyStates: Record<string, ToyState>;
+  weather: WeatherKind | null;
+  quality: Quality;
 }
 
 const SEND_EVERY_MS = 80;
@@ -1404,7 +1406,10 @@ export class Game {
     }
     this.minimap.draw(nowP, { x: this.x, z: this.z, facing: this.facing, color: this.me.look.body },
       [...this.remotes.values()].map((r) => ({ x: r.char.root.position.x, z: r.char.root.position.z, color: r.view.look.body })), vehicles);
-    this.hooks.frame({ def: this.def, built, now: sNow, dt, me: { x: this.x, z: this.z }, toyStates: this.toyStates });
+    const brolly = built.outdoor && this.weather?.kind === 'rain';
+    this.myChar?.setUmbrella(brolly);
+    for (const r of this.remotes.values()) r.char.setUmbrella(brolly);
+    this.hooks.frame({ def: this.def, built, now: sNow, dt, me: { x: this.x, z: this.z }, toyStates: this.toyStates, weather: this.weather?.kind ?? null, quality: this.quality });
     CLOUDS.t.value = nowP / 1000;
     CLOUDS.k.value = this.quality === 'high' && !this.def.theme.indoor ? 0.2 * (1 - this.night) : 0;
     this.post.render(this.scene, this.rig.camera, this.night);

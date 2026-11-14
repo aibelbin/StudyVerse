@@ -36,7 +36,7 @@ function tone(c: AudioContext, out: AudioNode, type: OscillatorType, freq: numbe
 }
 
 let noiseBuf: AudioBuffer | null = null;
-function noise(c: AudioContext): AudioBuffer {
+export function noise(c: AudioContext): AudioBuffer {
   if (noiseBuf && noiseBuf.sampleRate === c.sampleRate) return noiseBuf;
   noiseBuf = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
   const d = noiseBuf.getChannelData(0);

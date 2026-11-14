@@ -83,6 +83,21 @@ export function skyAt(hours: number): SkyState {
   };
 }
 
+/** The sky greyed towards overcast by clouds g (0..1): cloudy sun × 0.6, a touch darker in rain. Pure. */
+export function overcast(s: SkyState, g: number, rain: number): SkyState {
+  if (g <= 0) return s;
+  const grey = lerpHex('#aab2bc', '#2e323c', s.night);
+  const k = g * 0.65;
+  const to = (c: string, f = 1) => lerpHex(c, grey, k * f);
+  return {
+    ...s,
+    top: to(s.top), horizon: to(s.horizon), bottom: to(s.bottom), fog: to(s.fog), hemiSky: to(s.hemiSky, 0.6),
+    sunColor: lerpHex(s.sunColor, '#e8ecf0', k),
+    sunIntensity: s.sunIntensity * (1 - 0.4 * g - 0.15 * rain),
+    hemiIntensity: s.hemiIntensity * (1 - 0.1 * g),
+  };
+}
+
 /** Hours on the local clock, or a valid `?time=HH[:MM]` override. */
 export function clockHours(date: Date, override: string | null): number {
   const m = override?.match(/^(\d{1,2})(?::(\d{2}))?$/);
@@ -200,8 +215,9 @@ export class SkyRig {
     this.lines.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(cs.flatMap((c) => c.edges.flatMap(([a, b]) => [...this.field[a], ...this.field[b]])), 3));
   }
 
-  update(hours: number, focus: { x: number; z: number }, now: number, toys: Record<string, ToyState>): void {
-    const s = skyAt(hours);
+  /** cloud and rain (0..1) come from the weather fade. */
+  update(hours: number, focus: { x: number; z: number }, now: number, toys: Record<string, ToyState>, cloud = 0, rain = 0): void {
+    const s = overcast(skyAt(hours), cloud, rain);
     this.night = s.night;
     const b = this.built;
     const key = `${s.top}${s.horizon}${s.bottom}`;
@@ -224,7 +240,7 @@ export class SkyRig {
     b.sun.intensity = s.sunIntensity;
     b.sunOffset.set(...s.sunDir);
 
-    const starA = Math.max(0, s.night * 1.2 - 0.2);
+    const starA = Math.max(0, s.night * 1.2 - 0.2) * (1 - cloud);
     const tw = now / 900;
     for (const [st, ph] of [[this.stars, 0], [this.stars2, Math.PI]] as const) {
       st.position.set(focus.x, 0, focus.z);
@@ -246,7 +262,7 @@ export class SkyRig {
       p.needsUpdate = true;
       (this.shoot.material as THREE.LineBasicMaterial).opacity = 1 - k * 0.7;
     }
-    const moonA = Math.min(1, Math.max(0, (s.night - 0.3) * 2));
+    const moonA = Math.min(1, Math.max(0, (s.night - 0.3) * 2)) * (1 - cloud);
     this.moon.visible = this.moonGlow.visible = s.night > 0.3;
     this.moon.position.set(focus.x - 60, 85, focus.z - 110);
     this.moonGlow.position.copy(this.moon.position);
@@ -256,7 +272,7 @@ export class SkyRig {
     const [sx, sy, sz] = s.sunDir;
     this.sunGlow.visible = s.night < 0.6;
     this.sunGlow.position.set(focus.x + sx * 6, sy * 6, focus.z + sz * 6 - 60);
-    this.sunGlow.material.opacity = (1 - s.night) * 0.9;
+    this.sunGlow.material.opacity = (1 - s.night) * 0.9 * (1 - cloud);
 
     glow(P.lampGlow, 1.6, 'street').emissiveIntensity = 0.3 + s.night * 1.6;
     glow(P.windowGlow, 0.5, 'window').emissiveIntensity = 0.4 + s.night * 1.4;
