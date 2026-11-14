@@ -14,6 +14,11 @@ describe('FishingRound', () => {
     expect(r.phase(r.biteAt + BITE_WINDOW_MS)).toBe('gone');
     expect(r.strike(r.biteAt + BITE_WINDOW_MS)).toBe('missed');
   });
+
+  it('never bites before notBefore (the server gap after your last catch)', () => {
+    expect(new FishingRound(1000, () => 0, 9000).biteAt).toBe(9000);
+    expect(new FishingRound(1000, () => 1, 9000).biteAt).toBe(1000 + BITE_MAX_MS);
+  });
 });
 
 describe('pickSpecies', () => {

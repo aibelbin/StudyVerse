@@ -120,6 +120,8 @@ describe('scene data', () => {
       const len = Math.hypot(cx - s.x, cz - s.z); // the bobber lands 3 m towards the middle of the lake
       const [bx, bz] = [s.x + ((cx - s.x) / len) * 3, s.z + ((cz - s.z) / len) * 3];
       expect(pointInPolygon(o, bx, bz) && !onDock(bx, bz), s.id).toBe(true);
+      // standing on a spot, no other toy's prompt reaches you (and the other way round)
+      for (const q of t.toys) if (q !== s) expect(Math.hypot(q.x - s.x, q.z - s.z), `${s.id} ${q.id}`).toBeGreaterThan(Math.max(q.radius, s.radius));
     }
     expect(spots.some((s) => onDock(s.x, s.z))).toBe(true);
   });

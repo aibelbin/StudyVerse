@@ -96,8 +96,8 @@ export interface GameHooks {
   frame(info: FrameInfo): void;
   /** Called when the scene changes. */
   enterScene(def: SceneDef, built: BuiltScene): void;
-  /** The closest catchable critter you can see within net reach. */
-  nearestCritter(x: number, z: number): { id: number; kind: LifeKind } | null;
+  /** The closest critter you can see within net reach whose kind `ok` accepts. */
+  nearestCritter(x: number, z: number, ok: (kind: LifeKind) => boolean): { id: number; kind: LifeKind } | null;
   hideCritter(id: number, ms: number): void;
 }
 
@@ -1109,25 +1109,29 @@ export class Game {
     return Math.floor(clockHours(new Date(), this.timeOverride));
   }
 
+  /** What the catch rules need to know about right now. */
+  private catchNow(hour: number): { night: boolean; raining: boolean } {
+    return { night: isNight(hour), raining: this.weather?.kind === 'rain' };
+  }
+
   /** Swing the net at a critter: it's gone for a minute and the server hears what you caught. */
   private net(id: number, kind: LifeKind): void {
     const now = performance.now();
-    if (now - this.nettedAt < BUG_GAP_MS) return;
+    if (now - this.nettedAt < BUG_GAP_MS + 250) return; // a little over the server's gap, for network jitter
     this.nettedAt = now;
     this.myChar?.swingNet(now);
     this.hooks.hideCritter(id, CRITTER_HIDE_MS);
     const hour = this.hour();
-    const species = pickSpecies(bugsOf(kind), { night: isNight(hour), raining: this.weather?.kind === 'rain' });
+    const species = pickSpecies(bugsOf(kind), this.catchNow(hour));
     if (species) this.send({ t: 'catch', kind: 'bug', species, hour });
   }
 
-  /** A critter in net reach that has a bug you could catch right now (snails only in the rain). */
+  /** The nearest critter in net reach that has a bug you could catch right now (snails only in the rain). */
   private critterTarget(): Target | null {
-    const c = this.hooks.nearestCritter(this.x, this.z);
-    const ids = c ? bugsOf(c.kind) : [];
-    const now = { night: isNight(this.hour()), raining: this.weather?.kind === 'rain' };
-    if (!c || !ids.some((id) => possible(id, now))) return null;
-    const s = SPECIES[ids[0]];
+    const now = this.catchNow(this.hour());
+    const c = this.hooks.nearestCritter(this.x, this.z, (kind) => bugsOf(kind).some((id) => possible(id, now)));
+    if (!c) return null;
+    const s = SPECIES[bugsOf(c.kind)[0]];
     return { kind: 'critter', id: c.id, critter: c.kind, prompt: `[E] catch the ${s.name} ${s.emoji}`, dist: 0 };
   }
 

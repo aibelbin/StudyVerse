@@ -67,13 +67,13 @@ export function track(c: Critter, x: number, z: number, t: number): boolean {
   return (c.shown = t >= c.hiddenUntil);
 }
 
-/** The closest shown critter within reach of (x, z). */
-export function nearestCritter(list: Critter[], x: number, z: number, reach: number): Critter | null {
+/** The closest shown critter within reach of (x, z) that `ok` accepts (one you could catch right now). */
+export function nearestCritter(list: Critter[], x: number, z: number, reach: number, ok: (kind: LifeKind) => boolean): Critter | null {
   let best: Critter | null = null;
   let bd = reach;
   for (const c of list) {
     const d = Math.hypot(c.x - x, c.z - z);
-    if (c.shown && d <= bd) [best, bd] = [c, d];
+    if (c.shown && d <= bd && ok(c.kind)) [best, bd] = [c, d];
   }
   return best;
 }

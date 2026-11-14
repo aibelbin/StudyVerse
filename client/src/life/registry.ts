@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { SceneDef } from '../../../shared/scenes/types';
+import type { LifeKind, SceneDef } from '../../../shared/scenes/types';
 import { birds, chimneySmoke, clouds, fireflies, flyers, leaves } from './air';
 import { crawlers, leafPiles } from './ground';
 import type { LifeCtx, LifeSystem } from './kit';
@@ -13,7 +13,7 @@ export function buildLife(def: SceneDef): {
   root: THREE.Group;
   update(ctx: LifeCtx): void;
   feed(x: number, z: number, t: number): void;
-  nearest(x: number, z: number, reach: number): Critter | null;
+  nearest(x: number, z: number, reach: number, ok: (kind: LifeKind) => boolean): Critter | null;
   hide(id: number, until: number): void;
 } {
   const systems: LifeSystem[] = [];
@@ -45,7 +45,7 @@ export function buildLife(def: SceneDef): {
     root,
     update: (ctx) => systems.forEach((s) => s.update(ctx)),
     feed: (x, z, t) => systems.forEach((s) => s.feed?.(x, z, t)),
-    nearest: (x, z, reach) => nearestCritter(crit, x, z, reach),
+    nearest: (x, z, reach, ok) => nearestCritter(crit, x, z, reach, ok),
     hide(id, until) {
       const c = crit.find((k) => k.id === id);
       if (c) [c.hiddenUntil, c.shown] = [until, false];

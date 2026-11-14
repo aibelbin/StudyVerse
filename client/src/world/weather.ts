@@ -21,6 +21,9 @@ export function fadeMix(m: WeatherMix, kind: WeatherKind | null, dt: number): We
 }
 
 const DROPS: Record<Quality, number> = { high: 600, lite: 250 };
+
+/** v moved by whole multiples of size into [c - size/2, c + size/2): drops stay put in the world and only wrap round as you walk. Pure. */
+export const wrapAround = (v: number, c: number, size: number): number => c - size / 2 + ((((v - c + size / 2) % size) + size) % size);
 const BOX = { w: 26, h: 12, d: 22 };
 const BANDS = ['#ff6a6a', '#ffa45a', '#ffe066', '#7ad27a', '#6ab4ff', '#7a7ae8', '#b07ad8'];
 
@@ -71,13 +74,13 @@ export class WeatherRig {
   update(m: WeatherMix, focus: { x: number; z: number }, dt: number, quality: Quality): void {
     this.drops.visible = m.rain > 0.01;
     if (this.drops.visible) {
-      this.drops.geometry.setDrawRange(0, DROPS[quality]);
-      this.drops.position.set(focus.x, 0, focus.z - 3);
+      const n = DROPS[quality];
+      this.drops.geometry.setDrawRange(0, n);
       (this.drops.material as THREE.PointsMaterial).opacity = 0.75 * m.rain;
       const a = this.drops.geometry.getAttribute('position') as THREE.BufferAttribute;
-      for (let i = 0; i < a.count; i++) {
+      for (let i = 0; i < n; i++) {
         const y = a.getY(i) - this.speed[i] * dt;
-        a.setY(i, y < 0 ? y + BOX.h : y);
+        a.setXYZ(i, wrapAround(a.getX(i), focus.x, BOX.w), y < 0 ? y + BOX.h : y, wrapAround(a.getZ(i), focus.z - 3, BOX.d));
       }
       a.needsUpdate = true;
     }

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { isNight, possible, SPECIES, SPECIES_IDS, type SpeciesId } from '../../../shared/catches';
+import { FISH_GAP_MS, isNight, possible, SPECIES, SPECIES_IDS, type SpeciesId } from '../../../shared/catches';
 import type { ClientMsg } from '../../../shared/protocol';
 import type { LifeKind } from '../../../shared/scenes/types';
 import type { SoundKind } from '../audio/kinds';
@@ -10,12 +10,13 @@ export const BITE_MIN_MS = 3000;
 export const BITE_MAX_MS = 12000;
 export const BITE_WINDOW_MS = 800;
 const CAST_M = 3;
+const TIP = new THREE.Vector3();
 
-/** One cast: wait 3–12 s for a bite, then 0.8 s to strike. Pure; times in ms. */
+/** One cast: wait 3–12 s for a bite (never before notBefore), then 0.8 s to strike. Pure; times in ms. */
 export class FishingRound {
   readonly biteAt: number;
-  constructor(castAt: number, rand: () => number = Math.random) {
-    this.biteAt = castAt + BITE_MIN_MS + rand() * (BITE_MAX_MS - BITE_MIN_MS);
+  constructor(castAt: number, rand: () => number = Math.random, notBefore = 0) {
+    this.biteAt = Math.max(notBefore, castAt + BITE_MIN_MS + rand() * (BITE_MAX_MS - BITE_MIN_MS));
   }
 
   phase(now: number): 'waiting' | 'bite' | 'gone' {
@@ -65,6 +66,8 @@ export interface FishingDeps {
 export class Fishing {
   private round: FishingRound | null = null;
   private bit = false;
+  /** When the last catch went to the server: the next bite waits out its 5 s gap. */
+  private sentAt = -1e9;
   private gear: { rod: THREE.Group; tip: THREE.Object3D; bobber: THREE.Group; line: THREE.Line } | null = null;
 
   constructor(private deps: FishingDeps) {}
@@ -97,7 +100,7 @@ export class Fishing {
     line.frustumCulled = false;
     scene.add(bobber, line);
     this.gear = { rod, tip, bobber, line };
-    this.round = new FishingRound(now);
+    this.round = new FishingRound(now, Math.random, this.sentAt + FISH_GAP_MS + 300); // + a little for network jitter
     this.bit = false;
     this.deps.sound('plop', bobber.position.x, bobber.position.z);
   }
@@ -117,7 +120,7 @@ export class Fishing {
     }
     bobber.position.y = phase === 'bite' ? -0.06 : 0.04 + Math.sin(now / 400) * 0.02;
     tip.updateWorldMatrix(true, false);
-    const a = tip.getWorldPosition(new THREE.Vector3());
+    const a = tip.getWorldPosition(TIP);
     const pos = line.geometry.attributes.position as THREE.BufferAttribute;
     pos.setXYZ(0, a.x, a.y, a.z);
     pos.setXYZ(1, bobber.position.x, bobber.position.y + 0.06, bobber.position.z);
@@ -131,7 +134,10 @@ export class Fishing {
     if (r === 'caught') {
       const hour = this.deps.hour();
       const species = pickSpecies(FISH, { night: isNight(hour), raining: this.deps.raining() });
-      if (species) this.deps.send({ t: 'catch', kind: 'fish', species, hour });
+      if (species) {
+        this.sentAt = now;
+        this.deps.send({ t: 'catch', kind: 'fish', species, hour });
+      }
     }
     if (r === 'missed') this.deps.toast('It got away…');
     this.stop();

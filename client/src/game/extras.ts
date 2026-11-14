@@ -1,5 +1,5 @@
 import { BUG_REACH } from '../../../shared/catches';
-import type { SceneDef } from '../../../shared/scenes/types';
+import type { LifeKind, SceneDef } from '../../../shared/scenes/types';
 import type { Constellation } from '../../../shared/stars';
 import { Ambience, RainLoop } from '../audio/ambience';
 import { AudioEngine } from '../audio/engine';
@@ -91,8 +91,8 @@ export class Extras implements GameHooks {
     this.life?.feed(x, z, this.lastNow);
   }
 
-  nearestCritter(x: number, z: number) {
-    return this.life?.nearest(x, z, BUG_REACH) ?? null;
+  nearestCritter(x: number, z: number, ok: (kind: LifeKind) => boolean) {
+    return this.life?.nearest(x, z, BUG_REACH, ok) ?? null;
   }
 
   hideCritter(id: number, ms: number): void {

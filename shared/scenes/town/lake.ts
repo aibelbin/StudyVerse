@@ -73,7 +73,7 @@ const lilies: Decor[] = scatter(41, 40, { x: LAKE.x, z: LAKE.z, w: LAKE.rx * 2, 
 export const lake: Parts = shift(merge(
   rowboat('boat-1', 22.6, -15.4, Math.PI),
   rowboat('boat-2', 25.4, -15.4, Math.PI),
-  simpleToy('stones', 'stones', 24, -17.4, 1.2),
+  simpleToy('stones', 'stones', 23.35, -17.6, 1.2), // the dock end's left corner; fishing has the right
   simpleToy('ducks', 'ducks', ducksSpot.x, ducksSpot.z, 1.8),
   {
     decor: [

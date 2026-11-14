@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fadeMix, FADE_S } from './weather';
+import { fadeMix, FADE_S, wrapAround } from './weather';
 
 const CLEAR = { cloud: 0, rain: 0, rainbow: 0 };
 
@@ -20,5 +20,14 @@ describe('fadeMix', () => {
   it('cloudy greys without rain; unknown weather fades to clear', () => {
     expect(fadeMix(CLEAR, 'cloudy', 99)).toEqual({ cloud: 1, rain: 0, rainbow: 0 });
     expect(fadeMix({ cloud: 1, rain: 1, rainbow: 1 }, null, 99)).toEqual(CLEAR);
+  });
+});
+
+describe('wrapAround', () => {
+  it('leaves drops inside the box alone and wraps the rest by whole box widths', () => {
+    expect(wrapAround(3, 0, 10)).toBe(3);
+    expect(wrapAround(6, 0, 10)).toBe(-4);
+    expect(wrapAround(-26, 0, 10)).toBe(4);
+    expect(wrapAround(103, 100, 10)).toBe(103);
   });
 });

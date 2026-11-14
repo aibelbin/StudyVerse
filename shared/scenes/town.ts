@@ -38,7 +38,7 @@ const gateColliders: Box[] = [{ x: 66, z: TOWN_STREET_Z - 2.6, w: 0.3, d: 0.3 }]
 
 /** Fishing spots: the dock end (beside the skipping stones) and two shore points. */
 const fishing: Toy[] = [
-  { id: 'fishing-dock', kind: 'fishing', x: 39.6, z: -37.6, radius: 1 },
+  { id: 'fishing-dock', kind: 'fishing', x: 39.65, z: -37.6, radius: 1 }, // 1.3 m from the stones, out of each other's reach
   { id: 'fishing-north', kind: 'fishing', x: 54.7, z: -32, radius: 1.2 },
   { id: 'fishing-west', kind: 'fishing', x: 21.1, z: -47.5, radius: 1.2 },
 ];

@@ -47,9 +47,14 @@ describe('nearestCritter', () => {
   it('picks the closest shown one within reach', () => {
     const near = at(0.5, 0);
     const list = [at(1, 0), near, at(0.2, 0, false), at(2, 0)];
-    expect(nearestCritter(list, 0, 0, 1.2)).toBe(near);
+    expect(nearestCritter(list, 0, 0, 1.2, () => true)).toBe(near);
   });
   it('is null when none is in reach', () => {
-    expect(nearestCritter([at(1.3, 0), at(0, 0, false)], 0, 0, 1.2)).toBeNull();
+    expect(nearestCritter([at(1.3, 0), at(0, 0, false)], 0, 0, 1.2, () => true)).toBeNull();
+  });
+  it('skips kinds you cannot catch now, so a nearer one does not hide the rest', () => {
+    const snail = { ...critters('snails', 1)[0], x: 0.1, z: 0, shown: true };
+    const bee = at(0.8, 0);
+    expect(nearestCritter([snail, bee], 0, 0, 1.2, (k) => k !== 'snails')).toBe(bee);
   });
 });
